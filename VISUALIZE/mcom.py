@@ -44,13 +44,14 @@ class mcom():
         self.flow_cnt = 0
         print蓝('[mcom.py]: log file at:' + self.starting_file)
 
-        from config import GlobalConfig as cfg
-        if cfg.recall_previous_session and prev_start is not None and self.draw_process:
-            assert prev_start==prev_end,('暂时只处理这种回溯')
-            self.starting_file = (self.path + '/mcom_buffer_%d____starting_session.txt' % prev_start)
-            self.recall(self.starting_file)
-            self.current_file_handle = open(self.starting_file, 'ab')
-        else:
+        # from config import GlobalConfig as cfg
+        # if cfg.recall_previous_session and prev_start is not None and self.draw_process:
+        #     assert prev_start==prev_end,('暂时只处理这种回溯')
+        #     self.starting_file = (self.path + '/mcom_buffer_%d____starting_session.txt' % prev_start)
+        #     self.recall(self.starting_file)
+        #     self.current_file_handle = open(self.starting_file, 'ab')
+        # else:
+        if not self.draw_mode=='Threejs':
             self.current_file_handle = open(self.starting_file, 'wb+')
         atexit.register(lambda: self.__del__())
 
@@ -95,21 +96,22 @@ class mcom():
         mcom core function: send out/write raw bytes
     '''
     def send(self, data):
-        # step 1: add to file
-        self.file_lines_cnt += 1
-        self.current_file_handle.write(data)
-        if self.rapid_flush: self.current_file_handle.flush()
-        elif self.flow_cnt>500:
-            self.current_file_handle.flush()
-            self.flow_cnt = 0
-        # step 2: check whether the file is too large, if so move on to next file.
-        if self.file_lines_cnt > self.file_max_lines:
-            end_file_flag = (b'><EndFileFlag\n')
-            self.current_file_handle.write(end_file_flag)
-            self.current_file_handle.close()
-            self.current_buffer_index += 1
-            self.current_file_handle = open((self.path + '/mcom_buffer_%d.txt' % self.current_buffer_index), 'wb+')
-            self.file_lines_cnt = 0
+        if not self.draw_mode=='Threejs':
+            # step 1: add to file
+            self.file_lines_cnt += 1
+            self.current_file_handle.write(data)
+            if self.rapid_flush: self.current_file_handle.flush()
+            elif self.flow_cnt>500:
+                self.current_file_handle.flush()
+                self.flow_cnt = 0
+            # step 2: check whether the file is too large, if so move on to next file.
+            if self.file_lines_cnt > self.file_max_lines:
+                end_file_flag = (b'><EndFileFlag\n')
+                self.current_file_handle.write(end_file_flag)
+                self.current_file_handle.close()
+                self.current_buffer_index += 1
+                self.current_file_handle = open((self.path + '/mcom_buffer_%d.txt' % self.current_buffer_index), 'wb+')
+                self.file_lines_cnt = 0
 
         # # step 3: send directive to draw process
         if self.draw_process: 
@@ -258,7 +260,6 @@ class mcom():
     exec('def title(self,*args):\n  self.other_cmd(*args)\n')
     exec('def plot3(self,*args):\n  self.other_cmd(*args)\n')
     exec('def grid(self,*args):\n  self.other_cmd(*args)\n')
-    exec('def v2dx(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
     exec('def v3dx(self,*args):\n  self.other_cmd(*args)\n')
     exec('def v2d_show(self,*args):\n  self.other_cmd(*args)\n')
     exec('def v2d_pop(self,*args):\n  self.other_cmd(*args)\n')
@@ -266,6 +267,9 @@ class mcom():
     exec('def v2d_clear(self,*args):\n  self.other_cmd(*args)\n')
     exec('def v2d_add_terrain(self,*args):\n  self.other_cmd(*args)\n')
 
+    exec('def v2dx(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
+    exec('def flash(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
+    exec('def set_style(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
 
 def find_free_index(path):
     if not os.path.exists(path): os.makedirs(path)
@@ -328,7 +332,6 @@ class tcp_server():
         t.start()
 
     def listening_thread(self):
-
 
         def handle_flag_breakdown():
             split_ = self.buff[-1].split('@end@')
@@ -432,8 +435,8 @@ class DrawProcessThreejs(Process):
 
     def init_threejs(self):
         import threading
-        # t = threading.Thread(target=self.run_flask, args=(find_free_port(),))
-        t = threading.Thread(target=self.run_flask, args=(51241,))
+        t = threading.Thread(target=self.run_flask, args=(find_free_port(),))
+        # t = threading.Thread(target=self.run_flask, args=(51241,))
         t.start()
 
     def run(self):
@@ -451,17 +454,33 @@ class DrawProcessThreejs(Process):
     def run_handler(self, new_buff_list):
         self.buffer_list.extend(new_buff_list)
         # too many, delete with fifo
-        if len(self.buffer_list) > 1e4:
+        if len(self.buffer_list) > 1e9: # 当存储的指令超过十亿后，开始删除旧的
             del self.buffer_list[:len(new_buff_list)]
 
     def run_flask(self, port):
         from flask import Flask, url_for, jsonify, request, send_from_directory, redirect
         app = Flask(__name__)
         dirname = os.path.dirname(__file__) + '/threejsmod'
+        import zlib
+
+
+
         @app.route("/up", methods=["POST"])
         def upvote():
-            buf = ''.join(self.buffer_list)
-            self.buffer_list = []
+            if len(self.buffer_list)>35000:
+                tosend = self.buffer_list[:30000]
+                self.buffer_list = self.buffer_list[30000:]
+            else:
+                tosend = self.buffer_list
+                self.buffer_list = []
+
+            # def prob(start, max):
+
+            buf = "".join(tosend)
+            buf = bytes(buf, encoding='utf8')   # [104, 101, 108, 108, 111]
+            zlib_compress = zlib.compressobj()
+            buf = zlib_compress.compress(buf) + zlib_compress.flush(zlib.Z_FINISH)
+
             return buf
         @app.route("/<path:path>")
         def static_dirx(path):

@@ -14,7 +14,7 @@ class AlgorithmConfig():
 
 class PymarlFoundation():
     def init_pymarl(self):
-        fp = open('RECYCLE/unity.log', 'w+')
+        fp = open('RECYCLE/pymarl_stdout.log', 'w+')
         import uuid, atexit
         self.remote_uuid = uuid.uuid1().hex   # use uuid to identify threads
         self.redis = redis.Redis(host='127.0.0.1', port=6379)
