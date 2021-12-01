@@ -18,6 +18,7 @@ class PymarlFoundation():
         import uuid, atexit
         self.remote_uuid = uuid.uuid1().hex   # use uuid to identify threads
         self.redis = redis.Redis(host='127.0.0.1', port=6379)
+        from config import GlobalConfig as cfg
         # self.redis.delete()
         subprocess.Popen(["python", 
             "/home/fuqingxu/pymarl2/pymarl2src/main.py", 
@@ -25,6 +26,7 @@ class PymarlFoundation():
             "--env-config=HMP_compat",
             "with",
             "batch_size_run=%d"%self.n_thread,
+            "seed=%d"%cfg.seed,
             "env_args.env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
             # "env_args.env_uuid=%s"%self.remote_uuid]) #, stdout=fp, stderr=fp)
         atexit.register(lambda: self.__del__()) # avoid redis leaking

@@ -13,7 +13,15 @@ def find_free_port():
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
 
-
+def get_host_ip(): 
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    finally:
+        s.close()
+    return ip
 class mcom():
     # as a recording programme, the design principle is:
     # Under No Circumstance should this program Interrupt the main program!
@@ -459,6 +467,8 @@ class DrawProcessThreejs(Process):
 
     def run_flask(self, port):
         from flask import Flask, url_for, jsonify, request, send_from_directory, redirect
+        from waitress import serve
+
         app = Flask(__name__)
         dirname = os.path.dirname(__file__) + '/threejsmod'
         import zlib
@@ -467,6 +477,7 @@ class DrawProcessThreejs(Process):
 
         @app.route("/up", methods=["POST"])
         def upvote():
+            # dont send too much in one POST, might overload the network traffic
             if len(self.buffer_list)>35000:
                 tosend = self.buffer_list[:30000]
                 self.buffer_list = self.buffer_list[30000:]
@@ -474,25 +485,30 @@ class DrawProcessThreejs(Process):
                 tosend = self.buffer_list
                 self.buffer_list = []
 
-            # def prob(start, max):
-
+            # use zlib to compress output command, worked out like magic
             buf = "".join(tosend)
-            buf = bytes(buf, encoding='utf8')   # [104, 101, 108, 108, 111]
+            buf = bytes(buf, encoding='utf8')   
             zlib_compress = zlib.compressobj()
             buf = zlib_compress.compress(buf) + zlib_compress.flush(zlib.Z_FINISH)
-
             return buf
+
         @app.route("/<path:path>")
         def static_dirx(path):
             if path=='favicon.ico': 
                 return app.send_static_file('%s/files/favicon.ico'%dirname)
             return send_from_directory("%s/"%dirname, path)
+
         @app.route("/")
         def main_app():
             with open('%s/examples/abc.html'%dirname, 'r', encoding = "utf-8") as f:
                 buf = f.read()
             return buf
-        app.run(host='0.0.0.0', port=port)
+        # app.run(host='0.0.0.0', port=port)
+        print('\n--------------------------------')
+        print('JS visualizer online: http://%s:%d'%(get_host_ip(), port))
+        print('--------------------------------')
+        serve(app, threads=8, ipv4=True, ipv6=True, listen='*:%d'%port)
+
     # def process_cmd(self, cmd_str):
     #     # if '>>' in cmd_str:
     #     #     cmd_str_ = cmd_str[2:].strip('\n')

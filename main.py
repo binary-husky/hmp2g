@@ -27,6 +27,7 @@ def SET_NUM_THREADS(internal_threads):
     os.environ['OMP_NUM_THREADS'] = str(internal_threads)
 SET_NUM_THREADS(1)
 
+# DO NOT edit this func
 def pytorch_gpu_init(cfg, internal_threads):
     import os, torch
     from UTILS.auto_gpu import sel_gpu
@@ -35,16 +36,13 @@ def pytorch_gpu_init(cfg, internal_threads):
     torch.manual_seed(seed)
     # e.g. device='cpu
     if not 'cuda' in device: return
-    # removing this assert can cause error?
-    assert torch.cuda.is_available()
     if 'm-cuda' in device: assert False # m-gpu is not functional yet
     if device == 'cuda': gpu_index = sel_gpu().auto_choice()
     else: # e.g. device='cuda:0'
         gpu_index = int(device.split(':')[-1])
         cfg.manual_gpu_ctl = True
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_index)
-    torch.cuda.set_device(gpu_index)
-    cfg.device = 'cuda:%d'%gpu_index
+    cfg.device = 'cuda' # remove ':x', the selected gpu is cuda:0 from now on
     torch.cuda.manual_seed(seed)
     if cfg.use_float64:
         torch.set_default_dtype(torch.float64)
@@ -59,7 +57,7 @@ if __name__ == '__main__':
     from UTILS.config_args import get_args
     from UTILS.shm_pool import SmartPool
     cfg = get_args()
-    
+
     # Set numpy seed
     numpy.random.seed(cfg.seed)
     numpy.set_printoptions(3, suppress=True)

@@ -210,8 +210,8 @@ setTimeout(coreReadFunc, 100);
 ////////////////////////////////////////////////////////////
 
 
-function addCoreObj(my_id, color_str, geometry, x, y, z, geometry_size, currentSize, label_marking){
-    const object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: color_dic[color_str] }));
+function addCoreObj(my_id, color_str, geometry, x, y, z, geometry_size, currentSize, label_marking, label_color){
+    const object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: color_str }));
     object.my_id = my_id;
     object.color_str = color_str;
     object.position.x = x; 
@@ -233,6 +233,7 @@ function addCoreObj(my_id, color_str, geometry, x, y, z, geometry_size, currentS
     object.scale.y = 1; 
     object.scale.z = 1; 
     object.label_marking = label_marking
+    object.label_color = label_color
 
     if (!init_cam){
         console.log('first')
@@ -241,19 +242,19 @@ function addCoreObj(my_id, color_str, geometry, x, y, z, geometry_size, currentS
         camera.position.set(object.position.x, geometry_size*100, object.position.z)
     }
     if (label_marking){
-        makeClearText(object, object.label_marking)
+        makeClearText(object, object.label_marking, object.label_color)
     }
     scene.add(object);
     core_Obj.push(object)
 }
 
-function makeClearText(object, text, HWRatio=10){
+function makeClearText(object, text, textcolor, HWRatio=10){
     let textTextureHeight = 512
     let textTextureWidth = 512*HWRatio
     object.dynamicTexture  = new THREEx.DynamicTexture(textTextureWidth, textTextureHeight)
     let px = 256
     object.dynamicTexture.context.font	= `bolder ${px}px Verdana`
-    object.dynamicTexture.drawText(text, 0, +80, 'black')	// text, x ,y, fillStyle（font color）, contextFont
+    object.dynamicTexture.drawText(text, 0, +80, textcolor)	// text, x ,y, fillStyle（font color）, contextFont
     const materialB = new THREE.SpriteMaterial({ map:  object.dynamicTexture.texture, depthWrite: false });
     const sprite = new THREE.Sprite(materialB);
 
@@ -270,7 +271,7 @@ function removeEntity(object) {
 }
 
 function changeCoreObjColor(object, color_str){
-    const colorjs = color_dic[color_str];
+    const colorjs = color_str;
     object.material.color.set(colorjs)
     object.color_str = color_str;
 }
@@ -327,6 +328,7 @@ function apply_update(object, parsed_obj_info){
     let color_str = parsed_obj_info['color_str']
     let size = parsed_obj_info['size']
     let label_marking = parsed_obj_info['label_marking']
+    let label_color = parsed_obj_info['label_color']
     // 已经创建了对象
     if (object) {
         object.prev_pos = Object.assign({}, object.next_pos);
@@ -338,15 +340,13 @@ function apply_update(object, parsed_obj_info){
         if (color_str != object.color_str) {
             changeCoreObjColor(object, color_str)
         }
-        // if (size != object.currentSize) {
-        // 	changeCoreObjSize(object, size)
-        // }
-        if (label_marking != object.label_marking) {
+        if (label_marking != object.label_marking || label_color !=object.label_color) {
             object.label_marking = label_marking
+            object.label_color = label_color
             if (!object.dynamicTexture) {
-                makeClearText(object, object.label_marking)
+                makeClearText(object, object.label_marking, object.label_color)
             }
-            object.dynamicTexture.clear().drawText(label_marking, 0, -30, 'black')
+            object.dynamicTexture.clear().drawText(label_marking, 0, +80, object.label_color)
         }
     }
     else {
@@ -356,8 +356,8 @@ function apply_update(object, parsed_obj_info){
         let geometry_size;
         if (size == 0) {geometry_size = 0.1} else {geometry_size = currentSize}
         let geometry = choose_geometry(type, geometry_size);
-        //function addCoreObj(my_id, color_str, geometry, x, y, z, size, label_marking){
-        addCoreObj(my_id, color_str, geometry, pos_x, pos_y, pos_z, geometry_size, currentSize, label_marking)
+        //function (my_id, color_str, geometry, x, y, z, size, label_marking){
+        addCoreObj(my_id, color_str, geometry, pos_x, pos_y, pos_z, geometry_size, currentSize, label_marking, label_color)
     }
 }
 
@@ -378,6 +378,7 @@ function parse_core_obj(str, core_Obj, parsed_frame){
     let color_str = name_split[2]
     let size = parseFloat(name_split[3])
     let label_marking = `id ${my_id}`
+    let label_color = "black"
     // find hp 
     const hp_pattern = /health=([^,)]*)/
     let hp_match_res = str.match(hp_pattern)
@@ -395,11 +396,19 @@ function parse_core_obj(str, core_Obj, parsed_frame){
     // e.g. >>v2dx('tank|12|b|0.1',-8.09016994e+00,5.87785252e+00,0,vel_dir=0,health=0,label='12',attack_range=0)
     let res;
     // use label
-    res = str.match(/label='(.*)'/)
+    res = str.match(/label='(.*?)'/)
     // console.log(res)
     if (!(res === null)){
         label_marking = res[1]
     }
+
+    res = str.match(/label_color='(.*?)'/)
+    if (!(res === null)){
+        label_color = res[1]
+    }else{
+        label_color = 'black'
+    }
+
     // find core obj by my_id
     let object = null
     for (let i = 0; i < core_Obj.length; i++) {
@@ -418,6 +427,7 @@ function parse_core_obj(str, core_Obj, parsed_frame){
     parsed_obj_info['color_str'] = color_str  
     parsed_obj_info['size'] = size  
     parsed_obj_info['label_marking'] = label_marking
+    parsed_obj_info['label_color'] = label_color
 
     apply_update(object, parsed_obj_info)
     parsed_frame.push(parsed_obj_info)
