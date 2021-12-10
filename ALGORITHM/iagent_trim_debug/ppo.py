@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
-from random import randint, sample
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from UTILS.colorful import *
 from UTILS.tensor_ops import _2tensor, _2cpu2numpy, repeat_at
@@ -12,12 +11,11 @@ from config import GlobalConfig as cfg
 from UTILS.gpu_share import gpu_share_unit
 
 class TrajPoolSampler():
-    def __init__(self, n_div, traj_pool, flag, ratio):
+    def __init__(self, n_div, traj_pool, flag):
         self.n_pieces_batch_division = n_div
         self.num_batch = None
         self.container = {}
         self.warned = False
-        self.ratio = ratio
         assert flag=='train'
         req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
         req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
@@ -54,8 +52,10 @@ class TrajPoolSampler():
         self.container[advantage_rename] = self.container[return_rename] - self.container[value_rename]
         self.container[advantage_rename] = ( self.container[advantage_rename] - self.container[advantage_rename].mean() ) / (self.container[advantage_rename].std() + 1e-5)
         # size of minibatch for each agent
-        self.mini_batch_size = math.floor(self.big_batch_size / self.n_pieces_batch_division)  
-
+        self.mini_batch_size = math.ceil(self.big_batch_size / self.n_pieces_batch_division)  
+        self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
+        self._len = len(self.sampler) # 当样本的综合确定了
+        
         # def filter_dead(container):
         #     obs = container['obs']
         #     dead_mask = ~np.isnan(my_view(obs, [0,0, -1])).all(-1)
@@ -78,14 +78,11 @@ class TrajPoolSampler():
         #     if not self.warned: print('警告：设置了最大样本数'); self.warned = True
 
     def __len__(self):
-        return self.n_pieces_batch_division
+        return self._len
 
     def reset_and_get_iter(self):
-        self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=True)
+        self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
         for indices in self.sampler:
-            if self.ratio != 1:
-                # print亮红('警告，仅抽取一部分样本，原样本数%d，现样本数%d'%(len(indices), int(len(indices)*self.ratio)))
-                indices = sample(indices, int(len(indices)*self.ratio))
             selected = {}
             for key in self.container:
                 selected[key] = self.container[key][indices]
@@ -136,6 +133,7 @@ class PPO():
         self.value_loss_coef = ppo_config.value_loss_coef
         self.entropy_coef = ppo_config.entropy_coef
         self.max_grad_norm = ppo_config.max_grad_norm
+        self.add_prob_loss = False
         self.lr = ppo_config.lr
         self.extral_train_loop = ppo_config.extral_train_loop
         self.turn_off_threat_est = ppo_config.turn_off_threat_est
@@ -169,25 +167,14 @@ class PPO():
         self.trivial_dict = {}
 
     def train_on_traj(self, traj_pool, task):
-        ratio = 1.0
-        while True:
-            try:
-                with gpu_share_unit(cfg.device, gpu_party=cfg.gpu_party):
-                    self.train_on_traj_(traj_pool, task, ratio=ratio) 
-                    # 运行到这说明显存充足
-                break
-            except RuntimeError:
-                print亮红('显存不足！ 切换小batch, ratio: %.1f'%ratio)
-                if ratio>=0.6: ratio -= 0.1
-                else: assert False, ('显存严重不足！?')
-            torch.cuda.empty_cache()
+        with gpu_share_unit(cfg.device, gpu_party=cfg.gpu_party):
+            return self.train_on_traj_(traj_pool, task)
 
-                
-    def train_on_traj_(self, traj_pool, task, ratio=1.0):
+    def train_on_traj_(self, traj_pool, task):
 
         num_updates = self.ppo_epoch * self.n_pieces_batch_division
         ppo_valid_percent_list = []
-        sampler = TrajPoolSampler(n_div=self.n_pieces_batch_division, traj_pool=traj_pool, flag=task, ratio=ratio)
+        sampler = TrajPoolSampler(n_div=self.n_pieces_batch_division, traj_pool=traj_pool, flag=task)
         n_batch = len(sampler)
         for e in range(self.ppo_epoch):
             # print亮紫('pulse')
@@ -239,7 +226,7 @@ class PPO():
             self.trivial_dict[key] = self.trivial_dict[key].mean()
             print_buf.append(' %s:%.3f, '%(key, self.trivial_dict[key]))
             if self.mcv is not None:  self.mcv.rec(self.trivial_dict[key], key)
-        if print: print紫(''.join(print_buf))
+        if print: print亮紫(''.join(print_buf))
         if self.mcv is not None:
             self.mcv.rec_show()
         self.trivial_dict = {}
@@ -280,17 +267,16 @@ class PPO():
         SAFE_LIMIT = 11
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
-        if self.turn_off_threat_est: 
-            # print('清空threat_loss')
-            threat_loss = 0
+        if self.turn_off_threat_est: threat_loss = 0
         # if n==14: est_check(x=others['threat'][filter], y=real_threat[filter])
         
         # probs_loss (should be turn off)
-        # n_actions = probs.shape[-1]
-        # penalty_prob_line = (1/n_actions)*0.12
-        # probs_loss = (penalty_prob_line - torch.clamp(probs, min=0, max=penalty_prob_line)).mean()
-        # if not self.add_prob_loss:
-        #     probs_loss = torch.zeros_like(probs_loss)
+        n_actions = probs.shape[-1]
+        if self.add_prob_loss: assert n_actions <= 15  # 
+        penalty_prob_line = (1/n_actions)*0.12
+        probs_loss = (penalty_prob_line - torch.clamp(probs, min=0, max=penalty_prob_line)).mean()
+        if not self.add_prob_loss:
+            probs_loss = torch.zeros_like(probs_loss)
 
         # dual clip ppo core
         E = newPi_actionLogProb - oldPi_actionLogProb

@@ -209,7 +209,7 @@ class Net(nn.Module):
         # ct_phi = self.CT_encode(obs)
         obs_self = get_self(obs)
         # obs = obs - obs_self
-        ct_phi = self.AT_encode(obs)    # __hash__(ct_phi) = '1ef4cf80c75f3a4d68a3c33c83059be5'
+        ct_phi = self.AT_encode(obs)
         def get_friend_enc(ct_phi, mask_dead):
             ct_phi_self = get_self(ct_phi)
             ct_phi_friend = get_friend(ct_phi)
@@ -231,11 +231,11 @@ class Net(nn.Module):
         # self.showoff(h_attn_matrix, obs_raw[:,:,:12], attn_offset=+6)
         ct_phi_self = get_self(ct_phi).squeeze(-2)
         # merge attn result
-        phi_all = torch.cat((ct_phi_self, f_enc, h_enc), -1)    #__hash__(phi_all) 'a613051af9ccc851bf8ed72d342f8d13'
-        value = self.CT_get_value(phi_all)  # 'e9a139681cb5569e6d49f0b52a6aa4a4'
+        phi_all = torch.cat((ct_phi_self, f_enc, h_enc), -1)
+        value = self.CT_get_value(phi_all)
 
         # estimate self threat
-        threat = self.CT_get_threat(phi_all) # 'fe9ae2f8c9eeb3df4904471ed04e4aa7'
+        threat = self.CT_get_threat(phi_all)
         SAFE_LIMIT = 11
         r = 1. /2. * SAFE_LIMIT
         threat = (torch.tanh_(threat/r) + 1.) * r
@@ -264,12 +264,12 @@ class Net(nn.Module):
 
             obs_focus_others_f = gather_righthand(src=get_friend(obs_),  index = attn_top_f, check=False)
             obs_focus_others_h = gather_righthand(src=get_hostile(obs_),  index = attn_top_h, check=False)
-            # __hash__(obs_focus) = 'da385436fa62f26677b5786cfd065939'
+
             obs_focus = torch.cat((get_self(obs_), obs_focus_others_f, obs_focus_others_h), dim=-2)
             if self.actor_attn_mod:
                 obs_focus = self.AT_Attention(obs_focus)
-            flat = my_view(obs_focus, [0, 0, -1]) if obs_focus.dim()==4 else my_view(obs_focus, [0, -1]) # 'da385436fa62f26677b5786cfd065939'
-            logits = self.AT_get_logit_db(flat) # '07a8400581e7873425b11c294cab2081'
+            flat = my_view(obs_focus, [0, 0, -1]) if obs_focus.dim()==4 else my_view(obs_focus, [0, -1])
+            logits = self.AT_get_logit_db(flat)
         else:
             assert False
             logits = self.AT_get_logit_db(my_view(obs_, [0, 0, -1]) )

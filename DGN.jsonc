@@ -1,0 +1,49 @@
+{
+    "config.py->GlobalConfig": {
+        "note": "DGN",
+        "env_name":"collective_assult",
+        "env_path":"MISSIONS.collective_assult",
+        "draw_mode": "Img",
+        "num_threads": "64",
+        "report_reward_interval": "64",
+        "test_interval": "2048",
+        "device": "cuda:3",
+        "gpu_party": "Cuda3-Party0",
+        "fold": "1",
+        "seed": 9992,
+        "backup_files":[
+            "ALGORITHM/hmp_ak_iagent/net.py",
+            "ALGORITHM/hmp_ak_iagent/ppo.py",
+            "ALGORITHM/hmp_ak_iagent/trajectory.py",
+        ]
+
+    },
+
+    "MISSIONS.collective_assult.collective_assult_parallel_run.py->ScenarioConfig": {
+        "size": "5",
+        "random_jam_prob": 0.1,
+        "introduce_terrain":"True",
+        "terrain_parameters": [0.05, 0.2],
+        "num_steps": "180",
+        "render":"False",
+        "render_with_unity":"False",
+        "MCOM_DEBUG":"False",
+        "render_ip_with_unity": "cn-cd-dx-1.natfrp.cloud:55861",
+        "half_death_reward": "True",
+        "TEAM_NAMES": [
+            "ALGORITHM.hmp_ak_iagent.foundation->ReinforceAlgorithmFoundation"
+        ]
+    },
+
+    "ALGORITHM.hmp_ak_iagent.foundation.py->AlgorithmConfig": {
+        "actor_attn_mod": "True",
+        "train_traj_needed": "64",
+        "ppo_epoch": 24,
+        "lr": 5e-4,
+        "add_prob_loss": "False",
+        "load_checkpoint": "False",
+        "seperate_critic": "True", 
+        "agent_wise_attention": "False"
+    }
+}
+
