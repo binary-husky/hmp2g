@@ -638,7 +638,7 @@ function init() {
     });
     window.glb.BarFolder.open();
 
-    
+
     
     // window.glb.terrain_mesh.scale.y = 50.0;
     // this.mesh.position.x = this.width / 2;
@@ -706,6 +706,19 @@ function parse_style(str){
     let style = re_res[1]
     if(style=="terrain"){
         console.log('use set_env')
+    }
+    else if (style=="grid3d"){
+        let gridXZ = new THREE.GridHelper(160, 10, 0xEED5B7, 0xEED5B7);
+        gridXZ.position.set(80,0,80);
+        window.glb.scene.add(gridXZ);
+        let gridXY = new THREE.GridHelper(160, 10, 0xEED5B7, 0xEED5B7);
+        gridXY.position.set(80,80,0);
+        gridXY.rotation.x = Math.PI/2;
+        window.glb.scene.add(gridXY);
+        let gridYZ = new THREE.GridHelper(160, 10, 0xEED5B7, 0xEED5B7);
+        gridYZ.position.set(0,80,80);
+        gridYZ.rotation.z = Math.PI/2;
+        window.glb.scene.add(gridYZ);
     }
     else if (style=="grid"){
         window.glb.scene.children.filter(function (x){return (x.type == 'GridHelper')}).forEach(function(x){

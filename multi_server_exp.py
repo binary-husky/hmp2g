@@ -1,5 +1,6 @@
 
 # ubuntu command to kill process: kill -9 $(ps -ef | grep fuqingxu|grep python | grep -v grep | awk '{print $ 2}')
+# ubuntu command to kill process: kill -9 $(ps -ef | grep fuqingxu | grep StarCraft | grep -v grep | awk '{print $ 2}')
 
 n_run = 4
 n_run_mode = [

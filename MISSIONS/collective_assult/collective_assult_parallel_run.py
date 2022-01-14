@@ -452,9 +452,8 @@ class collective_assultGlobalEnv(gym.Env):
             # self.threejs_bridge.set_style('star')
             # self.threejs_bridge.set_style('grid')
             self.threejs_bridge.set_style('gray')
-            self.threejs_bridge.use_geometry('monkey')
-            self.threejs_bridge.geometry_rotate_scale_translate('monkey',0, 0,       np.pi/2, 1, 1, 1,         0,0,0)
-            self.threejs_bridge.geometry_rotate_scale_translate('box',   0, 0,       0,       3, 2, 1,         0,0,0)
+
+            self.threejs_bridge.geometry_rotate_scale_translate('box',   0, 0,       0,       3, 2, 1,         0, 0, 0)
             self.threejs_bridge.geometry_rotate_scale_translate('cone',  0, np.pi/2, 0,       1.2, 0.9, 0.9,   1.5,0,0.5) # x -> y -> z
             self.threejs_bridge.terrain_theta=0
         if self.threejs_bridge.terrain_theta != self.world.init_theta:
