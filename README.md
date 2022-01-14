@@ -1,27 +1,64 @@
-Author: Fu Qingxu,CASIA
-running
+Author: Fu Qingxu, CASIA
+# Introduction
+Hybrid Multi-agent Playground (HMP) is an experimental framework designed for RL researchers.
+Unlike any other framework which only isolates the TASKs from the framework, 
+HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
 
-## <1-1> all default: testing
-git pull && python main.py -c ZHECKPOINT/50vs50-eval/test.json
-git pull && python main.py -c ZHECKPOINT/100vs100-eval/test.json  # old alg version
+Any algorithm, from the most straightforward script AI to sophisticated RL learner,
+is abstracted into a module inside ./ALGORITHM/*.
 
-## <1-2> all default: training 
-git pull && python main.py -c train.json
+We also put effect to interface all kinds of multi-agent environments,
+including gym, SMAC, air combat, et.al.
+
+Other frameworks such as pymarl2 can interface with HMP as well.
+The entire HMP can disguise as an RL environment in pymarl2.
+We make it happen by building a particular ALGORITHM module, which
+runs pymarl2 in a subprocess. This work is ongoing and has not been finished yet.
+
+The root rep url is ```https://gitee.com/hh505030475/hmp-2g.git```,
+we also have a github rep which is a mirror of this gitee rep. 
+# Demo
+```
+http://home.fuqingxu.top:11601/     (ipv6 network only, can't afford a stable ipv4 address)
+http://linux.ipv4.fuqingxu.top:11601/     (temporary ipv4)
+```
+
+# Quick Start
+
+## 0. dependency
+We use docker to solve dependency: 
+[SetupDocker](./SetupDocker.md)
 
 
+## 1. all default: testing
+```
+git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
+git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
+```
+When the testing starts, open revealed url for monitoring. The front end is done by JavaScript and ThreeJS.
+```
+--------------------------------
+JS visualizer online: http://172.18.116.150:????
+JS visualizer online (localhost): http://localhost:????
+--------------------------------
+```
+## 2. all default: training
 
-## <2> change settings
+```
+git pull && python main.py -c example.jsonc
+```
+
+
+## 3. change settings
 
 launch with: 
+```
 python main.py --cfg xx.json
+```
 
-
-python main.py -c ZHECKPOINT/50vs50-eval/test.json
-git pull && python main.py -c ZHECKPOINT/10
-
-## <3> project road map
+# Project Roadmap
 If you are interested in something, you may continue to read:
-
+```
     Handling parallel environment             -->   task_runner.py & shm_env.py
 
     Link between teams and diverse algorithms -->   multi_team.py
@@ -45,3 +82,10 @@ If you are interested in something, you may continue to read:
     matlab logging/plotting bridge            -->   mcom.py & mcom_rec.py
 
     experiment batch executor                 -->   mprofile.py
+```
+
+# Papers Supported by HMP
+
+```
+<1> Qingxu, F.; Tenghai, Q.; Jianqiang, Y.; Zhiqiang, Q.; and Shiguang, W. 2022. Concentration Network for Reinforcement Learning of Large-Scale Multi-Agent Systems. In Proceedings of the AAAI Conference on Artificial Intelligence
+```

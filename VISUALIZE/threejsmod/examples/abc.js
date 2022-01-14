@@ -2,34 +2,36 @@
 import Stats from '/examples/jsm/libs/stats.module.js';
 import { GUI } from '/examples/jsm/libs/dat.gui.module.js';
 import { LightningStrike } from '/examples/jsm/geometries/LightningStrike.js';
-
-// import { FlyControls } from '/examples/jsm/controls/FlyControls.js';
 import { OrbitControls } from '/examples/jsm/controls/OrbitControls.js';
+
+window.glb = Object()
+
+window.glb.clock = new THREE.Clock();
+window.glb.scene = null;
+window.glb.buf_storage = ''
+window.glb.BarFolder=null;
+window.glb.camera=null;
 let container, stats;
-var camera, renderer;
-var controls;
-var scene;
-// let theta = 0;
-// const radius = 100;
-const clock = new THREE.Clock();
+var renderer;
+window.glb.controls=null;
+// var window.glb.scene;
 // 历史轨迹
-var buf_storage = ''
-var core_L = [];
-var core_Obj = [];
-var flash_Obj = [];
+window.glb.core_L = [];
+window.glb.parsed_core_L = []
+window.glb.core_Obj = [];
+window.glb.flash_Obj = [];
+window.glb.base_geometry = {};
 // global vars
 var play_fps = 10;
 var dt_since = 0;
 var dt_threshold = 1 / play_fps;
 var play_pointer = 0;
 var buf_str = '';
-var init_cam = false;
 var DEBUG = false;
 var transfer_ongoing = false;
 // GUI
 var request=null;
 var req_interval=2.0;
-var BarFolder;
 let panelSettings = {
         'play fps':play_fps,
         'play pointer':0,
@@ -95,65 +97,9 @@ var rayParams_beam = {
     straightness: 1.0
 };
 
-function toUint8Arr(str) {
-    const buffer = [];
-    for (let i = 0; i < str.length; i++) {
-        buffer.push(str.charCodeAt(i)&0xff);
-    }
-    return Uint8Array.from(buffer);
-}
-
-function core_update(buf) {
-    const EOFF = '>>v2d_show()\n'
-    const EOFX = '>>v2d_init()\n'
-    let tmp = buf.split(EOFF);
-
-    // filter empty
-    tmp = tmp.filter(function (s) {
-        return s&&s.trim(); // '' --> exclude,  false--> exclude, true --> include
-    });
-    if (tmp.length==0){return 0;}
 
 
-    if (buf_storage){
-        tmp[0] = buf_storage + tmp[0]
-    }
-    buf_storage = ''
-    if (!buf.endsWith(EOFF)){
-        buf_storage = tmp.pop()
-    }
-    // if (tmp.length==0){return 0;}
-    //check EOFX
-    let eofx_i = -1;
-    for (let i = 0; i < tmp.length; i++) {
-        if (tmp[i].indexOf(EOFX) != -1){
-            eofx_i = i
-        }
-    }
-    if (eofx_i>=0){
-        alert('new session detected')
-        core_L = []
-        parsed_core_L = []
-        for (let i = core_Obj.length-1; i>=0; i--) {
-            scene.remove(core_Obj[i]);
-        }
-        core_Obj = []
-        tmp.splice(0, eofx_i);
-    }
-    //
-    core_L = core_L.concat(tmp);
-    if (core_L.length>1e8){
-        core_L.splice(0, tmp.length);
-        play_pointer = play_pointer - tmp.length;
-        if (play_pointer<0){
-            play_pointer=0;
-        }
-    }
-    BarFolder.__controllers[0].max(core_L.length);
-    return tmp.length;
-}
-
-////////////////////////////////////////////////
+//////////////////////main read function//////////////////////////
 var coreReadFunc = function (auto_next=true) {
     if (transfer_ongoing){
         console.log('ongoing')
@@ -210,167 +156,54 @@ setTimeout(coreReadFunc, 100);
 ////////////////////////////////////////////////////////////
 
 
-function addCoreObj(my_id, color_str, geometry, x, y, z, geometry_size, currentSize, label_marking, label_color){
-    const object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: color_str }));
-    object.my_id = my_id;
-    object.color_str = color_str;
-    object.position.x = x; 
-    object.position.y = y; 
-    object.position.z = z; 
-    object.next_pos = Object.create(object.position);
-    object.prev_pos = Object.create(object.position);
-    
-    object.rotation.x = 0;  
-    object.rotation.y = 0;  
-    object.rotation.z = 0;  
-    object.initialSize = geometry_size
-    object.currentSize = currentSize
-    object.generalSize = geometry_size
-    object.prev_size = currentSize
-    object.next_size = currentSize
-
-    object.scale.x = 1; 
-    object.scale.y = 1; 
-    object.scale.z = 1; 
-    object.label_marking = label_marking
-    object.label_color = label_color
-
-    if (!init_cam){
-        console.log('first')
-        init_cam=true;
-        controls.target.set(object.position.x, -geometry_size, object.position.z); // 旋转的焦点在哪0,0,0即原点
-        camera.position.set(object.position.x, geometry_size*100, object.position.z)
-    }
-    if (label_marking){
-        makeClearText(object, object.label_marking, object.label_color)
-    }
-    scene.add(object);
-    core_Obj.push(object)
-}
-
-function makeClearText(object, text, textcolor, HWRatio=10){
-    let textTextureHeight = 512
-    let textTextureWidth = 512*HWRatio
-    object.dynamicTexture  = new THREEx.DynamicTexture(textTextureWidth, textTextureHeight)
-    let px = 256
-    object.dynamicTexture.context.font	= `bolder ${px}px Verdana`
-    object.dynamicTexture.drawText(text, 0, +80, textcolor)	// text, x ,y, fillStyle（font color）, contextFont
-    const materialB = new THREE.SpriteMaterial({ map:  object.dynamicTexture.texture, depthWrite: false });
-    const sprite = new THREE.Sprite(materialB);
-
-    sprite.scale.x = 17* object.generalSize
-    sprite.scale.y = 17* object.generalSize/HWRatio
-    sprite.scale.z = 17* object.generalSize
-    sprite.position.set(object.generalSize, object.generalSize, -object.generalSize);
-    object.add(sprite)
-}
-
 function removeEntity(object) {
-    var selectedObject = scene.getObjectByName(object.name);
-    scene.remove(selectedObject);
+    var selectedObject = window.glb.scene.getObjectByName(object.name);
+    window.glb.scene.remove(selectedObject);
 }
 
-function changeCoreObjColor(object, color_str){
-    const colorjs = color_str;
-    object.material.color.set(colorjs)
-    object.color_str = color_str;
-}
 
-function changeCoreObjSize(object, size){
-    let ratio_ = (size/object.initialSize)
-    // console.log(size+'---'+object.initialSize+'---'+ratio_)
-    // console.log(object.scale)
-    object.scale.x = ratio_
-    object.scale.y = ratio_
-    object.scale.z = ratio_
-    // console.log(object.scale)
-    object.currentSize = size
-}
-var parsed_core_L = []
+
 function parse_update_without_re(play_pointer){
-    let parsed_frame = parsed_core_L[play_pointer]
+    let parsed_frame = window.glb.parsed_core_L[play_pointer]
     for (let i = 0; i < parsed_frame.length; i++) {
         let parsed_obj_info = parsed_frame[i]
         let my_id = parsed_obj_info['my_id']
         // find core obj by my_id
-        let object = null
-        for (let i = 0; i < core_Obj.length; i++) {
-            if (core_Obj[i].my_id == my_id) {
-                object = core_Obj[i];
-                break;
-            }
-        }
+        
+        let object = find_obj_by_id(my_id)
+
         apply_update(object, parsed_obj_info)
     }
 }
 
 
 
-function choose_geometry(type, geometry_size){
-    if (type=='tank' || type=='box'){
-        return new THREE.BoxGeometry(geometry_size, geometry_size, geometry_size);
-    }else if(type=='sphe' || type=='ball'){
-        return new THREE.SphereGeometry(geometry_size);
-    }else if(type=='cone'){
-        return new THREE.ConeGeometry(geometry_size, 2*geometry_size);
-    }else{
-        return new THREE.SphereGeometry(geometry_size); // default
-    }
-}
 
-function apply_update(object, parsed_obj_info){
-    let name = parsed_obj_info['name']
-    let pos_x = parsed_obj_info['pos_x']
-    let pos_y = parsed_obj_info['pos_y']
-    let pos_z = parsed_obj_info['pos_z']
-    let type = parsed_obj_info['type']
-    let my_id = parsed_obj_info['my_id']
-    let color_str = parsed_obj_info['color_str']
-    let size = parsed_obj_info['size']
-    let label_marking = parsed_obj_info['label_marking']
-    let label_color = parsed_obj_info['label_color']
-    // 已经创建了对象
-    if (object) {
-        object.prev_pos = Object.assign({}, object.next_pos);
-        object.prev_size = object.next_size;
-        object.next_pos.x = pos_x; // -400 ~ 400
-        object.next_pos.y = pos_y; // -400 ~ 400
-        object.next_pos.z = pos_z; // -400 ~ 400
-        object.next_size = size; // -400 ~ 400
-        if (color_str != object.color_str) {
-            changeCoreObjColor(object, color_str)
-        }
-        if (label_marking != object.label_marking || label_color !=object.label_color) {
-            object.label_marking = label_marking
-            object.label_color = label_color
-            if (!object.dynamicTexture) {
-                makeClearText(object, object.label_marking, object.label_color)
-            }
-            object.dynamicTexture.clear().drawText(label_marking, 0, +80, object.label_color)
-        }
-    }
-    else {
-        // create obj
-        let currentSize = size;
-        // geometry_size should never be 0
-        let geometry_size;
-        if (size == 0) {geometry_size = 0.1} else {geometry_size = currentSize}
-        let geometry = choose_geometry(type, geometry_size);
-        //function (my_id, color_str, geometry, x, y, z, size, label_marking){
-        addCoreObj(my_id, color_str, geometry, pos_x, pos_y, pos_z, geometry_size, currentSize, label_marking, label_color)
-    }
-}
 
-function parse_core_obj(str, core_Obj, parsed_frame){
+
+function parse_core_obj(str, parsed_frame){
     // ">>v2dx(x, y, dir, xxx)"
     // each_line[i].replace('>>v2dx(')
+    // ">>v2dx('ball|8|blue|0.05',1.98948879e+00,-3.15929300e+00,-4.37260984e-01,ro_x=0,ro_y=0,ro_z=2.10134351e+00,label='',label_color='white',attack_range=0)"
     const pattern = />>v2dx\('(.*)',([^,]*),([^,]*),([^,]*),(.*)\)/
     let match_res = str.match(pattern)
     let name = match_res[1]
-    // z --> y, y --- z
+
     let pos_x = parseFloat(match_res[2])
+    // z --> y, y --- z reverse z axis and y axis
     let pos_y = parseFloat(match_res[4])
-    let pos_z = parseFloat(match_res[3])
+    // z --> y, y --- z reverse z axis and y axis
+    let pos_z = -parseFloat(match_res[3])
+
+    let ro_x_RE = str.match(/ro_x=([^,)]*)/);
+    let ro_x = (!(ro_x_RE === null))?parseFloat(ro_x_RE[1]):0;
+    // z --> y, y --- z reverse z axis and y axis
+    let ro_z_RE = str.match(/ro_z=([^,)]*)/);
+    let ro_y = (!(ro_z_RE === null))?parseFloat(ro_z_RE[1]):0;
+    // z --> y, y --- z reverse z axis and y axis
+    let ro_y_RE = str.match(/ro_y=([^,)]*)/);
+    let ro_z = (!(ro_y_RE === null))?-parseFloat(ro_y_RE[1]):0;
+
     // pattern.test(str)
     let name_split = name.split('|')
     let type = name_split[0]
@@ -410,18 +243,17 @@ function parse_core_obj(str, core_Obj, parsed_frame){
     }
 
     // find core obj by my_id
-    let object = null
-    for (let i = 0; i < core_Obj.length; i++) {
-        if (core_Obj[i].my_id == my_id) {
-            object = core_Obj[i];
-            break;
-        }
-    }
+    let object = find_obj_by_id(my_id)
     let parsed_obj_info = {} 
     parsed_obj_info['name'] = name  
     parsed_obj_info['pos_x'] = pos_x  
-    parsed_obj_info['pos_y'] = pos_y  
-    parsed_obj_info['pos_z'] = pos_z  
+    parsed_obj_info['pos_y'] = pos_y
+    parsed_obj_info['pos_z'] = pos_z
+
+    parsed_obj_info['ro_x'] = ro_x  
+    parsed_obj_info['ro_y'] = ro_y
+    parsed_obj_info['ro_z'] = ro_z
+
     parsed_obj_info['type'] = type  
     parsed_obj_info['my_id'] = my_id  
     parsed_obj_info['color_str'] = color_str  
@@ -434,9 +266,9 @@ function parse_core_obj(str, core_Obj, parsed_frame){
 }
 
 
-function parse_flash(str, flash_Obj){
-    //E.g. >>flash('lightning',src=0.00000000e+00,dst=1.00000000e+01,dur=1.00000000e+00)
-    let re_type = />>flash\('(.*)'/
+function parse_flash(str){
+    //E.g. >>flash('lightning',src=0.00000000e+00,dst=1.00000000e+01,dur=1.00000000e+00,color='red')
+    let re_type = />>flash\('(.*?)'/
     let re_res = str.match(re_type)
     let type = re_res[1]
     // src
@@ -455,20 +287,24 @@ function parse_flash(str, flash_Obj){
     let re_size = /size=([^,)]*)/
     re_res = str.match(re_size)
     let size = parseFloat(re_res[1])
-    make_flash(type, src, dst, dur, size, flash_Obj)
+    // color
+    let re_color = /color='(.*?)'/
+    re_res = str.match(re_color)
+    let color = re_res[1]
+    make_flash(type, src, dst, dur, size, color)
 }
 
 
 function find_obj_by_id(my_id){
-    for (let i = 0; i < core_Obj.length; i++) {
-        if (core_Obj[i].my_id == my_id) {
-            return core_Obj[i];
+    for (let i = 0; i < window.glb.core_Obj.length; i++) {
+        if (window.glb.core_Obj[i].my_id == my_id) {
+            return window.glb.core_Obj[i];
         }
     }
     return null
 }
 
-function make_flash(type, src, dst, dur, size, flash_Obj){
+function make_flash(type, src, dst, dur, size, color){
     if (type=='lightning'){
         let rayParams_new = Object.create(rayParams_lightning);
         rayParams_new.sourceOffset =  find_obj_by_id(src).position;
@@ -476,12 +312,12 @@ function make_flash(type, src, dst, dur, size, flash_Obj){
         rayParams_new.radius0 = size
         rayParams_new.radius1 = size/4.0
         if (isNaN(find_obj_by_id(src).position.x) || isNaN(find_obj_by_id(src).position.y)){return}
-        let lightningColor = new THREE.Color( 0xFFB0FF );
+        // let lightningColor = new THREE.Color( 0xFFB0FF );
         let lightningStrike = new LightningStrike( rayParams_new );
-        let lightningMaterial = new THREE.MeshBasicMaterial( { color: lightningColor } );
+        let lightningMaterial = new THREE.MeshBasicMaterial( { color: color } );
         let lightningStrikeMesh = new THREE.Mesh( lightningStrike, lightningMaterial );
-        scene.add( lightningStrikeMesh );
-        flash_Obj.push({
+        window.glb.scene.add( lightningStrikeMesh );
+        window.glb.flash_Obj.push({
             'create_time':new Date(),
             'dur':dur,
             'valid':true,
@@ -495,12 +331,12 @@ function make_flash(type, src, dst, dur, size, flash_Obj){
         rayParams_new.radius0 = size
         rayParams_new.radius1 = size/4.0
         if (isNaN(find_obj_by_id(src).position.x) || isNaN(find_obj_by_id(src).position.y)){return}
-        let lightningColor = new THREE.Color( 0xFFB0FF );
+        // let lightningColor = new THREE.Color( 0xFFB0FF );
         let lightningStrike = new LightningStrike( rayParams_new );
-        let lightningMaterial = new THREE.MeshBasicMaterial( { color: lightningColor } );
+        let lightningMaterial = new THREE.MeshBasicMaterial( { color: color } );
         let lightningStrikeMesh = new THREE.Mesh( lightningStrike, lightningMaterial );
-        scene.add( lightningStrikeMesh );
-        flash_Obj.push({
+        window.glb.scene.add( lightningStrikeMesh );
+        window.glb.flash_Obj.push({
             'create_time':new Date(),
             'dur':dur,
             'valid':true,
@@ -514,17 +350,17 @@ let currentTime = 0;
 function check_flash_life_cyc(delta_time){
     // delta_time: seconds
     currentTime += delta_time
-    for (let i = flash_Obj.length-1; i>=0; i--) {
+    for (let i = window.glb.flash_Obj.length-1; i>=0; i--) {
         let nowTime = new Date();
-        let dTime = nowTime - flash_Obj[i]['create_time']   // 相差的毫秒数
-        if (dTime>=flash_Obj[i]['dur']*1000){
-            flash_Obj[i]['valid'] = false;
-            scene.remove(flash_Obj[i]['mesh']);
+        let dTime = nowTime - window.glb.flash_Obj[i]['create_time']   // 相差的毫秒数
+        if (dTime>=window.glb.flash_Obj[i]['dur']*1000){
+            window.glb.flash_Obj[i]['valid'] = false;
+            window.glb.scene.remove(window.glb.flash_Obj[i]['mesh']);
         }
     }
-    flash_Obj = flash_Obj.filter(function (s) {return s['valid'];});
-    for (let i = flash_Obj.length-1; i>=0; i--) {
-        flash_Obj[i]['update_target'].update(currentTime)
+    window.glb.flash_Obj = window.glb.flash_Obj.filter(function (s) {return s['valid'];});
+    for (let i = window.glb.flash_Obj.length-1; i>=0; i--) {
+        window.glb.flash_Obj[i]['update_target'].update(currentTime)
     }
 }
 
@@ -535,10 +371,10 @@ function parse_update_core(buf_str, play_pointer) {
         var str = each_line[i]
         if (str.search(">>v2dx") != -1) {
             // name, xpos, ypos, zpos, dir=0, **kargs
-            parse_core_obj(str, core_Obj, parsed_frame)
+            parse_core_obj(str, parsed_frame)
         }
     }
-    parsed_core_L[play_pointer] = parsed_frame
+    window.glb.parsed_core_L[play_pointer] = parsed_frame
 }
 
 function parse_update_flash(buf_str, play_pointer) {
@@ -546,74 +382,173 @@ function parse_update_flash(buf_str, play_pointer) {
     for (let i = 0; i < each_line.length; i++) {
         var str = each_line[i]
         if(str.search(">>flash") != -1){
-            parse_flash(str, flash_Obj)
+            parse_flash(str)
         }
     }
 }
 
-function parse_update_style(buf_str, play_pointer) {
+
+function geo_transform(geometry, ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, trans_x, trans_y, trans_z){
+    geometry.rotateX(ro_x);
+    geometry.rotateY(ro_y);
+    geometry.rotateZ(ro_z);
+    geometry.scale(scale_x,scale_y,scale_z)
+    geometry.translate(trans_x, trans_y, trans_z)
+    return geometry
+}
+function parse_geometry(str){
+    const pattern = />>geometry_rotate_scale_translate\('(.*)',([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)(.*)\)/
+    let match_res = str.match(pattern)
+    let name = match_res[1]
+    let ro_x = parseFloat(match_res[2])
+    // z --> y, y --- z reverse z axis and y axis
+    let ro_y = parseFloat(match_res[4])
+    // z --> y, y --- z reverse z axis and y axis
+    let ro_z = -parseFloat(match_res[3])
+
+    let scale_x = parseFloat(match_res[5])
+    // z --> y, y --- z reverse z axis and y axis
+    let scale_y = parseFloat(match_res[7])
+    // z --> y, y --- z reverse z axis and y axis
+    let scale_z = parseFloat(match_res[6])
+
+    let trans_x = parseFloat(match_res[8])
+    // z --> y, y --- z reverse z axis and y axis
+    let trans_y = parseFloat(match_res[10])
+    // z --> y, y --- z reverse z axis and y axis
+    let trans_z = -parseFloat(match_res[9])
+
+
+    let lib = {
+        'monkey':'examples/models/json/suzanne_buffergeometry.json'
+    }
+    let path = lib[name]
+
+    // load geo
+    if (window.glb.base_geometry[name]==null){
+        window.glb.base_geometry[name] = null;
+        // very basic shapes
+        if (name=='box'){
+            window.glb.base_geometry[name] = new THREE.BoxGeometry(1, 1, 1);
+            window.glb.base_geometry[name] = geo_transform(window.glb.base_geometry[name], ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, trans_x, trans_y, trans_z);
+        }else if(name=='sphe' || name=='ball'){
+            window.glb.base_geometry[name] = new THREE.SphereGeometry(1);
+            window.glb.base_geometry[name] = geo_transform(window.glb.base_geometry[name], ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, trans_x, trans_y, trans_z);
+        }else if(name=='cone'){
+            window.glb.base_geometry[name] = new THREE.ConeGeometry(1, 2*1);
+            window.glb.base_geometry[name] = geo_transform(window.glb.base_geometry[name], ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, trans_x, trans_y, trans_z);
+        }else{
+        // other shapes in lib
+            const loader = new THREE.BufferGeometryLoader();
+            loader.load(path, function (geometry) {
+                geometry.computeVertexNormals();
+                window.glb.base_geometry[name] = geo_transform(geometry, ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, trans_x, trans_y, trans_z);
+            });
+        }
+    }else{
+        window.glb.base_geometry[name] = geo_transform(window.glb.base_geometry[name], ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, trans_x, trans_y, trans_z);
+    }
+
+}
+
+function parse_update_env(buf_str, play_pointer) {
     let each_line = buf_str.split('\n')
     for (let i = 0; i < each_line.length; i++) {
-        var str = each_line[i]
+        let str = each_line[i]
+        if(str.search(">>set_env") != -1){
+            parse_env(str)
+        }
+    }
+}
+
+function parse_init(buf_str, play_pointer) {
+    let each_line = buf_str.split('\n')
+    for (let i = 0; i < each_line.length; i++) {
+        let str = each_line[i]
         if(str.search(">>set_style") != -1){
             parse_style(str)
+        }
+        if(str.search(">>geometry_rotate_scale_translate") != -1){
+            parse_geometry(str)
         }
     }
 }
 
 function parse_time_step(play_pointer){
-    if(parsed_core_L[play_pointer]) {
-        buf_str = core_L[play_pointer]
+    if(window.glb.parsed_core_L[play_pointer]) {
+        buf_str = window.glb.core_L[play_pointer]
+        parse_update_env(buf_str, play_pointer)
         parse_update_without_re(play_pointer)
         parse_update_flash(buf_str, play_pointer)
     }else{
-        buf_str = core_L[play_pointer]
+        buf_str = window.glb.core_L[play_pointer]
+        parse_init(buf_str, play_pointer)
+        parse_update_env(buf_str, play_pointer)
         parse_update_core(buf_str, play_pointer)
         parse_update_flash(buf_str, play_pointer)
-        parse_update_style(buf_str, play_pointer)
     }
+}
+
+
+// warning: python mod operator is different from js mod operator
+function reg_rad(rad){
+    let a = (rad + Math.PI) 
+    let b = (2 * Math.PI)
+
+    return ((a%b)+b) % b - Math.PI
+}
+
+function reg_rad_at(rad, ref){
+    return reg_rad(rad-ref) + ref
 }
 
 // ConeGeometry 锥体， radius — 圆锥底部的半径，默认值为1。height — 圆锥的高度，默认值为1。，
 // CylinderGeometry 圆柱体 radiusTop — 圆柱的顶部半径，默认值是1。 radiusBottom — 圆柱的底部半径，默认值是1。 height — 圆柱的高度，默认值是1。
 // SphereGeometry 球体 radius — 球体半径，默认为1
+
+function change_position_rotation_size(object, percent){
+    object.position.x = object.prev_pos.x * (1 - percent) + object.next_pos.x * percent
+    object.position.y = object.prev_pos.y * (1 - percent) + object.next_pos.y * percent
+    object.position.z = object.prev_pos.z * (1 - percent) + object.next_pos.z * percent
+
+    let reg__next_ro_x = reg_rad_at(object.next_ro.x, object.prev_ro.x)
+    let reg__next_ro_y = reg_rad_at(object.next_ro.y, object.prev_ro.y)
+    let reg__next_ro_z = reg_rad_at(object.next_ro.z, object.prev_ro.z)
+    object.rotation.x = object.prev_ro.x * (1 - percent) + reg__next_ro_x * percent
+    object.rotation.y = object.prev_ro.y * (1 - percent) + reg__next_ro_y * percent
+    object.rotation.z = object.prev_ro.z * (1 - percent) + reg__next_ro_z * percent
+
+    let size = object.prev_size * (1 - percent)  + object.next_size * percent
+    changeCoreObjSize(object, size)
+}
 function force_move_all(play_pointer){
     parse_time_step(play_pointer)
-    for (let i = 0; i < core_Obj.length; i++) {
-        let object = core_Obj[i]
-        object.prev_pos.x = object.next_pos.x
-        object.prev_pos.y = object.next_pos.y
-        object.prev_pos.z = object.next_pos.z
-        object.position.x = object.prev_pos.x * (1 - percent) + object.next_pos.x * percent
-        object.position.y = object.prev_pos.y * (1 - percent) + object.next_pos.y * percent
-        object.position.z = object.prev_pos.z * (1 - percent) + object.next_pos.z * percent
-        let size = object.prev_size * (1 - percent)  + object.next_size * percent
-        changeCoreObjSize(object, size)
+    for (let i = 0; i < window.glb.core_Obj.length; i++) {
+        let object = window.glb.core_Obj[i]
+        object.prev_pos.x = object.next_pos.x; object.prev_pos.y = object.next_pos.y; object.prev_pos.z = object.next_pos.z
+        object.prev_ro.x = object.next_ro.x; object.prev_ro.y = object.next_ro.y; object.prev_ro.z = object.next_ro.z
+        change_position_rotation_size(object, 1)
     }	
 }
 function move_to_future(percent) {
-    for (let i = 0; i < core_Obj.length; i++) {
-        let object = core_Obj[i]
-        object.position.x = object.prev_pos.x * (1 - percent) + object.next_pos.x * percent
-        object.position.y = object.prev_pos.y * (1 - percent) + object.next_pos.y * percent
-        object.position.z = object.prev_pos.z * (1 - percent) + object.next_pos.z * percent
-        let size = object.prev_size * (1 - percent)  + object.next_size * percent
-        changeCoreObjSize(object, size)
+    for (let i = 0; i < window.glb.core_Obj.length; i++) {
+        let object = window.glb.core_Obj[i]
+        change_position_rotation_size(object, percent)
     }
 }
 
 function set_next_play_frame() {
-    if (core_L.length == 0) { return; }
-    if (play_pointer >= core_L.length) {play_pointer = 0;}
+    if (window.glb.core_L.length == 0) { return; }
+    if (play_pointer >= window.glb.core_L.length) {play_pointer = 0;}
     parse_time_step(play_pointer)
     play_pointer = play_pointer + 1
-    if (play_pointer >= core_L.length) {play_pointer = 0;}
+    if (play_pointer >= window.glb.core_L.length) {play_pointer = 0;}
     panelSettings['play pointer'] = play_pointer;
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    window.glb.camera.aspect = window.innerWidth / window.innerHeight;
+    window.glb.camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
@@ -624,7 +559,7 @@ function animate() {
 }
 
 function render() {
-    const delta = clock.getDelta();
+    const delta = window.glb.clock.getDelta();
     dt_since = dt_since + delta;
     if (dt_since > dt_threshold) {
         dt_since = 0;
@@ -636,7 +571,7 @@ function render() {
         move_to_future(percent);
     }
     check_flash_life_cyc(delta)
-    renderer.render(scene, camera);
+    renderer.render(window.glb.scene, window.glb.camera);
 }
 
 
@@ -644,50 +579,36 @@ function init() {
     container = document.createElement('div');
     document.body.appendChild(container);
     // 透视相机  Fov, Aspect, Near, Far – 相机视锥体的远平面
-    camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.001, 10000);
-    // camera.up.set(0,0,1);一个 0 - 31 的整数 Layers 对象为 Object3D 分配 1个到 32 个图层。32个图层从 0 到 31 编号标记。
-    camera.layers.enable(0); // 启动0图层
-    scene = new THREE.Scene();
-    // scene.background = new THREE.Color(0xa0a0a0); //?
-    // ground
-    // const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), 
-    // new THREE.MeshPhongMaterial({ color: 0x999999, depthWrite: false })
-    // );
-    // mesh.rotation.x = - Math.PI / 2;
-    // mesh.receiveShadow = true;
-    // scene.add(mesh);
+    window.glb.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.001, 10000);
+    // window.glb.camera.up.set(0,0,1);一个 0 - 31 的整数 Layers 对象为 Object3D 分配 1个到 32 个图层。32个图层从 0 到 31 编号标记。
+    window.glb.camera.layers.enable(0); // 启动0图层
+    window.glb.scene = new THREE.Scene();
+
     const grid = new THREE.GridHelper( 500, 500, 0xffffff, 0x555555 );
     grid.position.y = 0
     grid.visible = false
-    scene.add(grid);
+    window.glb.scene.add(grid);
     const light = new THREE.PointLight(0xffffff, 1);
     light.layers.enable(0); // 启动0图层
 
-    scene.add(camera);
-    camera.add(light);
+    window.glb.scene.add(window.glb.camera);
+    window.glb.camera.add(light);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
 
-    //
-
-
-
-
-
-
 
     stats = new Stats();
     container.appendChild(stats.dom);
 
-    controls = new OrbitControls(camera, renderer.domElement);
-    // controls.object.up = new THREE.Vector3( 1, 0, 0 )
-    controls.target.set(0, 0, 0); // 旋转的焦点在哪0,0,0即原点
-    camera.position.set(0, 50, 0)
-    controls.update();
-    controls.autoRotate = false;
+    window.glb.controls = new OrbitControls(window.glb.camera, renderer.domElement);
+    // window.glb.controls.object.up = new THREE.Vector3( 1, 0, 0 )
+    window.glb.controls.target.set(0, 0, 0); // 旋转的焦点在哪0,0,0即原点
+    window.glb.camera.position.set(0, 50, 0)
+    window.glb.controls.update();
+    window.glb.controls.autoRotate = false;
 
     
     const panel = new GUI( { width: 310 } );
@@ -706,8 +627,8 @@ function init() {
     Folder1.add( panelSettings, 'reset to read new' );
     Folder1.open();
 
-    BarFolder = panel.addFolder('Play Pointer');
-    BarFolder.add(panelSettings, 'play pointer', 0, 10000, 1).listen().onChange(
+    window.glb.BarFolder = panel.addFolder('Play Pointer');
+    window.glb.BarFolder.add(panelSettings, 'play pointer', 0, 10000, 1).listen().onChange(
         function (p) {
             play_pointer = p;
             if(play_fps==0){
@@ -715,28 +636,87 @@ function init() {
             }
             console.log('p changed')
     });
-    BarFolder.open();
+    window.glb.BarFolder.open();
+
+    
+    
+    // window.glb.terrain_mesh.scale.y = 50.0;
+    // this.mesh.position.x = this.width / 2;
+    // this.mesh.position.z = this.height / 2;
+    
+
+
 
     window.addEventListener('resize', onWindowResize);
 }
 
 
+var init_terrain = false;
 
+function parse_env(str){
+    let re_style = />>set_env\('(.*)'/
+    let re_res = str.match(re_style)
+    let style = re_res[1]
+    if(style=="terrain"){
+        let get_theta = />>set_env\('terrain',theta=([^,)]*)/
+        let get_theta_res = str.match(get_theta)
+        let theta = parseFloat(get_theta_res[1])
+        
+        ////////////////////// add terrain /////////////////////
+        let width = 30; let height = 30;
+        let Segments = 200;
+        if (!init_terrain){
+            init_terrain=true;
+        }else{
+            window.glb.scene.remove(window.glb.terrain_mesh);
+        }
+        let geometry = new THREE.PlaneBufferGeometry(width, height, Segments - 1, Segments - 1); //(width, height,widthSegments,heightSegments)
+        geometry.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI / 2));
+        window.glb.terrain_mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({}));
+        window.glb.scene.add(window.glb.terrain_mesh);
+        let array = geometry.attributes.position.array;
+        for (let i = 0; i < Segments * Segments; i++) {
+            let x = array[i * 3 + 0];
+            let _x_ = array[i * 3 + 0];
+            let z = array[i * 3 + 2];
+            let _y_ = -array[i * 3 + 2];
+
+            let A=0.05; 
+            let B=0.2;
+            let X_ = _x_*Math.cos(theta) + _y_*Math.sin(theta);
+            let Y_ = -_x_*Math.sin(theta) + _y_*Math.cos(theta);
+            let Z = -1 +B*( (0.1*X_) ** 2 + (0.1*Y_) ** 2 )- A * Math.cos(2 * Math.PI * (0.3*X_))  - A * Math.cos(2 * Math.PI * (0.5*Y_))
+            Z = -Z;
+            Z = (Z-1)*4;
+            Z = Z - 0.1
+            array[i * 3 + 1] = Z
+
+            if (Math.abs(_x_-5)<0.25 && Math.abs(_y_-5)<0.25){
+                array[i * 3 + 1] = 4
+            }
+        }
+        geometry.computeBoundingSphere(); geometry.computeVertexNormals();
+        console.log('update terrain')
+    }
+}
 function parse_style(str){
     //E.g. >>flash('lightning',src=0.00000000e+00,dst=1.00000000e+01,dur=1.00000000e+00)
     let re_style = />>set_style\('(.*)'/
     let re_res = str.match(re_style)
     let style = re_res[1]
-    if (style=="grid"){
-        scene.children.filter(function (x){return (x.type == 'GridHelper')}).forEach(function(x){
+    if(style=="terrain"){
+        console.log('use set_env')
+    }
+    else if (style=="grid"){
+        window.glb.scene.children.filter(function (x){return (x.type == 'GridHelper')}).forEach(function(x){
             x.visible = true
         })
     }else if(style=="nogrid"){
-        scene.children.filter(function (x){return (x.type == 'GridHelper')}).forEach(function(x){
+        window.glb.scene.children.filter(function (x){return (x.type == 'GridHelper')}).forEach(function(x){
             x.visible = false
         })
     }else if(style=="gray"){
-        scene.background = new THREE.Color(0xa0a0a0);
+        window.glb.scene.background = new THREE.Color(0xa0a0a0);
     }else if(style=='star'){
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
@@ -756,15 +736,15 @@ function parse_style(str){
         }
         geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
         const particles = new THREE.Points( geometry, new THREE.PointsMaterial( { color: 0x888888 } ) );
-        scene.add( particles );
+        window.glb.scene.add( particles );
     }else if(style=='earth'){
         var onRenderFcts= [];
         var light	= new THREE.AmbientLight( 0x222222 )
-        scene.add( light )
+        window.glb.scene.add( light )
     
         var light	= new THREE.DirectionalLight( 0xffffff, 1 )
         light.position.set(5,5,5)
-        scene.add( light )
+        window.glb.scene.add( light )
         light.castShadow	= true
         light.shadowCameraNear	= 0.01
         light.shadowCameraFar	= 15
@@ -788,7 +768,7 @@ function parse_style(str){
         containerEarth.scale.x	= 50
         containerEarth.scale.y	= 50
         containerEarth.scale.z	= 50
-        scene.add(containerEarth)
+        window.glb.scene.add(containerEarth)
     
         var earthMesh	= THREEx.Planets.createEarth()
         earthMesh.receiveShadow	= true
@@ -817,15 +797,6 @@ function parse_style(str){
         var mesh	= new THREE.Mesh(geometry, material );
         mesh.scale.multiplyScalar(1.15);
         containerEarth.add( mesh );
-        // new THREEx.addAtmosphereMaterial2DatGui(material, datGUI)
-    
-        // var earthCloud	= THREEx.Planets.createEarthCloud()
-        // earthCloud.receiveShadow	= true
-        // earthCloud.castShadow	= true
-        // containerEarth.add(earthCloud)
-        // onRenderFcts.push(function(delta, now){
-        //     earthCloud.rotation.y += 1/8 * delta;		
-        // })
         renderer.shadowMapEnabled	= true
     }
 }

@@ -6,10 +6,8 @@ sys.path.append('./MISSIONS/collective_assult')
 from .multi_discrete import MultiDiscrete
 from .malib.spaces import Box, MASpace,  MAEnvSpec
 import time, os
-from pygame import mixer
-import pyglet, json
+import json
 # from pyglet.gl import *
-from .envs.collective_assult_env import collective_assultEnvV1
 # environment for all agents in the multiagent world
 # currently code assumes that no agents will be created/destroyed at runtime!
 from config import ChainVar
@@ -78,6 +76,7 @@ class ScenarioConfig(object): # ADD_TO_CONF_SYSTEM 加入参数搜索路径 do n
     
 def make_collective_assult_env(env_id, rank):
     # scenario = gym.make('collective_assult-v1')
+    from .envs.collective_assult_env import collective_assultEnvV1
     scenario = collective_assultEnvV1( numguards=ScenarioConfig.num_guards, 
                                 numattackers = ScenarioConfig.num_attackers, 
                                 size=ScenarioConfig.size)
@@ -442,10 +441,57 @@ class collective_assultGlobalEnv(gym.Env):
             summary_list.append(agent_info)
         res = json.dumps({"AgentList":summary_list})
         self.mcv.send(res)
-        # time.sleep(1)
-        # print(res)
+
 
     def render(self):
+        from UTILS.tensor_ops import dir2rad
+        if not hasattr(self, 'threejs_bridge'):
+            from VISUALIZE.mcom import mcom
+            self.threejs_bridge = mcom(ip='127.0.0.1', port=12084, path='RECYCLE/v2d_logger/', digit=8, rapid_flush=False, draw_mode='Threejs')
+            self.threejs_bridge.v2d_init()
+            # self.threejs_bridge.set_style('star')
+            # self.threejs_bridge.set_style('grid')
+            self.threejs_bridge.set_style('gray')
+            self.threejs_bridge.use_geometry('monkey')
+            self.threejs_bridge.geometry_rotate_scale_translate('monkey',0, 0,       np.pi/2, 1, 1, 1,         0,0,0)
+            self.threejs_bridge.geometry_rotate_scale_translate('box',   0, 0,       0,       3, 2, 1,         0,0,0)
+            self.threejs_bridge.geometry_rotate_scale_translate('cone',  0, np.pi/2, 0,       1.2, 0.9, 0.9,   1.5,0,0.5) # x -> y -> z
+            self.threejs_bridge.terrain_theta=0
+        if self.threejs_bridge.terrain_theta != self.world.init_theta:
+            self.threejs_bridge.terrain_theta = self.world.init_theta
+            self.threejs_bridge.set_env('terrain', theta=self.world.init_theta)
+
+        for index, agent in enumerate(self.world.agents):
+            x = agent.state.p_pos[0]; y = agent.state.p_pos[1]
+            dir_ = dir2rad(agent.state.p_vel)
+            color = 'red' if agent.attacker else 'blue'
+            base_color = 'LightPink' if agent.attacker else 'CornflowerBlue'
+            color = color if agent.alive else 'black'
+            base_color = base_color if agent.alive else 'black'
+
+            shape3d = 'cone' # if not agent.attacker else 'cone'
+            # shape3d = 'cone' if not agent.attacker else 'cone'
+
+            self.threejs_bridge.v2dx(
+                '%s|%d|%s|0.025'%(shape3d, agent.iden, color),
+                x, y, (agent.terrain-1)*4,
+                ro_x=0, ro_y=0, ro_z=agent.state.p_ang,  # Euler Angle y-x-z
+                label='', label_color='white', attack_range=0)
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|0.025'%(agent.iden+500, base_color),
+                x, y, (agent.terrain-1)*4-0.025,
+                ro_x=0, ro_y=0, ro_z=dir_,  # Euler Angle y-x-z
+                label='', label_color='white', attack_range=0)
+
+            if agent.wasHitBy is not None:
+                flash_type = 'lightning' if agent.attacker else 'lightning'
+                flash_color = 'DeepSkyBlue' if agent.attacker else 'Magenta'
+                self.threejs_bridge.flash(flash_type, src=agent.wasHitBy.iden, dst=agent.iden, dur=0.2, size=0.03, color=flash_color)
+                agent.wasHitBy = None
+                
+        self.threejs_bridge.v2d_show()
+
+    def render_(self):
         from config import GlobalConfig as cfg
         from UTILS.tensor_ops import dir2rad
         if not hasattr(cfg, 'fak_logger'):

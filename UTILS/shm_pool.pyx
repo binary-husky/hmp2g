@@ -18,6 +18,9 @@ import datetime
 from time import sleep as _sleep
 
 SHARE_BUF_SIZE = 10485760
+
+
+
 """
     Part 1: optimized for numpy ndarray
 """
@@ -82,8 +85,8 @@ def reverse_opti_numpy_object(obj, shm):
 
 def child_process_load_config():
     # important! load json config or cmdline config to child process
-    from config_args import get_args
-    get_args(vb=False)
+    from config_args import prepare_args
+    prepare_args(vb=False)
     pass
 
 
@@ -117,8 +120,8 @@ class SuperProc(Process):
     def automatic_execution(self, name, dowhat, *arg):
         return getattr(getattr(self, name), dowhat)(*arg)
 
-    def add_targets(self, new_target_args):
-        for new_target_arg in new_target_args:
+    def add_targets(self, new_tarprepare_args):
+        for new_target_arg in new_tarprepare_args:
             name, gen_fn, arg = new_target_arg
             if arg is None:              
                 self.automatic_generation(name, gen_fn)
@@ -211,6 +214,8 @@ class SuperProc(Process):
 
 class SmartPool(object):
     def __init__(self, proc_num, fold, base_seed=None):
+        import signal
+        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
         self.proc_num = proc_num
         self.task_fold = fold
         self.base_seed = int(np.random.rand()*1e5) if base_seed is None else base_seed
@@ -333,23 +338,40 @@ class SmartPool(object):
             self.semaphore_push[j].release()  # notify all child process
 
     def party_over(self):
+        print('[shm_pool]: party over')
         self.__del__()
 
     def __del__(self):
-        print('executing superpool del')
+        print('[shm_pool]: executing superpool del')
         try:
+            print('[shm_pool]: already terminated, skipping ~~')
             if hasattr(self, 'terminated'): return
-        except: return
+        except: 
+            print('[shm_pool]: ???')
+            return
         try:
             for i in range(self.proc_num): self._send_squence(send_obj=-1, target_proc=i)
             self.notify_all_children()
+            print('[shm_pool]: self.notify_all_children()')
             time.sleep(1)
         except: pass
-        for proc in self.proc_pool: proc.terminate()
 
+        print('[shm_pool]: proc.terminate()')
+        for proc in self.proc_pool: 
+            try: proc.terminate()
+            except: pass
+
+        print('[shm_pool]: proc.kill()')
+        for proc in self.proc_pool: 
+            try: proc.kill()
+            except: pass
+            
+        print('[shm_pool]: shm.close(); shm.unlink()')
         for shm in self.shared_memory_io_buffer_handle:
-            shm.close()
-            shm.unlink()
+            try: shm.close(); shm.unlink()
+            except: pass
+
+        print('[shm_pool]: __del__ finish')
         time.sleep(1)
         self.terminated = True
 

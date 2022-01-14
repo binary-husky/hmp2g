@@ -27,7 +27,7 @@ bin-release/
 core
 
 __pycache__/
-build/
+./build/
 ALGORITHM/Starcraft/result/
 ALGORITHM/Starcraft/model/
 ZipResults/
@@ -41,7 +41,7 @@ forattack-train/
 full-cargo/
 T*/
 checkpoint/
-ZHECKPOINT/
+
 PROFILE/
 RECYCLE/
 test_only_*.py
@@ -55,4 +55,22 @@ test_only_profiledebug_change_self_n_agent.json.txt
 xx_profile_n_agents2.py
 xx_profile_n_agents3.py
 xx_profile_n_agents4.py
-mcom.txt
+UTILS/keys.py
+private*.jsonc
+fqx*.jsonc
+my_*.jsonc
+my_*.py
+
+ZHECKPOINT/*
+
+!ZHECKPOINT/test-50+50
+ZHECKPOINT/test-50+50/*
+!ZHECKPOINT/test-50+50/model.pt
+!ZHECKPOINT/test-50+50/experiment.json
+!ZHECKPOINT/test-50+50/test-50+50.jsonc
+
+!ZHECKPOINT/test-100+100
+ZHECKPOINT/test-100+100/*
+!ZHECKPOINT/test-100+100/model.pt
+!ZHECKPOINT/test-100+100/experiment.json
+!ZHECKPOINT/test-100+100/test-100+100.jsonc

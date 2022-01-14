@@ -26,23 +26,30 @@ class mcom():
     # as a recording programme, the design principle is:
     # Under No Circumstance should this program Interrupt the main program!
 
-    def __init__(self, ip=None, port=None, path=None, digit=8, rapid_flush=True, draw_mode=False):
+    def __init__(self, ip=None, port=None, path=None, digit=8, rapid_flush=True, draw_mode=False, tag='default'):
         # digit 默认8，可选4,16，越小程序负担越轻 (all is float, set valid digit number)
         # rapid_flush 当数据流不大时，及时倾倒文件缓存内容 (set 'False' if you'd like your SSD to survive longer)
         self.draw_mode = draw_mode
+        self.path = path
+
         if draw_mode in ['Web', 'Native', 'Img', 'Threejs']:
             self.draw_process = True; print亮红('[mcom.py]: draw process active!')
             port = find_free_port()
             self.draw_tcp_port = ('localhost', port)
+            kargs = {
+                'draw_mode': draw_mode,
+                'draw_udp_port': self.draw_tcp_port,
+                'port': self.draw_tcp_port,
+                'backup_file': self.path + '/backup.dp'
+            }
             DP = DrawProcess if draw_mode != 'Threejs' else DrawProcessThreejs
-            self.draw_proc = DP(self.draw_tcp_port, draw_mode)
+            self.draw_proc = DP(**kargs)
             self.draw_proc.start()
             self.draw_tcp_client = tcp_client('localhost:%d'%port)
         else:
             print亮红('[mcom.py]: Draw process off! No plot will be done')
             self.draw_process = False
 
-        self.path = path
         prev_start, prev_end, self.current_buffer_index = find_free_index(self.path)
         self.starting_file = self.path + '/mcom_buffer_%d____starting_session.txt' % (self.current_buffer_index)
         self.file_lines_cnt = 0
@@ -52,13 +59,6 @@ class mcom():
         self.flow_cnt = 0
         print蓝('[mcom.py]: log file at:' + self.starting_file)
 
-        # from config import GlobalConfig as cfg
-        # if cfg.recall_previous_session and prev_start is not None and self.draw_process:
-        #     assert prev_start==prev_end,('暂时只处理这种回溯')
-        #     self.starting_file = (self.path + '/mcom_buffer_%d____starting_session.txt' % prev_start)
-        #     self.recall(self.starting_file)
-        #     self.current_file_handle = open(self.starting_file, 'ab')
-        # else:
         if not self.draw_mode=='Threejs':
             self.current_file_handle = open(self.starting_file, 'wb+')
         atexit.register(lambda: self.__del__())
@@ -78,7 +78,7 @@ class mcom():
                 self.draw_proc.join()
             except:
                 pass
-        print蓝('[mcom.py]: mcom exited!')
+        print蓝('[mcom.py]: mcom exited! tag: %s'%self.tag)
 
 
     def disconnect(self):
@@ -278,6 +278,10 @@ class mcom():
     exec('def v2dx(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
     exec('def flash(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
     exec('def set_style(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
+    exec('def set_env(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
+    exec('def use_geometry(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
+    exec('def geometry_rotate_scale_translate(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
+    exec('def test_function_terrain(self,*args,**kargs):\n  self.other_cmd(*args,**kargs)\n')
 
 def find_free_index(path):
     if not os.path.exists(path): os.makedirs(path)
@@ -434,12 +438,18 @@ class MyHttp(Process):
 
 
 class DrawProcessThreejs(Process):
-    def __init__(self, draw_udp_port, draw_mode):
+    def __init__(self, draw_udp_port, draw_mode, **kargs):
         super(DrawProcessThreejs, self).__init__()
         self.draw_mode = draw_mode
         self.draw_udp_port = draw_udp_port
         self.tcp_connection = tcp_server(self.draw_udp_port)
         self.buffer_list = []
+        self.backup_file = kargs['backup_file']
+        self.allow_backup = False if self.backup_file is None else True
+        if self.allow_backup:
+            if os.path.exists(self.backup_file):
+                print亮红('[mcom.py]: warning, purge previous 3D visual data!')
+                os.remove(self.backup_file)
 
     def init_threejs(self):
         import threading
@@ -461,6 +471,8 @@ class DrawProcessThreejs(Process):
 
     def run_handler(self, new_buff_list):
         self.buffer_list.extend(new_buff_list)
+        if self.allow_backup:
+            with open(self.backup_file, 'a+') as f: f.writelines(new_buff_list)
         # too many, delete with fifo
         if len(self.buffer_list) > 1e9: # 当存储的指令超过十亿后，开始删除旧的
             del self.buffer_list[:len(new_buff_list)]
@@ -472,8 +484,6 @@ class DrawProcessThreejs(Process):
         app = Flask(__name__)
         dirname = os.path.dirname(__file__) + '/threejsmod'
         import zlib
-
-
 
         @app.route("/up", methods=["POST"])
         def upvote():
@@ -503,23 +513,16 @@ class DrawProcessThreejs(Process):
             with open('%s/examples/abc.html'%dirname, 'r', encoding = "utf-8") as f:
                 buf = f.read()
             return buf
-        # app.run(host='0.0.0.0', port=port)
+
         print('\n--------------------------------')
         print('JS visualizer online: http://%s:%d'%(get_host_ip(), port))
+        print('JS visualizer online (localhost): http://localhost:%d'%(port))
         print('--------------------------------')
         serve(app, threads=8, ipv4=True, ipv6=True, listen='*:%d'%port)
 
-    # def process_cmd(self, cmd_str):
-    #     # if '>>' in cmd_str:
-    #     #     cmd_str_ = cmd_str[2:].strip('\n')
-    #     #     if ')' not in cmd_str_:
-    #     #         cmd_str_ = cmd_str_+'()'
-    #     #     prefix = self.get_cmd_lib(cmd_str_)
-    #     #     if prefix is not None: 
-    #     #         eval('%s.%s'%(prefix, cmd_str_))
-    #     pass
+
 class DrawProcess(Process):
-    def __init__(self, draw_udp_port, draw_mode):
+    def __init__(self, draw_udp_port, draw_mode, **kargs):
         super(DrawProcess, self).__init__()
         self.draw_mode = draw_mode
         self.draw_udp_port = draw_udp_port

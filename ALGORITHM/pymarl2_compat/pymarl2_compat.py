@@ -17,6 +17,7 @@ class PymarlFoundation():
         fp = open('RECYCLE/pymarl_stdout.log', 'w+')
         import uuid, atexit
         self.remote_uuid = uuid.uuid1().hex   # use uuid to identify threads
+        # If code fails here, please install redis-server on ubuntu host (outside the docker container)
         self.redis = redis.Redis(host='127.0.0.1', port=6379)
         from config import GlobalConfig as cfg
         # self.redis.delete()

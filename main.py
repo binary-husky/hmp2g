@@ -19,28 +19,31 @@
         matlab logging/plotting bridge            -->   mcom.py & mcom_rec.py
         experiment batch executor                 -->   mprofile.py
 """
+import os, sys, atexit
+
 def SET_NUM_THREADS(internal_threads):
-    import os
     os.environ['NUM_THREADS'] = str(internal_threads)
     os.environ['OPENBLAS_NUM_THREADS'] = str(internal_threads)
     os.environ['MKL_NUM_THREADS'] = str(internal_threads)
     os.environ['OMP_NUM_THREADS'] = str(internal_threads)
 SET_NUM_THREADS(1)
 
-# DO NOT edit this func
-def pytorch_gpu_init(cfg, internal_threads):
-    import os, torch
+# do NOT edit this func
+def pytorch_gpu_init(cfg):
+    import torch
     from UTILS.auto_gpu import sel_gpu
-    torch.set_num_threads(int(internal_threads))
+    torch.set_num_threads(int(os.environ['NUM_THREADS']))
     seed = cfg.seed; device = cfg.device
     torch.manual_seed(seed)
     # e.g. device='cpu
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     if not 'cuda' in device: return
     if 'm-cuda' in device: assert False # m-gpu is not functional yet
     if device == 'cuda': gpu_index = sel_gpu().auto_choice()
     else: # e.g. device='cuda:0'
         gpu_index = int(device.split(':')[-1])
         cfg.manual_gpu_ctl = True
+        if cfg.gpu_fraction!=1: torch.cuda.set_per_process_memory_fraction(cfg.gpu_fraction, gpu_index)
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_index)
     cfg.device = 'cuda' # remove ':x', the selected gpu is cuda:0 from now on
     torch.cuda.manual_seed(seed)
@@ -48,15 +51,20 @@ def pytorch_gpu_init(cfg, internal_threads):
         torch.set_default_dtype(torch.float64)
 
 
+def register_daemon(cfg):
+    from threading import Timer
+    from UTILS.hmp_daemon import start_periodic_daemon, hmp_clean_up
+    start_periodic_daemon(cfg)
+
 
 if __name__ == '__main__':
-    import os, numpy
+    import numpy
     import pyximport; pyximport.install(build_dir='./RECYCLE/build/', inplace=True, language_level=3, setup_args={'include_dirs': numpy.get_include()})
-    from atexit import register
     from UTILS.colorful import *
-    from UTILS.config_args import get_args
+    from UTILS.config_args import prepare_args
     from UTILS.shm_pool import SmartPool
-    cfg = get_args()
+    cfg = prepare_args()
+    register_daemon(cfg)
 
     # Set numpy seed
     numpy.random.seed(cfg.seed)
@@ -65,19 +73,18 @@ if __name__ == '__main__':
     # Get mem-sharing process pool
     assert cfg.num_threads % cfg.fold == 0, ('Use n process to run n*m parallel threads!')
     smart_pool = SmartPool(fold=cfg.fold, proc_num=cfg.num_threads // cfg.fold, base_seed=cfg.seed)
-    register(smart_pool.party_over)  # Failsafe, handles shm leak
+    atexit.register(smart_pool.party_over)  # exe first Failsafe, handles shm leak
 
     # Pytorch has to be init AFTER the process pool starts, set pytorch seed
-    pytorch_gpu_init(cfg=cfg, internal_threads=os.environ['NUM_THREADS'])
+    pytorch_gpu_init(cfg=cfg)
 
     # Prepare everything else
     from task_runner import Runner
+    # import time; time.sleep(999)
     runner = Runner(process_pool=smart_pool)
-
     # GO! GO! GO!
-    runner.run()
+    runner.run() 
 
     # DONE!
+    print绿('--- All jobs finished ---')
     smart_pool.party_over()
-    print绿('All jobs finished')
-

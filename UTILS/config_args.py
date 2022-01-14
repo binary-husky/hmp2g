@@ -1,5 +1,5 @@
 import argparse, os, time, func_timeout
-from shutil import copyfile
+from shutil import copyfile, copytree, ignore_patterns
 from .colorful import *
 
 def secure_chained_vars(default_cfg, new_cfg, vb):
@@ -55,7 +55,7 @@ def load_config_via_json(json_data, vb):
         dependency = override_config_file(cfg_group, json_data[cfg_group], vb)
         if dependency is not None:
             for dep in dependency:
-                assert any([dep in k for k in json_data.keys()]), 'Arg check failure, There is a something missing!'
+                assert any([dep in k for k in json_data.keys()]), 'Arg check failure, There is something missing!'
     check_config_relevence(json_data)
     return None
 
@@ -81,7 +81,7 @@ def get_core_args(vb=True):
 
 
 
-def get_args(vb=True):
+def prepare_args(vb=True):
     parser = argparse.ArgumentParser(description='HMP')
     parser.add_argument('-c', '--cfg', help='Path of the configuration file')
     parser.add_argument('-s', '--skip', action='store_true', help='skip logdir check')
@@ -108,14 +108,40 @@ def get_args(vb=True):
     if load_via_json and (not cfg.recall_previous_session): 
         copyfile(args.cfg, '%s/experiment.json'%cfg.logdir)
         backup_files(cfg.backup_files, cfg.logdir)
+        cfg.machine_info = register_machine_info(cfg.logdir)
+    cfg.cfg_ready = True
     return cfg
+
+def register_machine_info(logdir):
+    import socket, json, subprocess, uuid
+    from .network import get_host_ip
+    info = {
+        'HostIP': get_host_ip(),
+        'ExpUUID':uuid.uuid1().hex,
+        'RunPath': os.getcwd(),
+        'StartDateTime': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    }
+    try:
+        info['DockerContainerHash'] = subprocess.getoutput(r'cat /proc/self/cgroup | grep -o -e "docker/.*"| head -n 1 |sed "s/docker\\/\\(.*\\)/\\1/" |cut -c1-12')
+    except: 
+        info['DockerContainerHash'] = 'None'
+    with open('%s/info.json'%logdir, 'w+') as f:
+        json.dump(info, f, indent=4)
+    return info
 
 def backup_files(files, logdir):
     for file in files:
-        print绿('[config] Backup File:',file)
-        bkdir = '%s/backup_files/'%logdir
-        if not os.path.exists(bkdir): os.makedirs(bkdir)
-        copyfile(file, '%s/%s'%(bkdir, os.path.basename(file)))
+        if os.path.isfile(file):
+            print绿('[config] Backup File:',file)
+            bkdir = '%s/backup_files/'%logdir
+            if not os.path.exists(bkdir): os.makedirs(bkdir)
+            copyfile(file, '%s/%s'%(bkdir, os.path.basename(file)))
+        else:
+            print亮绿('[config] Backup Folder:',file)
+            assert os.path.isdir(file), ('cannot find', file)
+            copytree(file, '%s/backup_files/%s'%(logdir, os.path.basename(file)), 
+                dirs_exist_ok=True, ignore=ignore_patterns("__pycache__"))
+
     return 
 
 def check_experiment_log_path(logdir):
