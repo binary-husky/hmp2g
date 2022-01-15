@@ -111,19 +111,18 @@ class Runner(object):
             self.info_runner['Latest-Reward-Sum'][i] = 0
             self.info_runner['Current-Obs-Step'][i] = 0
             self.info_runner['Thread-Episode-Cnt'][i] += 1
-            # hault finished threads to wait unfinished ones
+            # halt finished threads to wait unfinished ones
             if self.align_episode: self.info_runner['ENV-PAUSE'][i] = True
-            # if self.align_episode: self.info_runner['ENV-PAUSE'][i] = True
             # leave a backdoor here to monitor rewards for some specific agents
             if self.current_n_episode % self.report_interval == 0: 
                 self._checkout_interested_agents(self.info_runner['Recent-Reward-Sum'])
                 self.info_runner['Recent-Reward-Sum'] = []
                 self.info_runner['Recent-Win'] = []
-            # begin a testing session?
+            # begin a testing session
             if self.train_time_testing and (not self.test_only) and (self.current_n_episode % self.test_interval == 0): 
                 self.start_a_test_run()
-        # all threads haulted, finished and Aligned, then restart all thread
-        if self.align_episode and self.info_runner['ENV-PAUSE'].all():  self.info_runner['ENV-PAUSE'][:] = False
+        # all threads halted, finished and Aligned, then restart all thread
+        if self.align_episode and self.info_runner['ENV-PAUSE'].all(): self.info_runner['ENV-PAUSE'][:] = False
         # when too many episode is done, Terminate flag on.
         if self.current_n_episode >= self.max_n_episode: self._exit_early_ = True
         return self.info_runner
