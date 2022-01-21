@@ -205,13 +205,38 @@ def Args2tensor(f):
     return decorated
 
 
+
+
+def Return2numpy(f):
+
+    def _2cpu2numpy(x):
+        return (
+            None
+            if x is None
+            else x
+            if not isinstance(x, torch.Tensor)
+            else x.detach().cpu().numpy()
+            if x.requires_grad
+            else x.cpu().numpy()
+        )
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        ret_tuple = f(*args, **kwargs)
+        if isinstance(ret_tuple, tuple):
+            return (_2cpu2numpy(ret) for ret in ret_tuple)
+        else:
+            return _2cpu2numpy(ret_tuple)
+
+    return decorated
+
+
 """
     Function decorate, 
     Turning numpy array to torch.Tensor, then put it on the right GPU / CPU,
     When returning, convert all torch.Tensor to numpy array
 """
 def Args2tensor_Return2numpy(f):
-    # if not cfg.init: cfg.read_cfg()
     def _2tensor(x):
         if isinstance(x, torch.Tensor):
             return x.to(cfg.device)

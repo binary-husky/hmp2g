@@ -157,8 +157,8 @@ class Env_Compat_Wrapper():
                             return_mat=ScenarioConfig.return_mat,
                             reward_vec=ScenarioConfig.reward_vec,
                             render=True if (rank==0 and ScenarioConfig.render) else False,
+                            seed=0,
                             replay_dir=ScenarioConfig.replay_dir)
-
         env_info = self.env.get_env_info()
         self.observation_space = {'state_shape': env_info["state_shape"], 
                                   'obs_shape':   env_info["obs_shape"]}
