@@ -691,9 +691,6 @@ function parse_env(str){
             Z = Z - 0.1
             array[i * 3 + 1] = Z
 
-            if (Math.abs(_x_-5)<0.25 && Math.abs(_y_-5)<0.25){
-                array[i * 3 + 1] = 4
-            }
         }
         geometry.computeBoundingSphere(); geometry.computeVertexNormals();
         console.log('update terrain')
@@ -708,15 +705,15 @@ function parse_style(str){
         console.log('use set_env')
     }
     else if (style=="grid3d"){
-        let gridXZ = new THREE.GridHelper(160, 10, 0xEED5B7, 0xEED5B7);
-        gridXZ.position.set(80,0,80);
+        let gridXZ = new THREE.GridHelper(1000, 10, 0xEED5B7, 0xEED5B7);
+        gridXZ.position.set(500,0,500);
         window.glb.scene.add(gridXZ);
-        let gridXY = new THREE.GridHelper(160, 10, 0xEED5B7, 0xEED5B7);
-        gridXY.position.set(80,80,0);
+        let gridXY = new THREE.GridHelper(1000, 10, 0xEED5B7, 0xEED5B7);
+        gridXY.position.set(500,500,0);
         gridXY.rotation.x = Math.PI/2;
         window.glb.scene.add(gridXY);
-        let gridYZ = new THREE.GridHelper(160, 10, 0xEED5B7, 0xEED5B7);
-        gridYZ.position.set(0,80,80);
+        let gridYZ = new THREE.GridHelper(1000, 10, 0xEED5B7, 0xEED5B7);
+        gridYZ.position.set(0,500,500);
         gridYZ.rotation.z = Math.PI/2;
         window.glb.scene.add(gridYZ);
     }

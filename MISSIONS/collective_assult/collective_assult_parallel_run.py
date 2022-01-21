@@ -451,6 +451,7 @@ class collective_assultGlobalEnv(gym.Env):
             self.threejs_bridge.v2d_init()
             # self.threejs_bridge.set_style('star')
             # self.threejs_bridge.set_style('grid')
+            # self.threejs_bridge.set_style('grid3d')
             self.threejs_bridge.set_style('gray')
 
             self.threejs_bridge.geometry_rotate_scale_translate('box',   0, 0,       0,       3, 2, 1,         0, 0, 0)
