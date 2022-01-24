@@ -473,9 +473,6 @@ class World(object):
                 # print(expected_poses_for_it)
                 relative_value_patrol = expected_poses_for_it - np.array([agent.state.p_pos[0], agent.state.p_pos[1]])
                 # print(relative_value_patrol)
-                theta_patrol = np.arctan2(relative_value_patrol[0][0][1], relative_value_patrol[0][0][0])
-                if theta_patrol < 0:
-                    theta_patrol += 2 * np.pi
 
                 # print(expected_poses_for_it[0])
                 agent.action.u[0] = -agent.state.p_pos[0] + expected_poses_for_it[0][0][0]
@@ -488,21 +485,14 @@ class World(object):
                 # 计算各跟随者的打击角度，超打击范围内，距离最近的对手方向射击
                 for guard_i, guard_agent in enumerate(guards_agent):
                     # guard_agent.action.shoot = False
-                    if (agent.state.p_pos[0] - agent.shootRad) <= guard_agent.state.p_pos[0] <= (
-                            agent.state.p_pos[0] + agent.shootRad) and (
-                            agent.state.p_pos[1] - agent.shootRad) <= guard_agent.state.p_pos[1]  <= (
-                            agent.state.p_pos[1] + agent.shootRad):
+                    if (agent.state.p_pos[0] - agent.shootRad) <= guard_agent.state.p_pos[0] <= (agent.state.p_pos[0] + agent.shootRad) \
+                        and (agent.state.p_pos[1] - agent.shootRad) <= guard_agent.state.p_pos[1]  <= (agent.state.p_pos[1] + agent.shootRad):
                         relative_to_guard = guard_agent.state.p_pos - agent.state.p_pos
-                        theta_patrol = np.arctan2(relative_to_guard[1], relative_to_guard[0])
-                        if theta_patrol < 0:
-                            theta_patrol += 2 * np.pi
                         # print("attackID:%d, guardID:%d" % (agent.iden,guard_agent.iden))
-                if agent.alive:
-                    agent.state.p_ang = theta_patrol
+
                 agent.action.shoot = True
                 if self.s_cfg.DISALBE_RED_FUNCTION:
                     agent.action.shoot = False
-
         pos_array_attackers = np.array([[a.state.p_pos[0], a.state.p_pos[1]] if a.alive else [1e10, 1e10] for a in self.attackers])
         pos_array_guards    = np.array([[a.state.p_pos[0], a.state.p_pos[1]] if a.alive else [1e10, 1e10] for a in self.guards])
         mat = distance_matrix_AB(pos_array_attackers, pos_array_guards)
@@ -513,11 +503,8 @@ class World(object):
             guard_agent = self.guards[index_guard]
             relative_to_guard = guard_agent.state.p_pos - agent.state.p_pos
             theta_patrol = np.arctan2(relative_to_guard[1], relative_to_guard[0])
-            agent.state.p_ang_ = theta_patrol
-
-        for index, agent in enumerate(self.guards):
-            agent.state.p_ang_ = agent.state.p_ang
-
+            agent.state.p_ang = theta_patrol
+        
     def get_groups(self, policy_agents, num_members):
         '''
         通过k-means方法对我方agents进行分组

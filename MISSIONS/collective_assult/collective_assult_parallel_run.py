@@ -12,7 +12,9 @@ import json
 # currently code assumes that no agents will be created/destroyed at runtime!
 from config import ChainVar
 from UTILS.colorful import print亮绿
+from UTILS.tensor_ops import dir2rad
 
+import cProfile, pstats
 class ScenarioConfig(object): # ADD_TO_CONF_SYSTEM 加入参数搜索路径 do not remove this comment !!!
     num_guards = 50
     num_attackers = 50
@@ -443,45 +445,66 @@ class collective_assultGlobalEnv(gym.Env):
         self.mcv.send(res)
 
 
+
+        # self.threejs_bridge.v2dx('box|1000|%s|0.15'%('Gray'), 3, 3, 1, ro_x=0, ro_y=0, ro_z=0,
+        #     label='(+3,+3)', label_color='Crimson', opacity=0.05)
+        # self.threejs_bridge.v2dx('box|1001|%s|0.15'%('Gray'), 3, -3, 1, ro_x=0, ro_y=0, ro_z=0,
+        #     label='(+3,-3)', label_color='Crimson', opacity=0.05)
+        # self.threejs_bridge.v2dx('box|1002|%s|0.15'%('Gray'), -3, 3, 1, ro_x=0, ro_y=0, ro_z=0,
+        #     label='(-3,+3)', label_color='Crimson', opacity=0.05)
+        # self.threejs_bridge.v2dx('box|1003|%s|0.15'%('Gray'), -3, -3, 1, ro_x=0, ro_y=0, ro_z=0,
+        #     label='(-3,-3)', label_color='Crimson', opacity=0.05)
+
+
+        # n_red= len([0 for agent in self.world.agents if agent.alive and agent.attacker])
+        # n_blue = len([0 for agent in self.world.agents if agent.alive and not agent.attacker])
+        # self.threejs_bridge.v2dx('box|1004|Gray|0.15', -0.2, 1, 1, ro_x=0, ro_y=0, ro_z=0,
+        #     label='Blue(RL): %d'%(n_blue), label_color='Blue', opacity=0.0)
+        # self.threejs_bridge.v2dx('box|1005|Gray|0.15', +0.2, 1, 1, ro_x=0, ro_y=0, ro_z=0,
+        #     label='Red(Built-in AI): %d'%(n_red), label_color='Red', opacity=0.0)
+
     def render(self):
-        from UTILS.tensor_ops import dir2rad
         if not hasattr(self, 'threejs_bridge'):
             from VISUALIZE.mcom import mcom
             self.threejs_bridge = mcom(ip='127.0.0.1', port=12084, path='RECYCLE/v2d_logger/', digit=8, rapid_flush=False, draw_mode='Threejs')
             self.threejs_bridge.v2d_init()
             # self.threejs_bridge.set_style('star')
             # self.threejs_bridge.set_style('grid')
-            self.threejs_bridge.set_style('grid3d')
-            self.threejs_bridge.set_style('gray')
-
+            # self.threejs_bridge.set_style('grid3d')
+            # self.threejs_bridge.set_style('gray')
+            self.threejs_bridge.geometry_rotate_scale_translate('ball',   0, 0,      0,       1, 1, 1,         0, 0, 0)
             self.threejs_bridge.geometry_rotate_scale_translate('box',   0, 0,       0,       3, 2, 1,         0, 0, 0)
             self.threejs_bridge.geometry_rotate_scale_translate('cone',  0, np.pi/2, 0,       1.2, 0.9, 0.9,   1.5,0,0.5) # x -> y -> z
             self.threejs_bridge.terrain_theta=0
+            self.timex = 0
+
         if self.threejs_bridge.terrain_theta != self.world.init_theta:
             self.threejs_bridge.terrain_theta = self.world.init_theta
             self.threejs_bridge.set_env('terrain', theta=self.world.init_theta)
+
+
 
         for index, agent in enumerate(self.world.agents):
             x = agent.state.p_pos[0]; y = agent.state.p_pos[1]
             dir_ = dir2rad(agent.state.p_vel)
             color = 'red' if agent.attacker else 'blue'
             base_color = 'LightPink' if agent.attacker else 'CornflowerBlue'
-            color = color if agent.alive else 'black'
-            base_color = base_color if agent.alive else 'black'
+            if not agent.alive:
+                color = "#330000" if agent.attacker else "#000033"
+                base_color = "#330000" if agent.attacker else "#000033"
 
-            shape3d = 'cone' # if not agent.attacker else 'cone'
-            # shape3d = 'cone' if not agent.attacker else 'cone'
+            size = 0.025 if agent.alive else 0.01
 
             self.threejs_bridge.v2dx(
-                '%s|%d|%s|0.025'%(shape3d, agent.iden, color),
+                'cone|%d|%s|%.3f'%(agent.iden, color, size),
                 x, y, (agent.terrain-1)*4,
-                ro_x=0, ro_y=0, ro_z=agent.state.p_ang,  # Euler Angle y-x-z
-                label='', label_color='white', attack_range=0)
+                ro_x=0, ro_y=0, ro_z=agent.state.p_ang_,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='white', attack_range=0, opacity=1)
             self.threejs_bridge.v2dx(
-                'box|%d|%s|0.025'%(agent.iden+500, base_color),
+                'box|%d|%s|%.3f'%(agent.iden+500, base_color, size),
                 x, y, (agent.terrain-1)*4-0.025,
                 ro_x=0, ro_y=0, ro_z=dir_,  # Euler Angle y-x-z
-                label='', label_color='white', attack_range=0)
+                label='', label_color='white', attack_range=0, opacity=1)
 
             if agent.wasHitBy is not None:
                 flash_type = 'lightning' if agent.attacker else 'lightning'
@@ -490,6 +513,154 @@ class collective_assultGlobalEnv(gym.Env):
                 agent.wasHitBy = None
                 
         self.threejs_bridge.v2d_show()
+    
+        self.timex += 1
+        condition = (self.timex==12)
+        if condition:
+            self.advanced_show()
+
+    def advanced_show(self):
+
+        for index, agent in enumerate(self.world.agents):
+            x = agent.state.p_pos[0]; y = agent.state.p_pos[1]
+            dir_ = dir2rad(agent.state.p_vel)
+            color = 'red' if agent.attacker else 'blue'
+            base_color = 'LightPink' if agent.attacker else 'CornflowerBlue'
+            if not agent.alive:
+                color = "#330000" if agent.attacker else "#000033"
+                base_color = "#330000" if agent.attacker else "#000033"
+
+            if agent.iden==36:
+                color = 'Green'
+                base_color = 'Green'
+
+            size = 0.025 if agent.alive else 0.01
+
+            self.threejs_bridge.v2dx(
+                'cone|%d|%s|%.3f'%(agent.iden, color, size),
+                x, y, (agent.terrain-1)*4,
+                ro_x=0, ro_y=0, ro_z=agent.state.p_ang_,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='white', attack_range=0, opacity=1)
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|%.3f'%(agent.iden+500, base_color, size),
+                x, y, (agent.terrain-1)*4-0.025,
+                ro_x=0, ro_y=0, ro_z=dir_,  # Euler Angle y-x-z
+                label='', label_color='white', attack_range=0, opacity=1)
+
+            if agent.wasHitBy is not None:
+                flash_type = 'lightning' if agent.attacker else 'lightning'
+                flash_color = 'DeepSkyBlue' if agent.attacker else 'Magenta'
+                self.threejs_bridge.flash(flash_type, src=agent.wasHitBy.iden, dst=agent.iden, dur=0.2, size=0.03, color=flash_color)
+                agent.wasHitBy = None
+                
+        self.threejs_bridge.v2d_show()
+        # show ball 1
+        # 观测球
+        agent = [agent for index, agent in enumerate(self.world.agents) if agent.iden==36][0]
+        x = agent.state.p_pos[0]; y = agent.state.p_pos[1]
+        self.threejs_bridge.v2dx(
+            'ball|%d|%s|%.3f'%(31542, 'Lime', 0.01),
+            x, y, (agent.terrain-1)*4, ro_x=0, ro_y=0, ro_z=0,
+            label='obs range', label_color='Magenta', attack_range=0, opacity=0.3)
+        self.threejs_bridge.v2d_show()
+
+        # 展开观测球
+        self.threejs_bridge.v2dx(
+            'ball|%d|%s|%.3f'%(31542, 'Lime', 1.4),
+            x, y, (agent.terrain-1)*4, ro_x=0, ro_y=0, ro_z=0,
+            label='obs range', label_color='Magenta', attack_range=0, opacity=0.1)
+        self.threejs_bridge.v2d_show()
+
+        # 收起观测球
+        self.threejs_bridge.v2dx(
+            'ball|%d|%s|%.3f'%(31542, 'Lime', 0.01),
+            x, y, (agent.terrain-1)*4, ro_x=0, ro_y=0, ro_z=0,
+            label='obs range', label_color='Magenta', attack_range=0, opacity=0.6)
+
+        # 获取球内智能体的列表
+        agent_outsisde = [agent for index, agent in enumerate(self.world.agents) if 
+        (agent.state.p_pos[0]-x)**2+(agent.state.p_pos[1]-y)**2>=1.4**2]
+        agent_insisde = [agent for index, agent in enumerate(self.world.agents) if 
+        (agent.state.p_pos[0]-x)**2+(agent.state.p_pos[1]-y)**2<1.4**2]
+        for index, agent in enumerate(agent_outsisde):
+            x = agent.state.p_pos[0]; y = agent.state.p_pos[1]
+            dir_ = dir2rad(agent.state.p_vel)
+            color = 'red' if agent.attacker else 'blue'
+            base_color = 'LightPink' if agent.attacker else 'CornflowerBlue'
+            if not agent.alive:
+                color = "#330000" if agent.attacker else "#000033"
+                base_color = "#330000" if agent.attacker else "#000033"
+
+            size = 0.025 if agent.alive else 0.01
+
+            self.threejs_bridge.v2dx(
+                'cone|%d|%s|%.3f'%(agent.iden, color, 0.0001),
+                x, y, (agent.terrain-1)*4,
+                ro_x=0, ro_y=0, ro_z=agent.state.p_ang_,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='white', attack_range=0, opacity=1)
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|%.3f'%(agent.iden+500, base_color, 0.0001),
+                x, y, (agent.terrain-1)*4-0.025,
+                ro_x=0, ro_y=0, ro_z=dir_,  # Euler Angle y-x-z
+                label='', label_color='white', attack_range=0, opacity=1)
+
+            if agent.wasHitBy is not None:
+                flash_type = 'lightning' if agent.attacker else 'lightning'
+                flash_color = 'DeepSkyBlue' if agent.attacker else 'Magenta'
+                self.threejs_bridge.flash(flash_type, src=agent.wasHitBy.iden, dst=agent.iden, dur=0.2, size=0.03, color=flash_color)
+                agent.wasHitBy = None
+        self.threejs_bridge.v2d_show()
+
+        # spawn array
+        for index, agent in enumerate(agent_insisde):
+            x = agent.state.p_pos[0]; y = agent.state.p_pos[1]
+            color = 'red' if agent.attacker else 'blue'
+
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|%.3f'%(agent.iden+3000, color, 0.01),
+                x, y, (agent.terrain-1)*4,
+                ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='Gold', attack_range=0, opacity=1)
+        self.threejs_bridge.v2d_show()
+
+        # array rise
+        for index, agent in enumerate(agent_insisde):
+            x = agent.state.p_pos[0]; y = agent.state.p_pos[1]
+            color = 'red' if agent.attacker else 'blue'
+            
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|%.3f'%(agent.iden+3000, color, 0.01),
+                x, y, 1,
+                ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='Gold', attack_range=0, opacity=1)
+        self.threejs_bridge.v2d_show()
+
+        # array arrange
+        agent_insisde_h = [a for a in agent_insisde if a.attacker]
+        agent_insisde_f = [a for a in agent_insisde if not a.attacker]
+
+        for index, agent in enumerate(agent_insisde_f):
+            color = 'red' if agent.attacker else 'blue'
+            row = index%10; col = index//10
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|%.3f'%(agent.iden+3000, color, 0.01),
+                -col/22, 0, row/22+1,
+                ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='Gold', attack_range=0, opacity=1)
+
+        for index, agent in enumerate(agent_insisde_h):
+            color = 'red' if agent.attacker else 'blue'
+            row = index%10; col = index//10
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|%.3f'%(agent.iden+3000, color, 0.01),
+                col/22+1/22, 0, row/22+1,
+                ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='Gold', attack_range=0, opacity=1)
+
+
+        self.threejs_bridge.v2d_show()
+
+        pass
 
     def render_(self):
         from config import GlobalConfig as cfg
@@ -519,165 +690,8 @@ class collective_assultGlobalEnv(gym.Env):
         # Matplotlib is ridiculously slow even after optimization! 
         # Please change the channel to MATLAB bridge if you want smooth display!
         time.sleep(1)
-        # print(time.time() - tic)
         pass
 
-
-    # render environment
-    def render_old(self, attn_list = None, mode='human', close=False):
-        # attn_list = [[teamates_attn, opp_attn] for each team]
-        self.shot = False
-
-        if self.viewers is None:
-            # import rendering only if we need it (and don't import for headless machines)
-            #from gym.envs.classic_control import rendering
-            from . import rendering
-            self.viewers = rendering.Viewer(700,700)
-            
-
-
-
-        # create rendering geometry and text for the scene
-        if self.render_geoms is None or True:
-            # import rendering only if we need it (and don't import for headless machines)
-            #from gym.envs.classic_control import rendering
-            from . import rendering
-            self.render_geoms = []
-            self.render_geoms_xform = []
-
-            # ---------------- visualize attention ---------------- #
-            # select reference, show attn wrt this agent
-            for i, agent in enumerate(self.world.agents):
-                if agent.alive or i == self.world.numGuards-1:
-                    k = i
-                    break
-
-            if self.world.vizAttn and attn_list is not None:
-                # will plot attention for dead agents as well, we would know if the agents are able disregard the dead agents based of alive flag = 0
-                # print('inside attn viz')
-                for i, agent in enumerate(self.world.agents):
-                    if agent.alive or self.world.vizDead:   # alive agents are always visualized, dead are visualized if asked
-                        if i != k:
-                            # if it is in the same team
-                            if i < self.world.numGuards:
-                                attn = attn_list[0][0][k,i]
-                            else:
-                            # if opponent
-                                attn = attn_list[0][1][k,i-self.world.numGuards]
-                                # print('attacker')
-                            geom = rendering.make_circle(agent.size*(1+attn))
-                            xform = rendering.Transform()
-                            geom.add_attr(xform)
-                            xform.set_translation(*agent.state.p_pos)
-                            alpha = 0.9 if agent.alive else 0.3
-                            geom.set_color(*[1,1,0], alpha=alpha)
-                            self.render_geoms.append(geom)
-                            self.render_geoms_xform.append(xform)
-
-            # visualize the dead agents
-            if self.world.vizDead:
-                for agent in self.world.agents:
-                    # print(agent.name, agent.alive)
-                    if not agent.alive:
-                        geom = rendering.make_circle(agent.size)
-                        xform = rendering.Transform()
-                        geom.add_attr(xform)
-                        xform.set_translation(*agent.state.p_pos)
-                        geom.set_color(*agent.color, alpha=1)
-                        head = rendering.make_circle(0.5*agent.size)
-                        head.set_color(*agent.color, alpha=1)
-                        headXform = rendering.Transform()
-                        head.add_attr(headXform)
-                        shift = 0.8*agent.size*np.array([np.cos(agent.state.p_ang), np.sin(agent.state.p_ang)])
-                        headLoc = agent.state.p_pos+shift
-                        headXform.set_translation(*headLoc)
-                        self.render_geoms.append(head)
-                        self.render_geoms_xform.append(headXform)
-                        self.render_geoms.append(geom)
-                        self.render_geoms_xform.append(xform)
-                        # self.render_texts.append(agent.name[5:])
-                        # self.render_texts_xforms.append(agent.state.p_pos)
-
-            # visualize alive agents
-            for entity in self.world.active_entities:  ## won't work with obstacles
-                geom = rendering.make_circle(entity.size)
-                xform = rendering.Transform()
-                geom.add_attr(xform)
-                xform.set_translation(*entity.state.p_pos)
-                
-                if 'agent' in entity.name:
-                    geom.set_color(*entity.color, alpha=1)
-                    head = rendering.make_circle(0.5*entity.size)
-                    head.set_color(*entity.color, alpha=1)
-                    headXform = rendering.Transform()
-                    head.add_attr(headXform)
-                    shift = 0.8*entity.size*np.array([np.cos(entity.state.p_ang), np.sin(entity.state.p_ang)])
-                    headLoc = entity.state.p_pos+shift
-                    headXform.set_translation(*headLoc)
-                    self.render_geoms.append(head)
-                    self.render_geoms_xform.append(headXform)
-                    # self.render_texts.append(entity.name[5:])
-                    # self.render_texts_xforms.append(entity.state.p_pos)
-                    # print(entity.name)
-
-                    if entity.action.shoot and entity.numbullets > 0:
-                    # if entity.action.shoot:
-                        self.shot = True
-                        ## render the laser shots, maybe add extra delay when there is a laser shot
-                        mat, shoot_r = self.world.get_tri_pts_arr(entity)
-                        v = mat[:2,:].transpose()
-                        laser = rendering.make_polygon(v)
-                        laser.set_color(*entity.color, alpha=0.3)
-                        laserXform = rendering.Transform()
-                        laser.add_attr(laserXform)
-                        self.render_geoms.append(laser)
-                        self.render_geoms_xform.append(laserXform)
-
-                else:
-                    geom.set_color(*entity.color)
-
-                self.render_geoms.append(geom)
-                self.render_geoms_xform.append(xform)
-
-            # dot for reference agent
-            if self.world.vizAttn and attn_list is not None:
-                # will plot attention for dead agents as well, we would know if the agents are able disregard the dead agents based of alive flag = 0
-                # print('inside attn viz')
-                for i, agent in enumerate(self.world.agents):
-                    if agent.alive or self.world.vizDead:   # alive agents are always visualized, dead are visualized if asked
-                        # select reference agent for attention viz
-                        if i == k:
-                            # simply put a black dot at the center of this agent
-                            geom = rendering.make_circle(0.5*agent.size)
-                            xform = rendering.Transform()
-                            geom.add_attr(xform)
-                            xform.set_translation(*agent.state.p_pos)
-                            geom.set_color(*0.5*agent.color, alpha=1)
-                            self.render_geoms.append(geom)
-                            self.render_geoms_xform.append(xform)
-
-
-            # add geoms to viewer ## viewer is object of class Viewer defined in rendering.py file inside collective_assult
-            self.viewers.geoms = []
-            self.viewers.texts = []
-            self.viewers.text_poses = []
-            for geom in self.render_geoms:
-                self.viewers.add_geom(geom)
-
-
-        results = []
-        from . import rendering
-        # update bounds to center around agent
-        xMin, xMax, yMin, yMax = self.world.wall_pos
-        cam_range = xMax
-        pos = np.zeros(self.world.dim_p)
-        self.viewers.set_bounds(pos[0]-cam_range,pos[0]+cam_range,pos[1]-cam_range,pos[1]+cam_range)
-        # results.append(
-        self.viewers.render(return_rgb_array = False)#mode=='human')    # actual rendering
-
-        self.prevShot = self.shot
-        # return('ankur')
-        return results          ## this thing is really doing nothing
 
     # create receptor field locations in local coordinate frame
     def _make_receptor_locations(self, agent):
