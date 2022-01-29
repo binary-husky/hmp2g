@@ -125,7 +125,26 @@ function parse_env(str){
         geometry.computeBoundingSphere(); geometry.computeVertexNormals();
         console.log('update terrain')
     }
+    if(style=="terrain_rm"){
+        if (!init_terrain){
+        }else{
+            window.glb.scene.remove(window.glb.terrain_mesh);
+        }
+        
+    }
+    if(style=="clear_all"){
+        if (!init_terrain){
+        }else{
+            window.glb.scene.remove(window.glb.terrain_mesh);
+        }
+        for (let i = window.glb.core_Obj.length-1; i>=0 ; i--) {
+            window.glb.scene.remove(window.glb.core_Obj[i]);
+            window.glb.core_Obj.pop();
+        }
+    }
 }
+
+
 function parse_style(str){
     //E.g. >>flash('lightning',src=0.00000000e+00,dst=1.00000000e+01,dur=1.00000000e+00)
     let re_style = />>set_style\('(.*)'/
@@ -401,7 +420,7 @@ function parse_core_obj(str, parsed_frame){
     // ">>v2dx(x, y, dir, xxx)"
     // each_line[i].replace('>>v2dx(')
     // ">>v2dx('ball|8|blue|0.05',1.98948879e+00,-3.15929300e+00,-4.37260984e-01,ro_x=0,ro_y=0,ro_z=2.10134351e+00,label='',label_color='white',attack_range=0)"
-    const pattern = />>v2dx\('(.*)',([^,]*),([^,]*),([^,]*),(.*)\)/
+    const pattern = />>v2dx\('(.*?)',([^,]*),([^,]*),([^,]*),(.*)\)/
     let match_res = str.match(pattern)
     let name = match_res[1]
 

@@ -11,7 +11,13 @@ mcom_fn_list_define = [
     "v2d_pop", "v2d_line_object", "v2d_clear", "v2d_add_terrain", "set_style", "set_env", "use_geometry", 
     "geometry_rotate_scale_translate", "test_function_terrain",
 ]
-
+别名对齐 = [
+    ('初始化3D', 'v2d_init'),
+    ('设置样式', 'set_style'),
+    ('形状之旋转缩放和平移','geometry_rotate_scale_translate'),
+    ('发送几何体','v2dx'),
+    ('结束关键帧','v2d_show')
+]
 
 # The Design Principle: Under No Circumstance should this program Interrupt the main program!
 class mcom():
@@ -239,6 +245,10 @@ class mcom():
 
     for fn_name in mcom_fn_list_define:
         build_exec_cmd = 'def %s(self,*args,**kargs):\n self.other_cmd("%s", *args,**kargs)\n'%(fn_name, fn_name)
+        exec(build_exec_cmd)
+
+    for 别名, fn_name in 别名对齐:
+        build_exec_cmd = '%s = %s\n'%(别名, fn_name)
         exec(build_exec_cmd)
 
 def find_free_index(path):

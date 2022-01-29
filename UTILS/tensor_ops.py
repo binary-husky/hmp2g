@@ -637,6 +637,15 @@ def distance_matrix(A):
     dis = np.linalg.norm(dis, axis=-1)
     return dis
 
+def delta_matrix(A):
+    n_subject = A.shape[-2]  # is 2
+    A = np.repeat(np.expand_dims(A, -2), n_subject, axis=-2)  # =>(64, 100, 100, 2)
+    At = np.swapaxes(A, -2, -3)  # =>(64, 100, 100, 2)
+    delta = At - A  # =>(64, 100, 100, 2)
+    return delta
+
+def np_normalize_last_dim(mat):
+    return mat / np.expand_dims(np.linalg.norm(mat, axis=2) + 1e-16, axis=-1)
 
 def dir2rad(delta_pos):
     result = np.empty(delta_pos.shape[:-1], dtype=complex)

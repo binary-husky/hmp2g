@@ -643,9 +643,14 @@ class collective_assultGlobalEnv(gym.Env):
 
         ##########################################################################
 
-        import random
-        random.shuffle(agent_insisde)
-        for index, agent in enumerate(agent_insisde):
+
+
+
+        # array arrange
+        agent_insisde_h = [a for a in agent_insisde if a.attacker]
+        agent_insisde_f = [a for a in agent_insisde if not a.attacker]
+
+        for index, agent in enumerate(agent_insisde_f):
             color = 'red' if agent.attacker else 'blue'
             row = index%6; col = index//6
             self.threejs_bridge.v2dx(
@@ -654,15 +659,19 @@ class collective_assultGlobalEnv(gym.Env):
                 ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
                 label='%d'%agent.iden, label_color='Gold', attack_range=0, opacity=1)
 
+        for index, agent in enumerate(agent_insisde_h):
+            color = 'red' if agent.attacker else 'blue'
+            row = index%6; col = index//6
+            self.threejs_bridge.v2dx(
+                'box|%d|%s|%.3f'%(agent.iden+3000, color, 0.01),
+                col/22+1/22, 0, row/22+1,
+                ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
+                label='%d'%agent.iden, label_color='Gold', attack_range=0, opacity=1)
+
+
         self.threejs_bridge.v2d_show()
-
-
-        self.threejs_bridge.v2dx('box|1002|%s|0.07'%('Gray'), 0,-0.1,1.19, ro_x=0, ro_y=0, ro_z=0,
+        self.threejs_bridge.v2dx('box|1003|%s|0.11'%('Gray'), 0,0,1.2, ro_x=0, ro_y=0, ro_z=0,
             label='Observed Entity Encodings', label_color='Crimson', opacity=0.05)
-        self.threejs_bridge.v2d_show()
-
-        self.threejs_bridge.v2dx('box|1003|%s|0.4'%('Green'), 0,0,1.2, ro_x=0, ro_y=0, ro_z=0,
-            label='', label_color='Crimson', opacity=0.3)
         self.threejs_bridge.v2d_show()
         pass
 

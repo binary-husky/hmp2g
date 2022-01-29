@@ -127,7 +127,7 @@ class ReinforceAlgorithmFoundation(object):
         if avail_act: traj_frag.update({'avail_act':  avail_act})
         wait_reward_hook = self.commit_frag_hook(traj_frag, require_hook = True) if not test_mode else self.__dummy_hook
 
-        
+ 
         '''   <1>  we will deal with rollout later after the reward is ready, 
                         now we leave a hook to be callback    '''
         State_Recall['_hook_'] = wait_reward_hook

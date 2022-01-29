@@ -8,7 +8,7 @@ class ppt_test():
         if not hasattr(self, 'threejs_bridge'):
             from VISUALIZE.mcom import mcom
             self.threejs_bridge = mcom(ip='127.0.0.1', port=12084, path='RECYCLE/v2d_logger/', digit=8, rapid_flush=False, draw_mode='Threejs')
-            self.threejs_bridge.v2d_init()
+            self.threejs_bridge.初始化3D()
             # self.threejs_bridge.set_style('star')
             self.threejs_bridge.set_style('grid')
             # self.threejs_bridge.set_style('grid3d')
@@ -24,7 +24,7 @@ class ppt_test():
                 'cone|%d|%s|%.3f'%(index, color, size),
                 index/100+i/1, i/1, 0,
                 ro_x=0, ro_y=0, ro_z=0,
-                label='%d-%d'%(index,i), label_color='white', attack_range=0, opacity=1)
+                label='%d-%d'%(index,i), label_color='white', opacity=0.3)
 
 
  
