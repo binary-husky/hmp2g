@@ -343,8 +343,157 @@ function parse_update_flash(buf_str) {
         if(str.search(">>flash") != -1){
             parse_flash(str)
         }
+        if(str.search(">>line3d") != -1){
+            parse_line(str)
+        }
     }
 }
+
+function parse_line(str){
+    const pattern = />>line3d\('(.*?)',(.*)\)/
+    let match_res = str.match(pattern)
+    let name = match_res[1] // norm|0|Violet|0.010
+
+    let name_split = name.split('|')
+    let type = name_split[0] // norm
+    let my_id = parseInt(name_split[1]) // 0
+    let color_str = name_split[2]   //Violet
+    let size = parseFloat(name_split[3]) //0.010
+
+    // x_arr
+    let re_res = str.match(/x_arr=\[(.*?)\]/)
+    let x_arr = re_res[1].split(',')
+    for (i=0; i<x_arr.length; i++){
+        x_arr[i] = parseFloat(x_arr[i])
+    }
+
+    // y_arr
+    re_res = str.match(/z_arr=\[(.*?)\]/)
+    let y_arr = re_res[1].split(',')
+    for (i=0; i<y_arr.length; i++){
+        y_arr[i] = parseFloat(y_arr[i])
+    }
+
+    // z_arr
+    re_res = str.match(/y_arr=\[(.*?)\]/)
+    let z_arr = re_res[1].split(',')
+    for (i=0; i<z_arr.length; i++){
+        z_arr[i] = -parseFloat(z_arr[i])
+    }
+
+    let res;
+    let label_marking = `id ${my_id}`
+    // use label
+    res = str.match(/label='(.*?)'/)
+    // console.log(res)
+    if (!(res === null)){
+        label_marking = res[1]
+    }
+
+    res = str.match(/label_color='(.*?)'/)
+    if (!(res === null)){
+        label_color = res[1]
+    }else{
+        label_color = 'black'
+    }
+
+    let opacity_RE = str.match(/opacity=([^,)]*)/);
+    let opacity = (!(opacity_RE === null))?parseFloat(opacity_RE[1]):1;
+
+    // find core obj by my_id
+    let object = find_lineobj_by_id(my_id)
+    let parsed_obj_info = {} 
+    parsed_obj_info['name'] = name  
+    parsed_obj_info['x_arr'] = x_arr  
+    parsed_obj_info['y_arr'] = y_arr
+    parsed_obj_info['z_arr'] = z_arr
+
+    parsed_obj_info['type'] = type  
+    parsed_obj_info['my_id'] = my_id  
+    parsed_obj_info['color_str'] = color_str  
+    parsed_obj_info['size'] = size  
+    parsed_obj_info['label_marking'] = label_marking
+    parsed_obj_info['label_color'] = label_color
+    parsed_obj_info['opacity'] = opacity
+    apply_line_update(object, parsed_obj_info)
+}
+
+function find_lineobj_by_id(my_id){
+    for (let i = 0; i < window.glb.line_Obj.length; i++) {
+        if (window.glb.line_Obj[i].my_id == my_id) {
+            return window.glb.line_Obj[i];
+        }
+    }
+    return null
+}
+
+//修改颜色
+function changeCoreObjColor(object, color_str){
+    const colorjs = color_str;
+    object.material.color.set(colorjs)
+    object.color_str = color_str;
+}
+
+const ARC_SEGMENTS = 200;
+function apply_line_update(object, parsed_obj_info){
+    if (object) {
+        let curve = object
+        let x_arr = parsed_obj_info['x_arr']  
+        let y_arr = parsed_obj_info['y_arr']
+        let z_arr = parsed_obj_info['z_arr']
+        const positions = [];
+        for ( let i = 0; i < x_arr.length; i ++ ) {
+            positions.push( new THREE.Vector3(x_arr[i], y_arr[i], z_arr[i]) );
+        }
+        curve.points = positions
+        const position = curve.mesh.geometry.attributes.position;
+        const point = new THREE.Vector3();
+        for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {
+            const t = i / ( ARC_SEGMENTS - 1 );
+            curve.getPoint( t, point );
+            position.setXYZ( i, point.x, point.y, point.z );
+        }
+        if(curve.current_color!=parsed_obj_info['color_str']){
+            curve.current_color=parsed_obj_info['color_str']
+            changeCoreObjColor(curve.mesh, parsed_obj_info['color_str'])
+        }
+        position.needsUpdate = true;
+    }
+    else {
+        let x_arr = parsed_obj_info['x_arr']  
+        let y_arr = parsed_obj_info['y_arr']
+        let z_arr = parsed_obj_info['z_arr']
+        const positions = [];
+        for ( let i = 0; i < x_arr.length; i ++ ) {
+            positions.push( new THREE.Vector3(x_arr[i], y_arr[i], z_arr[i]) );
+        }
+        const curve = new THREE.CatmullRomCurve3( positions );
+        curve.my_id = parsed_obj_info['my_id'];
+        curve.curveType = 'centripetal';
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array( ARC_SEGMENTS * 3 ), 3 ) );
+        curve.mesh = new THREE.Line( geometry.clone(), new THREE.LineBasicMaterial( {
+            color: parsed_obj_info['color_str'],
+            // opacity: 0.1,
+            transparent: false
+        } ) );
+        curve.current_color = parsed_obj_info['color_str']
+        curve.mesh.castShadow = false;
+        const position = curve.mesh.geometry.attributes.position;
+        const point = new THREE.Vector3();
+        for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {
+            const t = i / ( ARC_SEGMENTS - 1 );
+            curve.getPoint( t, point );
+            position.setXYZ( i, point.x, point.y, point.z );
+        }
+        window.glb.scene.add(curve.mesh);
+        window.glb.line_Obj.push(curve);
+    }
+
+}
+
+
+
 
 
 

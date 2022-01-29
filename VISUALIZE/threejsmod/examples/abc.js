@@ -31,6 +31,7 @@ window.glb.controls=null;
 window.glb.core_L = [];
 window.glb.parsed_core_L = []
 window.glb.core_Obj = [];
+window.glb.line_Obj = [];
 window.glb.flash_Obj = [];
 window.glb.base_geometry = {};
 // global vars
