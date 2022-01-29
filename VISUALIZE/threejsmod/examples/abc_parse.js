@@ -479,6 +479,7 @@ function apply_line_update(object, parsed_obj_info){
         } ) );
         curve.current_color = parsed_obj_info['color_str']
         curve.mesh.castShadow = false;
+        // curve.tension = 0.1;
         const position = curve.mesh.geometry.attributes.position;
         const point = new THREE.Vector3();
         for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {

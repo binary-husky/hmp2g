@@ -23,7 +23,7 @@ class 三体运动仿真():
         delta_unit = delta / (dis + 1e-16)
         gravity = (self.G*mass2mass)/(dis.squeeze(-1)**2 + 1e-10)
         gravity = delta_unit *  repeat_at(gravity, insert_dim=-1, n_times=3)
-        for i in range(self.n体): gravity[i,i]=0
+        for i in range(self.n体): gravity[i,i]=0 
         gravity_acc = gravity.sum(1)/ repeat_at(self.质量, insert_dim=-1, n_times=3)
         self.速度 = self.速度 + self.仿真间隔*gravity_acc 
         self.位置 = self.位置 + self.仿真间隔*self.速度
@@ -40,18 +40,22 @@ class 三体运动仿真():
             # self.可视化桥.设置样式('grid'); 
             self.可视化桥.设置样式('gray')
             self.可视化桥.形状之旋转缩放和平移('ball',  0, 0, 0,   1, 1, 1,   0, 0, 0)
+            self.可视化桥.记录位置的矩阵 = np.zeros(shape=(500, self.n体, 3))
         for index in range(self.n体):
+
             size = 0.2 if index!=0 else 0.5
             self.可视化桥.发送几何体('ball|%d|%s|%.3f'%(index, color[index],  size),
                 self.位置[index, 0], self.位置[index, 1], self.位置[index, 2],
                 ro_x=0, ro_y=0, ro_z=0, label_color='Black', opacity=1,
                 label='(%.2f, %.2f, %.2f)'%(self.位置[index, 0],self.位置[index, 1],self.位置[index, 2]))
-            colorx = 'Violet' if self.step < 500 else 'Black'
+
+            self.可视化桥.记录位置的矩阵[:-1] = self.可视化桥.记录位置的矩阵[1:]
+            self.可视化桥.记录位置的矩阵[-1] = self.位置
             self.可视化桥.line3d(
-                'norm|%d|%s|%.3f'%(index+200, colorx, 0.01),
-                x_arr=np.array([self.位置[index, 0], self.位置[index, 0]]),
-                y_arr=np.array([self.位置[index, 1], self.位置[index, 1]]),
-                z_arr=np.array([0, self.位置[index, 2]]),
+                'norm|%d|%s|%.3f'%(index+200, color[index], 0.01),
+                x_arr=self.可视化桥.记录位置的矩阵[:,index,0],
+                y_arr=self.可视化桥.记录位置的矩阵[:,index,1],
+                z_arr=self.可视化桥.记录位置的矩阵[:,index,2],
                 opacity=1,
             )
         self.可视化桥.结束关键帧()
