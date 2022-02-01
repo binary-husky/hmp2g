@@ -80,11 +80,6 @@ function init() {
     window.glb.BarFolder.add( window.glb.panelSettings, 'use orthcam' ).listen().onChange(
         function (use_orthcam) {
             if(use_orthcam){
-                // window.glb.camera2.position.copy( window.glb.camera.position );
-                // window.glb.camera2.quaternion.copy( window.glb.camera.quaternion );
-                // tmp = window.glb.camera
-                // window.glb.camera = window.glb.camera2
-                // window.glb.camera2 = tmp
                 window.glb.controls.enabled = false ;
                 window.glb.controls2.enabled = true ;
                 window.glb.camera.remove(window.glb.light)
@@ -95,10 +90,7 @@ function init() {
                 window.glb.controls2.enabled = false  ;
                 window.glb.camera.add(window.glb.light)
                 window.glb.camera2.remove(window.glb.light2)
-
             }
-
-
     });
     
     window.glb.BarFolder.open();

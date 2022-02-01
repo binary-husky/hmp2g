@@ -41,12 +41,15 @@ class 三体运动仿真():
             # self.可视化桥.设置样式('grid'); 
             self.可视化桥.设置样式('gray')
             self.可视化桥.形状之旋转缩放和平移('ball',  0, 0, 0,   1, 1, 1,   0, 0, 0)
+            self.可视化桥.其他几何体之旋转缩放和平移('oct1', 'OctahedronGeometry(1,0)', 0,0,0,  1,1,1, 0,0,0)
+            self.可视化桥.其他几何体之旋转缩放和平移('oct2', 'OctahedronGeometry(1,0)', 0,np.pi/2,0,  1,1,1, 0,0,0)
             self.可视化桥.记录位置的矩阵 = np.zeros(shape=(250, self.n体, 3))
 
         for index in range(self.n体):
-
+            shape = 'oct1' if index>=2 else 'ball'
+            if index == 3: shape = 'oct2'
             size = 0.2 if index>=2 else 2
-            self.可视化桥.发送几何体('ball|%d|%s|%.3f'%(index, color[index],  size),
+            self.可视化桥.发送几何体('%s|%d|%s|%.3f'%(shape, index, color[index],  size),
                 self.位置[index, 0], self.位置[index, 1], self.位置[index, 2],
                 ro_x=0, ro_y=0, ro_z=0, label_color='Black', opacity=1,
                 label='', track_n_frame=100)

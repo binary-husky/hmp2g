@@ -63,6 +63,9 @@ function parse_init(buf_str) {
         if(str.search(">>geometry_rotate_scale_translate") != -1){
             parse_geometry(str)
         }
+        if(str.search(">>advanced_geometry_rotate_scale_translate") != -1){
+            parse_advanced_geometry(str)
+        }
     }
 }
 
@@ -269,6 +272,36 @@ function geo_transform(geometry, ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, tr
     geometry.translate(trans_x, trans_y, trans_z)
     return geometry
 }
+function parse_advanced_geometry(str){
+    const pattern = />>advanced_geometry_rotate_scale_translate\('(.*)','(.*)',([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)(.*)\)/
+    let match_res = str.match(pattern)
+    let name = match_res[1]
+    let build_cmd = match_res[2]
+    let ro_x = parseFloat(match_res[3])
+    // z --> y, y --- z reverse z axis and y axis
+    let ro_y = parseFloat(match_res[5])
+    // z --> y, y --- z reverse z axis and y axis
+    let ro_z = -parseFloat(match_res[4])
+
+    let scale_x = parseFloat(match_res[6])
+    // z --> y, y --- z reverse z axis and y axis
+    let scale_y = parseFloat(match_res[8])
+    // z --> y, y --- z reverse z axis and y axis
+    let scale_z = parseFloat(match_res[7])
+
+    let trans_x = parseFloat(match_res[9])
+    // z --> y, y --- z reverse z axis and y axis
+    let trans_y = parseFloat(match_res[11])
+    // z --> y, y --- z reverse z axis and y axis
+    let trans_z = -parseFloat(match_res[10])
+
+    // load geo
+    window.glb.base_geometry[name] = null;
+    // very basic shapes
+    window.glb.base_geometry[name] = eval('new THREE.'+build_cmd)
+    window.glb.base_geometry[name] = geo_transform(window.glb.base_geometry[name], ro_x, ro_y, ro_z, scale_x, scale_y, scale_z, trans_x, trans_y, trans_z);
+}
+
 
 function parse_geometry(str){
     const pattern = />>geometry_rotate_scale_translate\('(.*)',([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*),([^,]*)(.*)\)/
