@@ -170,7 +170,8 @@ function parse_style(str){
         window.glb.scene.children.filter(function (x){return (x.type == 'GridHelper')}).forEach(function(x){
             x.visible = true
         })
-    }else if(style=="nogrid"){
+    }
+    else if(style=="nogrid"){
         window.glb.scene.children.filter(function (x){return (x.type == 'GridHelper')}).forEach(function(x){
             x.visible = false
         })
@@ -383,6 +384,7 @@ function parse_line(str){
 
     let res;
     let label_marking = `id ${my_id}`
+    let label_color = 'black'
     // use label
     res = str.match(/label='(.*?)'/)
     // console.log(res)
@@ -400,6 +402,10 @@ function parse_line(str){
     let opacity_RE = str.match(/opacity=([^,)]*)/);
     let opacity = (!(opacity_RE === null))?parseFloat(opacity_RE[1]):1;
 
+    let tension_RE = str.match(/tension=([^,)]*)/);
+    let tension = (!(tension_RE === null))?parseFloat(tension_RE[1]):0;
+
+
     // find core obj by my_id
     let object = find_lineobj_by_id(my_id)
     let parsed_obj_info = {} 
@@ -409,13 +415,19 @@ function parse_line(str){
     parsed_obj_info['z_arr'] = z_arr
 
     parsed_obj_info['type'] = type  
+    parsed_obj_info['tension'] = tension
     parsed_obj_info['my_id'] = my_id  
     parsed_obj_info['color_str'] = color_str  
-    parsed_obj_info['size'] = size  
+    parsed_obj_info['size'] = size
     parsed_obj_info['label_marking'] = label_marking
     parsed_obj_info['label_color'] = label_color
     parsed_obj_info['opacity'] = opacity
-    apply_line_update(object, parsed_obj_info)
+    if(type=='simple'){
+        apply_simple_line_update(object, parsed_obj_info)
+    }
+    if(type=='fat'){
+        apply_line_update(object, parsed_obj_info)
+    }
 }
 
 function find_lineobj_by_id(my_id){
@@ -434,8 +446,94 @@ function changeCoreObjColor(object, color_str){
     object.color_str = color_str;
 }
 
-const ARC_SEGMENTS = 200;
+const ARC_SEGMENTS = 150;
 function apply_line_update(object, parsed_obj_info){
+    if (object) {
+        // update pos
+        const positions = [];
+        const positions_catmull = [];
+        const point_tmp = new THREE.Vector3();
+        for ( let i = 0; i < parsed_obj_info['x_arr'].length; i ++ ) {
+            positions.push( new THREE.Vector3(parsed_obj_info['x_arr'][i], parsed_obj_info['y_arr'][i], parsed_obj_info['z_arr'][i]) );
+        }
+        //load pos into curve
+        let curve = object
+        curve.points = positions
+        if(curve.current_color!=parsed_obj_info['color_str']){
+            curve.current_color=parsed_obj_info['color_str']
+            changeCoreObjColor(curve.mesh_line, parsed_obj_info['color_str'])
+        }
+        curve.tension = parsed_obj_info['tension'];
+        // calculate positions_catmull
+        for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {
+            const t = i / ( ARC_SEGMENTS - 1 );
+            curve.getPoint( t, point_tmp ); 
+            positions_catmull.push( point_tmp.x, point_tmp.y, point_tmp.z)
+        }
+        //apply calculated positions_catmull
+        curve.mesh_line.geometry.setPositions( positions_catmull );
+        curve.mesh_line.computeLineDistances();
+        //     positions.push( new THREE.Vector3(x_arr[i], y_arr[i], z_arr[i]) );
+        // }
+        // curve.points = positions
+        // const position = curve.mesh.geometry.attributes.position;
+        // const point = new THREE.Vector3();
+        // for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {
+        //     const t = i / ( ARC_SEGMENTS - 1 );
+        //     curve.getPoint( t, point );
+        //     position.setXYZ( i, point.x, point.y, point.z );
+        // }
+        curve.mesh_line.computeLineDistances();
+        curve.mesh_line.geometry.attributes.position.needsUpdate=true
+        // curve.mesh_line.geometry.position.needsUpdate = true
+    }
+    else {
+
+        const positions = [];
+        const positions_catmull = [];
+        const point_tmp = new THREE.Vector3();
+        for ( let i = 0; i < parsed_obj_info['x_arr'].length; i ++ ) {
+            positions.push( new THREE.Vector3(parsed_obj_info['x_arr'][i], parsed_obj_info['y_arr'][i], parsed_obj_info['z_arr'][i]) );
+        }
+        // init CatmullRomCurve3
+        const curve = new THREE.CatmullRomCurve3( positions );
+        // confirm id and curveType
+        curve.my_id = parsed_obj_info['my_id'];
+        curve.curveType = 'catmullrom';
+        curve.current_color = parsed_obj_info['color_str']
+        curve.tension = parsed_obj_info['tension'];
+        // load positions_catmull
+        for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {
+            const t = i / ( ARC_SEGMENTS - 1 );
+            curve.getPoint( t, point_tmp ); 
+            positions_catmull.push( point_tmp.x, point_tmp.y, point_tmp.z)
+        }
+        // geo
+        const geometry = new window.glb.import_LineGeometry();
+        geometry.setPositions( positions_catmull );
+        // material
+        matLine = new window.glb.import_LineMaterial( {
+            color: parsed_obj_info['color_str'],
+            linewidth: parsed_obj_info['size'], // in world units with size attenuation, pixels otherwise
+            // vertexColors: true,
+            // alphaToCoverage: true,
+            dashed: false,
+            worldUnits: true,
+            opacity: parsed_obj_info['opacity'],
+            transparent: (parsed_obj_info['opacity']!=1)
+        } );
+
+
+        curve.mesh_line = new window.glb.import_Line2( geometry, matLine );
+        curve.mesh_line.computeLineDistances();
+        window.glb.scene.add(curve.mesh_line);
+        window.glb.line_Obj.push(curve);
+    }
+
+}
+
+
+function apply_simple_line_update(object, parsed_obj_info){
     if (object) {
         let curve = object
         let x_arr = parsed_obj_info['x_arr']  
@@ -492,9 +590,6 @@ function apply_line_update(object, parsed_obj_info){
     }
 
 }
-
-
-
 
 
 
@@ -630,6 +725,15 @@ function parse_core_obj(str, parsed_frame){
     let opacity_RE = str.match(/opacity=([^,)]*)/);
     let opacity = (!(opacity_RE === null))?parseFloat(opacity_RE[1]):1;
 
+    let track_n_frame_RE = str.match(/track_n_frame=([^,)]*)/);
+    let track_n_frame = (!(track_n_frame_RE === null))?parseInt(track_n_frame_RE[1]):0;
+
+    let track_tension_RE = str.match(/track_tension=([^,)]*)/);
+    let track_tension = (!(track_tension_RE === null))?parseFloat(track_tension_RE[1]):0;
+
+    let track_color_RE = str.match(/track_color='(.*?)'/)
+    let track_color = (!(track_color_RE === null))?track_color_RE[1]:color_str
+
     // find core obj by my_id
     let object = find_obj_by_id(my_id)
     let parsed_obj_info = {} 
@@ -649,7 +753,10 @@ function parse_core_obj(str, parsed_frame){
     parsed_obj_info['label_marking'] = label_marking
     parsed_obj_info['label_color'] = label_color
     parsed_obj_info['opacity'] = opacity
-
+    parsed_obj_info['track_n_frame'] = track_n_frame
+    parsed_obj_info['track_tension'] = track_tension
+    parsed_obj_info['track_color'] = track_color
+    
     apply_update(object, parsed_obj_info)
     parsed_frame.push(parsed_obj_info)
 }
