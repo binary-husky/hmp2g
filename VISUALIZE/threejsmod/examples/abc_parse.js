@@ -517,6 +517,7 @@ function apply_line_update(object, parsed_obj_info){
         //     position.setXYZ( i, point.x, point.y, point.z );
         // }
         curve.mesh_line.computeLineDistances();
+        curve.mesh_line.geometry.computeBoundingSphere();
         curve.mesh_line.geometry.attributes.position.needsUpdate=true
         // curve.mesh_line.geometry.position.needsUpdate = true
     }
@@ -558,6 +559,7 @@ function apply_line_update(object, parsed_obj_info){
 
 
         curve.mesh_line = new window.glb.import_Line2( geometry, matLine );
+        curve.mesh_line.geometry.computeBoundingSphere();
         curve.mesh_line.computeLineDistances();
         window.glb.scene.add(curve.mesh_line);
         window.glb.line_Obj.push(curve);
@@ -588,6 +590,8 @@ function apply_simple_line_update(object, parsed_obj_info){
             curve.current_color=parsed_obj_info['color_str']
             changeCoreObjColor(curve.mesh, parsed_obj_info['color_str'])
         }
+        curve.mesh.geometry.computeBoundingSphere();
+
         position.needsUpdate = true;
     }
     else {
@@ -618,6 +622,7 @@ function apply_simple_line_update(object, parsed_obj_info){
             curve.getPoint( t, point );
             position.setXYZ( i, point.x, point.y, point.z );
         }
+        curve.mesh.geometry.computeBoundingSphere();
         window.glb.scene.add(curve.mesh);
         window.glb.line_Obj.push(curve);
     }

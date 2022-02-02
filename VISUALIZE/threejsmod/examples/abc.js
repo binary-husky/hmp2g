@@ -320,6 +320,7 @@ function plot_obj_track(object){
             curve.current_color=object.track_color
             changeCoreObjColor(curve.mesh, object.track_color)
         }
+        curve.mesh.geometry.computeBoundingSphere();
         position.needsUpdate = true;
     }else{
         // 初始化轨迹
@@ -347,6 +348,7 @@ function plot_obj_track(object){
             curve.getPoint( t, point );
             position.setXYZ( i, point.x, point.y, point.z );
         }
+        curve.mesh.geometry.computeBoundingSphere();
         window.glb.scene.add(curve.mesh);
     }
 

@@ -473,7 +473,7 @@ class DrawProcessThreejs(Process):
         @app.route("/<path:path>")
         def static_dirx(path):
             if path=='favicon.ico': 
-                return app.send_static_file('%s/files/favicon.ico'%dirname)
+                return send_from_directory("%s/"%dirname, 'files/HMP.ico')
             return send_from_directory("%s/"%dirname, path)
 
         @app.route("/")
