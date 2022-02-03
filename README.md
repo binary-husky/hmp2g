@@ -58,7 +58,7 @@ from VISUALIZE.mcom import mcom
 
 初始化
 ```python
-self.可视化桥 = mcom(draw_mode='Threejs')
+self.可视化桥 = mcom(path='RECYCLE/v2d_logger/', draw_mode='Threejs')
 self.可视化桥.初始化3D()
 ```
 
