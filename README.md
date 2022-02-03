@@ -6,7 +6,7 @@ pip install vhmap
 ```
 
 ## VHMAP的简单、丝滑
-![](md_imgs/动画x6.gif)
+![](md_imgs/动画x7.gif)
 该图的效果只需要20行(含初始化)python代码就能实现
 ```python
 from VISUALIZE.mcom import mcom
