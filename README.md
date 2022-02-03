@@ -21,8 +21,9 @@ pip install vhmap
 ```
 
 ## VHMAP的简单、丝滑
+实现下图，仅需要20行python代码(含初始化)
 ![](md_imgs/动画x7.gif)
-该图的效果只需要20行(含初始化)python代码就能实现
+
 ```python
 from VISUALIZE.mcom import mcom
 import numpy as np
