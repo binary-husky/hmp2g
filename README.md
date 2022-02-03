@@ -76,7 +76,7 @@ self.可视化桥.其他几何体之旋转缩放和平移('box', 'BoxGeometry(1,
 
 ```
 
-发送几何体
+发送几何体，可用颜色（JS颜色，支持Hex颜色）参考 https://www.w3schools.com/colors/colors_names.asp
 ```python
 self.可视化桥.发送几何体(
     'ball|8848|MidnightBlue|0.5'%(0, color, size),  # 填入核心参量： “已声明的形状|几何体之ID标识|颜色|整体大小”
