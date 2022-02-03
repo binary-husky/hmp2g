@@ -95,18 +95,3 @@ self.可视化桥.发送几何体(
 ```python
 self.可视化桥.结束关键帧()
 ```
-
-## API-ENG
-Option 1 ENG
-```python
-    self.vhmap_bridge = mcom(draw_mode='Threejs')
-    self.vhmap_bridge.v2d_init()
-```
-
-```python
-# declare geo 'oct1', init with OctahedronGeometry, then (1)rotate & (2)scale & (3)translate
-self.vhmap_bridge.advanced_geometry_rotate_scale_translate('oct1', 'OctahedronGeometry(1,0)', 0,0,0,  1,1,1, 0,0,0)
-# why 'OctahedronGeometry(1,0)', please see https://threejs.org/docs/index.html?q=Geometry
-# e.g. 
-# self.threejs_bridge.advanced_geometry_rotate_scale_translate('Tor', 'TorusGeometry(10,3,16,100 )',   0, 0, 0,  1,1,1, 0,0,0)
-```
