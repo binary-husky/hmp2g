@@ -44,7 +44,6 @@ if __name__ == '__main__':
 
 引入
 ```python
-from UTILS.tensor_ops import repeat_at, delta_matrix, dir2rad
 from VISUALIZE.mcom import mcom
 ```
 
