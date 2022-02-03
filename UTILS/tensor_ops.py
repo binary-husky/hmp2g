@@ -1,7 +1,13 @@
 import copy, json
 import numpy as np
-import torch
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn.functional as F
+except:
+    print('warning! pytorch not installed')
+    print('警告! 没有安装pytorch，所有pytorch相关函数不可用!')
+    class torch():
+        Tensor = Exception
 from functools import wraps
 
 
