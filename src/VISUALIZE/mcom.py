@@ -54,6 +54,7 @@ class mcom():
         self.digit = digit
         self.rapid_flush = rapid_flush
         self.flow_cnt = 0
+        self.tag = tag
         print蓝('[mcom.py]: log file at:' + self.starting_file)
 
         if not self.draw_mode=='Threejs':
