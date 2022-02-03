@@ -1,4 +1,4 @@
-# visual hybrid multi-agent playground (VHMAP 使用说明书)
+# Visual Hybrid Multi-Agent Playground (VHMAP 使用说明书)
 ## 面向场景和特点
 面向场景：
 - 科研，尤其是多智能体强化学习领域
@@ -7,10 +7,13 @@
 
 应用特点：
 - Python接口简化到极致
-- 渲染在客户端，播放自动插帧，纵享丝滑帧率
+- 渲染在客户端，自动插帧，纵享丝滑帧率
 - 服务端依赖少
 - 占用服务端资源极少
-
+- 基于ThreeJs，支持拖动，支持手机触屏
+- 支持透视和投影两种视图的切换
+- 支持回放
+- 使用zlib压缩数据流，网络带宽需求小
 
 ## 安装 
 ```shell
