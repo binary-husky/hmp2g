@@ -70,7 +70,7 @@ self.可视化桥.其他几何体之旋转缩放和平移('oct1', 'OctahedronGeo
 # 需要换成其他几何体，请把'OctahedronGeometry(1,0)'替换，参考网址 https://threejs.org/docs/index.html?q=Geometry
 self.可视化桥.其他几何体之旋转缩放和平移('any_name_you_want', 'TorusGeometry(10,3,16,100)',   0,0,0,  1,1,1, 0,0,0) # 甜甜圈
 # declare geo 'ball'
-self.可视化桥.其他几何体之旋转缩放和平移('ball', 'SphereGeometry(1,1,1)',   0,0,0,  1,1,1, 0,0,0) # 球体
+self.可视化桥.其他几何体之旋转缩放和平移('ball', 'SphereGeometry(1)',   0,0,0,  1,1,1, 0,0,0) # 球体
 # declare geo 'box'
 self.可视化桥.其他几何体之旋转缩放和平移('box', 'BoxGeometry(1,1,1)',   0,0,0,  1,1,1, 0,0,0) # 长方体
 
@@ -79,8 +79,8 @@ self.可视化桥.其他几何体之旋转缩放和平移('box', 'BoxGeometry(1,
 发送几何体，可用颜色（JS颜色，支持Hex颜色）参考 https://www.w3schools.com/colors/colors_names.asp
 ```python
 self.可视化桥.发送几何体(
-    'ball|8848|MidnightBlue|0.5'%(0, color, size),  # 填入核心参量： “已声明的形状|几何体之ID标识|颜色|整体大小”
-    pos[i__,0], pos[i__,1], 0,          # 三维位置，3/6dof
+    'ball|8848|MidnightBlue|0.5',       # 填入核心参量： “已声明的形状|几何体之ID标识|颜色|整体大小”
+    1.11, 2.22, 3.33,          # 三维位置，3/6dof
     ro_x=0, ro_y=0, ro_z=0, # 欧拉旋转变换，3/6dof
     opacity=1,              # 透明度，1为不透明
     label='',               # 显示标签，空白不显示
