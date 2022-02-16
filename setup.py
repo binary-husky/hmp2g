@@ -3,6 +3,17 @@ import setuptools, glob, os
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+    
+def _process_requirements():
+    packages = open('requirements.txt').read().strip().split('\n')
+    requires = []
+    for pkg in packages:
+        if pkg.startswith('git+ssh'):
+            return_code = os.system('pip install {}'.format(pkg))
+            assert return_code == 0, 'error, status_code is: {}, exit!'.format(return_code)
+        else:
+            requires.append(pkg)
+    return requires
 
 def package_files(directory):
     paths = []
@@ -17,7 +28,7 @@ extra_files = package_files('src')
 
 setuptools.setup(
     name="vhmap",
-    version="1.1.0",
+    version="1.3.0",
     author="Qingxu",
     author_email="505030475@qq.com",
     description="Advanced 3D visualizer for researchers",
@@ -40,4 +51,5 @@ setuptools.setup(
     # ],
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
+    install_requires=_process_requirements(),
 )

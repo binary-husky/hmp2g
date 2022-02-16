@@ -1,0 +1,4 @@
+colorama
+flask
+numpy
+waitress

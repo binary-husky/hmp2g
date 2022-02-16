@@ -2,7 +2,6 @@ LICENSE
 README.md
 pyproject.toml
 setup.py
-src/UTILS/__init__.py
 src/UTILS/auto_gpu.py
 src/UTILS/colorful.py
 src/UTILS/config_args.py
@@ -16,7 +15,6 @@ src/UTILS/network.py
 src/UTILS/pip_find_missing.py
 src/UTILS/shm_env.py
 src/UTILS/tensor_ops.py
-src/VISUALIZE/__init__.py
 src/VISUALIZE/mcom.py
 src/VISUALIZE/mcom_rec.py
 src/VISUALIZE/mcom_replay.py
@@ -762,7 +760,6 @@ src/VISUALIZE/threejsmod/examples/models/json/QRCode_buffergeometry.json
 src/VISUALIZE/threejsmod/examples/models/json/WaltHeadLo_buffergeometry.json
 src/VISUALIZE/threejsmod/examples/models/json/pressure.json
 src/VISUALIZE/threejsmod/examples/models/json/suzanne_buffergeometry.json
-src/VISUALIZE/threejsmod/examples/models/json/lightmap/lightmap-ao-shadow.png
 src/VISUALIZE/threejsmod/examples/models/json/lightmap/lightmap.json
 src/VISUALIZE/threejsmod/examples/models/json/lightmap/readme.txt
 src/VISUALIZE/threejsmod/examples/models/json/lightmap/rocks.jpg
@@ -824,4 +821,5 @@ src/VISUALIZE/threejsmod/files/main.css
 src/vhmap.egg-info/PKG-INFO
 src/vhmap.egg-info/SOURCES.txt
 src/vhmap.egg-info/dependency_links.txt
+src/vhmap.egg-info/requires.txt
 src/vhmap.egg-info/top_level.txt

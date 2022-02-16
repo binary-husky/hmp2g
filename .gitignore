@@ -1,0 +1,6 @@
+*.pyc
+*.gz
+RECYCLE
+dist
+tests
+vhmap-1.0.1
