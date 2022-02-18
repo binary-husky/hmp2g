@@ -2,6 +2,7 @@ LICENSE
 README.md
 pyproject.toml
 setup.py
+src/UTILS/__init__.py
 src/UTILS/auto_gpu.py
 src/UTILS/colorful.py
 src/UTILS/config_args.py
@@ -15,10 +16,18 @@ src/UTILS/network.py
 src/UTILS/pip_find_missing.py
 src/UTILS/shm_env.py
 src/UTILS/tensor_ops.py
+src/VISUALIZE/__init__.py
 src/VISUALIZE/mcom.py
 src/VISUALIZE/mcom_rec.py
 src/VISUALIZE/mcom_replay.py
+src/VISUALIZE/mcom_testing.py
 src/VISUALIZE/mcom_v2d.py
+src/VISUALIZE/examples/__init__.py
+src/VISUALIZE/examples/nb.py
+src/VISUALIZE/examples/nb_3body_specials.py
+src/VISUALIZE/examples/nb_nbody_chaos.py
+src/VISUALIZE/examples/nb_nbody_specials.py
+src/VISUALIZE/examples/nb_ode.py
 src/VISUALIZE/threejsmod/build/three.js
 src/VISUALIZE/threejsmod/build/three.min.js
 src/VISUALIZE/threejsmod/build/three.module.js

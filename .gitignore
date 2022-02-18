@@ -3,4 +3,6 @@
 RECYCLE
 dist
 tests
-vhmap-1.0.1
+build
+vhmap-*
+*.pyc

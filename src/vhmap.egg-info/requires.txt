@@ -1,4 +1,5 @@
 colorama
 flask
 numpy
+scipy
 waitress

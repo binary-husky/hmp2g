@@ -19,6 +19,7 @@ mcom_fn_list_define = [
     ('发送几何体','v2dx'),
     ('结束关键帧','v2d_show'),
     ('发送线条','line3d'),
+    ('发射光束','flash'),
 ]
 
 # The Design Principle: Under No Circumstance should this program Interrupt the main program!
@@ -453,6 +454,9 @@ class DrawProcessThreejs(Process):
     def run_flask(self, port):
         from flask import Flask, url_for, jsonify, request, send_from_directory, redirect
         from waitress import serve
+        from mimetypes import add_type
+        add_type('application/javascript', '.js')
+        add_type('text/css', '.css')
 
         app = Flask(__name__)
         dirname = os.path.dirname(__file__) + '/threejsmod'
@@ -491,6 +495,7 @@ class DrawProcessThreejs(Process):
         print('JS visualizer online: http://%s:%d'%(get_host_ip(), port))
         print('JS visualizer online (localhost): http://localhost:%d'%(port))
         print('--------------------------------')
+        # app.run(host='0.0.0.0', port=port)
         serve(app, threads=8, ipv4=True, ipv6=True, listen='*:%d'%port)
 
 
