@@ -89,8 +89,18 @@ python -m VISUALIZE.examples.nb_3body_specials
 <img src="md_imgs/动画13.gif"  width="300" >
 <img src="md_imgs/动画12-1.gif"  width="700" >
 </div>
-感谢 Xiaoming LI and Shijun LIAO, Shanghai Jiaotong University, China 分享的三体初始值：
+感谢 Xiaoming LI and Shijun LIAO, Shanghai Jiaotong University, China 的三体初始值：
 https://numericaltank.sjtu.edu.cn/three-body/three-body-movies.htm
+
+## 如何回放
+VHMAP在接收到数据后，会自动地在 RECYCLE/v2d_logger/ 路径下生成backup.dp数据文件，该文件可以用于回放。
+
+警告：数据文件会在下一次运行时被新的日志文件覆盖，必要时请手动备份！
+```
+python -m VISUALIZE.threejs_replay -f RECYCLE/v2d_logger/backup.dp -p 8085
+```
+其中-f后面的是回放文件的路径，-p接端口号例如8085，之后打开 http://localhost:8085 即可。
+
 
 ## API-中文
 
@@ -192,3 +202,22 @@ x=1; y=2; z=3
 self.可视化桥.结束关键帧()
 ```
 
+
+
+## API-Eng
+
+In fact, this project is developed in Eng API,
+but I do not have time to write document.
+The api alignment can be found in mcom.py:
+```
+别名对齐 = [
+    ('初始化3D', 'v2d_init'),
+    ('设置样式', 'set_style'),
+    ('形状之旋转缩放和平移','geometry_rotate_scale_translate'),
+    ('其他几何体之旋转缩放和平移','advanced_geometry_rotate_scale_translate'),
+    ('发送几何体','v2dx'),
+    ('结束关键帧','v2d_show'),
+    ('发送线条','line3d'),
+    ('发射光束','flash'),
+]
+```
