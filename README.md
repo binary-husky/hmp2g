@@ -63,10 +63,25 @@ if __name__ == '__main__':
 
 ## 50行代码-演示3维N体运动(低精度定步长)
 - 代码1详情请见：VISUALIZE/examples/nb.py
+运行方法：
+```
+pip install vhmap
+
+python -m VISUALIZE.examples.nb
+```
+![](md_imgs/动画9.gif)
 
 ## 90行代码-使用dop853求解常微分方程演示三体、N体运动
 - 代码2详情请见：VISUALIZE/examples/nb_3body_specials.py
 - 代码3详情请见：VISUALIZE/examples/nb_nbody_specials.py
+```
+pip install vhmap
+
+python -m VISUALIZE.examples.nb_3body_specials
+```
+![](md_imgs/动画11.gif)
+
+![](md_imgs/动画12-1.gif)
 
 ## API-中文
 
