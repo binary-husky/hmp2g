@@ -3,6 +3,7 @@ rm -r ./src/VISUALIZE
 rm -r ./src/UTILS
 cp -r /home/fuqingxu/hmap-3gbeta/hmp-2g/VISUALIZE ./src
 cp -r /home/fuqingxu/hmap-3gbeta/hmp-2g/UTILS ./src
+cp /home/fuqingxu/hmap-3gbeta/hmp-2g/VISUALIZE/md_imgs/* ./md_imgs
 cp -r ./src/VISUALIZE/README.md ./README.md
 rm -r ./build
 rm -r ./dist
