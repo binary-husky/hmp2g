@@ -22,6 +22,7 @@ src/VISUALIZE/mcom_rec.py
 src/VISUALIZE/mcom_replay.py
 src/VISUALIZE/mcom_testing.py
 src/VISUALIZE/mcom_v2d.py
+src/VISUALIZE/threejs_replay.py
 src/VISUALIZE/examples/__init__.py
 src/VISUALIZE/examples/nb.py
 src/VISUALIZE/examples/nb_3body_specials.py
