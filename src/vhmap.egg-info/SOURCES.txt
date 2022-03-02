@@ -29,6 +29,7 @@ src/VISUALIZE/examples/nb_3body_specials.py
 src/VISUALIZE/examples/nb_nbody_chaos.py
 src/VISUALIZE/examples/nb_nbody_specials.py
 src/VISUALIZE/examples/nb_ode.py
+src/VISUALIZE/examples/test_pitch_roll.py
 src/VISUALIZE/threejsmod/build/three.js
 src/VISUALIZE/threejsmod/build/three.min.js
 src/VISUALIZE/threejsmod/build/three.module.js
