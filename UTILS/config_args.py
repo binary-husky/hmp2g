@@ -2,6 +2,16 @@ import argparse, os, time, func_timeout
 from shutil import copyfile, copytree, ignore_patterns
 from .colorful import *
 
+'''
+    This a chained var class, it deal with hyper-parameters that are bound together, 
+    e.g. number of threads and test episode interval.
+    ChainVars are handled in utils.config_args.py
+'''
+class ChainVar(object):
+    def __init__(self, chain_func, chained_with):
+        self.chain_func = chain_func
+        self.chained_with = chained_with
+
 def secure_chained_vars(default_cfg, new_cfg, vb):
     default_cfg_dict = default_cfg.__dict__
     altered_cv = []
@@ -30,7 +40,9 @@ def override_config_file(cfg_group, new_cfg, vb):
     str_pro = '------------- %s -------------'%cfg_group
     if vb:  print绿(str_pro)
     file_, class_ = cfg_group.split('->')
-    if '.py' in file_: file_ = file_.rstrip('.py')
+    if '.py' in file_: 
+        # replace it with removesuffix('.py') if you have python>=3.9
+        if file_.endswith('.py'): file_ = file_[:-3]    
     default_configs = getattr(importlib.import_module(file_), class_)
     for key in new_cfg:
         if new_cfg[key] is None: continue
@@ -217,11 +229,14 @@ def my_setattr(conf_class, key, new_value, vb):
         else:
             assert False, ('enter True or False, but have:', replace_item)
     elif isinstance(original_item, int):
+        assert int(replace_item) == float(replace_item), ("warning, this var **%s** has an int default, but given a float override!"%key)
         replace_item = int(replace_item)
     elif isinstance(original_item, str):
         replace_item = replace_item
     elif isinstance(original_item, list):
         assert isinstance(replace_item, list)
+    elif isinstance(original_item, dict):
+        assert isinstance(replace_item, dict)
     else:
         assert False, ('not support this type')
     setattr(conf_class, setting_name, replace_item)

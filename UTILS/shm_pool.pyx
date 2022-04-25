@@ -9,16 +9,19 @@
     Note: 
         SHARE_BUF_SIZE: shared memory size, 10MB per process
 """
-import time, pickle
-from multiprocessing import Process, RawArray, RawValue, Semaphore
+import time, pickle #, traceback
+from multiprocessing import Process, RawValue, Semaphore
 from multiprocessing import shared_memory
 from ctypes import c_char, c_uint16, c_bool, c_uint32, c_byte
 import numpy as np
 import datetime
 from time import sleep as _sleep
-
+from .hmp_daemon import kill_process_and_its_children
 SHARE_BUF_SIZE = 10485760
-
+def print_red(*kw,**kargs):
+    print("\033[1;31m",*kw,"\033[0m",**kargs)
+def print_green(*kw,**kargs):
+    print("\033[1;32m",*kw,"\033[0m",**kargs)
 
 
 """
@@ -108,10 +111,15 @@ class SuperProc(Process):
         self.index = index
         self.sem_push = sem_push
         self.sem_pull = sem_pull
+        self.target_tracker = []
 
     def __del__(self):
-        # print('child end: __del__')
+        if hasattr(self,'_deleted_'): return    # avoid exit twice
+        else: self._deleted_ = True     # avoid exit twice
+        # print('executing child exit')
         self.shared_memory.close()
+        for target_name in self.target_tracker: 
+            setattr(self, target_name, None)    # GC by clearing the pointer.
         return
 
     def automatic_generation(self, name, gen_fn, *arg):
@@ -123,7 +131,8 @@ class SuperProc(Process):
     def add_targets(self, new_tarprepare_args):
         for new_target_arg in new_tarprepare_args:
             name, gen_fn, arg = new_target_arg
-            if arg is None:              
+            if name not in self.target_tracker: self.target_tracker.append(name)
+            if arg is None:
                 self.automatic_generation(name, gen_fn)
             elif isinstance(arg, tuple): 
                 self.automatic_generation(name, gen_fn, *arg)
@@ -194,7 +203,7 @@ class SuperProc(Process):
         send_obj = opti_numpy_object(send_obj, shm=self.shared_memory_io_buffer)
         picked_obj = pickle.dumps(send_obj, protocol=pickle.HIGHEST_PROTOCOL)
         lenOfObj = len(picked_obj)
-        assert lenOfObj <= 500000, ('警告非numpy内容已经超越0.5MB，不合常规需要检查', lenOfObj)
+        assert lenOfObj <= 500000, ('The non-numpy content size > 0.5MB, please check!', lenOfObj)
         self.shared_memory_io_buffer_len_indicator.value = lenOfObj
         self.shared_memory_io_buffer[:lenOfObj] = picked_obj
         # then light up the work flag, turn off the processed flag
@@ -214,8 +223,8 @@ class SuperProc(Process):
 
 class SmartPool(object):
     def __init__(self, proc_num, fold, base_seed=None):
-        import signal
-        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+        # import signal
+        # signal.signal(signal.SIGCHLD, signal.SIG_IGN)
         self.proc_num = proc_num
         self.task_fold = fold
         self.base_seed = int(np.random.rand()*1e5) if base_seed is None else base_seed
@@ -247,7 +256,7 @@ class SmartPool(object):
         send_obj = opti_numpy_object(send_obj, shm=self.shared_memory_io_buffer[target_proc])
         picked_obj = pickle.dumps(send_obj, protocol=pickle.HIGHEST_PROTOCOL)
         lenOfObj = len(picked_obj)
-        assert lenOfObj <= 500000, ('警告非numpy内容已经超越0.5MB，不合常规需要检查', lenOfObj)
+        assert lenOfObj <= 500000, ('The non-numpy content size > 0.5MB, please check!', lenOfObj)
         self.shared_memory_io_buffer_len_indicator[target_proc].value = lenOfObj
         self.shared_memory_io_buffer[target_proc][:lenOfObj] = picked_obj
         self.last_time_response_handled[target_proc] = False  # then light up the work flag, turn off the processed flag
@@ -338,41 +347,37 @@ class SmartPool(object):
             self.semaphore_push[j].release()  # notify all child process
 
     def party_over(self):
-        print('[shm_pool]: party over')
         self.__del__()
 
     def __del__(self):
         print('[shm_pool]: executing superpool del')
-        try:
-            print('[shm_pool]: already terminated, skipping ~~')
-            if hasattr(self, 'terminated'): return
-        except: 
-            print('[shm_pool]: ???')
+        # traceback.print_exc()
+        if hasattr(self, 'terminated'): 
+            print_red('[shm_pool]: already terminated, skipping ~')
             return
+
         try:
             for i in range(self.proc_num): self._send_squence(send_obj=-1, target_proc=i)
             self.notify_all_children()
             print('[shm_pool]: self.notify_all_children()')
-            time.sleep(1)
         except: pass
 
-        print('[shm_pool]: proc.terminate()')
-        for proc in self.proc_pool: 
-            try: proc.terminate()
-            except: pass
-
-        print('[shm_pool]: proc.kill()')
-        for proc in self.proc_pool: 
-            try: proc.kill()
-            except: pass
-            
         print('[shm_pool]: shm.close(); shm.unlink()')
         for shm in self.shared_memory_io_buffer_handle:
             try: shm.close(); shm.unlink()
             except: pass
 
-        print('[shm_pool]: __del__ finish')
-        time.sleep(1)
+        N_SEC_WAIT = 2
+        for i in range(N_SEC_WAIT):
+            print_red('[shm_pool]: terminate in %d'%(N_SEC_WAIT-i));time.sleep(1)
+
+        # 杀死shm_pool创建的所有子进程，以及子进程的孙进程
+        print_red('[shm_pool]: kill_process_and_its_children(proc)')
+        for proc in self.proc_pool: 
+            try: kill_process_and_its_children(proc)
+            except Exception as e: print_red('[shm_pool]: error occur when kill_process_and_its_children:\n', e)
+            
+
+
+        print_green('[shm_pool]: __del__ finish')
         self.terminated = True
-
-

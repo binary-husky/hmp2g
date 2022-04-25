@@ -13,6 +13,9 @@ import { LightningStrike } from '/examples/jsm/geometries/LightningStrike.js';
 import { OrbitControls } from '/examples/jsm/controls/OrbitControls.js';
 import { LineMaterial } from './jsm/lines/LineMaterial.js';
 import { LineGeometry } from './jsm/lines/LineGeometry.js';
+import { FBXLoader } from './jsm/loaders/FBXLoader.js';
+import { Font, FontLoader } from './jsm/loaders/FontLoader.js';
+import { TTFLoader } from './jsm/loaders/TTFLoader.js';
 import { Line2 } from './jsm/lines/Line2.js';
 window.glb = Object()
 window.glb.clock = new THREE.Clock();
@@ -22,6 +25,7 @@ window.glb.BarFolder = null;
 window.glb.camera = null;
 window.glb.camera2 = null;
 window.glb.stats = null;
+window.glb.font = null;
 
 window.glb.import_Stats = Stats;
 window.glb.import_GUI = GUI;
@@ -30,23 +34,31 @@ window.glb.import_LightningStrike = LightningStrike;
 window.glb.import_LineMaterial = LineMaterial;
 window.glb.import_LineGeometry = LineGeometry;
 window.glb.import_Line2 = Line2;
+window.glb.import_Font = Font;
+window.glb.import_FontLoader = FontLoader;
+window.glb.import_TTFLoader = TTFLoader;
+window.glb.import_FBXLoader = FBXLoader;
 window.glb.renderer = null;
 window.glb.controls=null;
 window.glb.controls2=null;
 // var window.glb.scene;
-// 历史轨迹
 window.glb.core_L = [];
-window.glb.parsed_core_L = []
 window.glb.core_Obj = [];
 window.glb.line_Obj = [];
+// window.glb.text_Obj = [];
 window.glb.flash_Obj = [];
 window.glb.base_geometry = {};
+window.glb.base_material = {};
 // global vars
 window.glb.play_fps = 5;
 window.glb.play_pointer = 0; // 位置读取指针
 window.glb.solid_pointer = 0; // 过渡动画前置位置的指针
 window.glb.sp_future = 0;   // 用于辅助确定 solid_pointer
 window.glb.dt_threshold = 1 / window.glb.play_fps;
+var client_uuid = generateUUID();
+
+//1e4
+window.glb.buffer_size = 1e4
 
 var dt_since = 0;
 var buf_str = '';
@@ -57,29 +69,80 @@ var ppt_mode = 0;
 var request=null;
 var req_interval=2.0;
 window.glb.panelSettings = {
-        'play fps': window.glb.play_fps,
-        'play pointer':0,
-        'data req interval': req_interval,
-        'reset to read new': null,
-        'pause': null,
-        'next frame': null,
-        'previous frame': null,
-        'ppt step': null,
-        'loop to start': false,
-        'use orthcam': false
+    'play fps': window.glb.play_fps,
+    'play pointer':0,
+    'data req interval': req_interval,
+    'auto fps': false,
+    // 'reset to read new': null,
+    'pause': null,
+    'next frame': null,
+    'previous frame': null,
+    'freeze': null,
+    'ppt step': null,
+    'loop to start': false,
+    'smooth control': true,
+    'show camera orbit': false,
+    'use orthcam': false
 };
 
 
+var pre_rec_time = -1
+var incoming_per_sec = -1
+var recent_incoming_steam = []
 
+function auto_fps_experimental(recent_incoming_steam){
+    if (window.glb.panelSettings['auto fps']){
+        let N=0; let dt=0;
+        for (let i=0; i<recent_incoming_steam.length; i++){
+            dt += recent_incoming_steam[i]['time'];
+            N += recent_incoming_steam[i]['n_data'];
+        }
+        let incoming_per_sec = N/dt
+
+
+        // automatically change fps
+        let need_fps_change = false;
+        let nframe_to_play = window.glb.core_L.length - window.glb.play_pointer;
+
+        let max_speed_nframe = 1250;
+        let max_speed = incoming_per_sec*5;
+
+        let min_speed_nframe = 250;
+        let min_speed = incoming_per_sec*0.5;
+        let control_fps = min_speed + (nframe_to_play - min_speed_nframe) * (max_speed-min_speed) / (max_speed_nframe-min_speed_nframe)
+        if (nframe_to_play<min_speed_nframe){
+            control_fps = min_speed;
+        }
+        console.log('pre_rec_time:'+incoming_per_sec+'\tnframe_to_play:'+nframe_to_play+'\tcontrol_fps:'+control_fps)
+
+        if(Math.abs(window.glb.panelSettings['play fps'] - control_fps)>=1){
+            need_fps_change = true;
+            window.glb.panelSettings['play fps'] = control_fps;
+        }
+        // if ((window.glb.core_L.length - window.glb.play_pointer)> window.glb.buffer_size*0.3){ // 20% buffer size
+        //     window.glb.panelSettings['play fps'] = incoming_per_sec*5;
+        // }else if ((window.glb.core_L.length - window.glb.play_pointer)< window.glb.buffer_size*0.05){ // 20% buffer size
+        //     window.glb.panelSettings['play fps'] = incoming_per_sec*0.5;
+        // }else if((Math.abs(window.glb.panelSettings['play fps'] - incoming_per_sec)>=1) ){ // 10% ~ 30% buffer size
+        //     window.glb.panelSettings['play fps'] = incoming_per_sec;
+        // }else{
+        //     need_fps_change = false;
+        // }
+
+        if (window.glb.panelSettings['play fps']>144){window.glb.panelSettings['play fps']=144;}
+        if (window.glb.panelSettings['play fps']<0.1){window.glb.panelSettings['play fps']=0.1;}
+        if (need_fps_change) {change_fps(window.glb.panelSettings['play fps']);}
+        if (need_fps_change) {console.log('change_fps:'+window.glb.panelSettings['play fps']);}
+    }
+}
 
 //////////////////////main read function//////////////////////////
 var coreReadFunc = function (auto_next=true) {
     if (transfer_ongoing){
-        // console.log('ongoing')
         req_interval = req_interval+1;
-        window.glb.panelSettings['data req interval'] = req_interval
+        window.glb.panelSettings['data req interval'] = req_interval;
         if (!DEBUG){setTimeout(coreReadFunc, req_interval*1000);}
-        return
+        return;
     }
     request = new XMLHttpRequest();
     request.open('POST', `/up`);
@@ -90,55 +153,64 @@ var coreReadFunc = function (auto_next=true) {
         alert('xhr request timeout!')
     };
     request.onload = () => {
-        // console.log('loaded')
+
         let inflat;
-        if (!DEBUG){
-            let byteArray = toUint8Arr(request.response);
-            inflat = pako.inflate(byteArray,{to: 'string'}); //window.pako.inflate(byteArray)
-        }else{
-            inflat = request.responseText
-        }
+        if (!DEBUG){inflat = pako.inflate(toUint8Arr(request.response),{to: 'string'});}
+        else{inflat = request.responseText;}
+
         let n_new_data = core_update(inflat)
         if (n_new_data==0){
             req_interval = req_interval+1;
-            if (req_interval>100){
-                req_interval=100;
-            }
-            window.glb.panelSettings['data req interval'] = req_interval
+            if (req_interval>100){req_interval=100;}
+            window.glb.panelSettings['data req interval'] = req_interval;
         }else{
-            req_interval = 0
-            window.glb.panelSettings['data req interval'] = req_interval
+            req_interval = 0;
+            window.glb.panelSettings['data req interval'] = req_interval;
         }
 
+        let time_now = new Date().getTime() / 1000;
+        if (pre_rec_time<0){pre_rec_time = time_now;}
+        else{
+            recent_incoming_steam.push({
+                'time': (time_now-pre_rec_time),
+                'n_data': n_new_data,
+            })
+            if (recent_incoming_steam.length > 100){
+                recent_incoming_steam.splice(0, 1); // remove early time-ndata pair
+            }
+
+            pre_rec_time = time_now; // first run
+            auto_fps_experimental(recent_incoming_steam)
+        }
         transfer_ongoing = false;
     };
-    request.send();
-    // console.log('send req')
+    request.send(client_uuid);
     transfer_ongoing = true;
     if(auto_next && !DEBUG){setTimeout(coreReadFunc, req_interval*1000);}
-    // console.log('next update '+req_interval)
 }
-window.glb.panelSettings['reset to read new'] = function (){
-    if (transfer_ongoing){
-        request.abort()
-        transfer_ongoing = false;
-    }
-    coreReadFunc(false)
-}
+// window.glb.panelSettings['reset to read new'] = function (){
+//     if (transfer_ongoing){
+//         request.abort()
+//         transfer_ongoing = false;
+//     }
+//     coreReadFunc(false)
+// }
+
 setTimeout(coreReadFunc, 100);
 
 function change_fps(fps) {
+    if (Math.abs(window.glb.play_fps-fps)<0.5){ return; }
     window.glb.play_fps = fps;
     dt_since = 0;
     window.glb.dt_threshold = 1 / window.glb.play_fps;
 }
 
-function pause_play(){
+function pause_play(test_freeze=false){
     if(window.glb.panelSettings['play fps']>0){
         window.glb.prev_fps = window.glb.panelSettings['play fps'];
     }
     window.glb.play_pointer = window.glb.solid_pointer;
-    force_move_all(window.glb.solid_pointer)
+    force_move_all(window.glb.solid_pointer, test_freeze)
     window.glb.panelSettings['play fps'] = 0; 
     change_fps(0);
 }
@@ -156,7 +228,13 @@ window.glb.panelSettings['pause'] = function (){
         resume_play()
     }
 }
-
+window.glb.panelSettings['freeze'] = function (){
+    if (window.glb.panelSettings['play fps']>0){
+        pause_play(true)
+    }else{
+        resume_play()
+    }
+}
 window.glb.panelSettings['next frame'] = function (){
     // pause play
     if(window.glb.play_fps!=0){
@@ -208,35 +286,18 @@ window.glb.panelSettings['ppt step'] = function (){
 ////////////////////////////////////////////////////////////
 
 
-function removeEntity(object) {
-    var selectedObject = window.glb.scene.getObjectByName(object.name);
-    window.glb.scene.remove(selectedObject);
-}
-
-
 
 
 
 
 
 function parse_time_step(pp){
-    if(window.glb.parsed_core_L[pp]) {
-        buf_str = window.glb.core_L[pp]
-        parse_update_env(buf_str)
-        parse_update_without_re(pp)
-        parse_update_flash(buf_str)
-    }else{
-        buf_str = window.glb.core_L[pp]
-        parse_init(buf_str)
-        parse_update_env(buf_str)
-        parse_update_core(buf_str, pp)
-        parse_update_flash(buf_str)
-    }
+    buf_str = window.glb.core_L[pp];
+    parse_init(buf_str);
+    parse_update_env(buf_str);
+    parse_update_core(buf_str, pp);
+    parse_update_flash(buf_str);
 }
-
-
-
-
 
 
 
@@ -249,9 +310,10 @@ function check_flash_life_cyc(delta_time){
     for (let i = window.glb.flash_Obj.length-1; i>=0; i--) {
         let nowTime = new Date();
         let dTime = nowTime - window.glb.flash_Obj[i]['create_time']   // 相差的毫秒数
-        if (dTime>=window.glb.flash_Obj[i]['dur']*1000){
+        if (dTime>=window.glb.flash_Obj[i]['dur']*1000 && window.glb.flash_Obj[i]['valid']){
+            detach_dispose(window.glb.flash_Obj[i]['mesh'], window.glb.scene);
+            window.glb.flash_Obj[i]['mesh'] = null;
             window.glb.flash_Obj[i]['valid'] = false;
-            window.glb.scene.remove(window.glb.flash_Obj[i]['mesh']);
         }
     }
     window.glb.flash_Obj = window.glb.flash_Obj.filter(function (s) {return s['valid'];});
@@ -262,7 +324,8 @@ function check_flash_life_cyc(delta_time){
 
 
 
-
+// force_move_all(pp, test_freeze=false) --> change_position_rotation_size(object, 1, true, true)
+// move_to_future(percent, override=false)  --> change_position_rotation_size(object, percent, override, false)
 function change_position_rotation_size(object, percent, override, reset_track=false){
     object.position.x = object.prev_pos.x * (1 - percent) + object.next_pos.x * percent
     object.position.y = object.prev_pos.y * (1 - percent) + object.next_pos.y * percent
@@ -277,7 +340,11 @@ function change_position_rotation_size(object, percent, override, reset_track=fa
 
     let size = object.prev_size * (1 - percent)  + object.next_size * percent
     let opacity = object.prev_opacity * (1 - percent)  + object.next_opacity * percent
-    if (object.material.opacity!=opacity){ object.material.opacity=opacity }
+    if (object.material.opacity!=opacity){ 
+        object.material.opacity = opacity;
+        object.material.transparent = (opacity==1)?false:true;
+        object.renderOrder = (opacity==0)?256:object.renderOrder;
+    }
     changeCoreObjSize(object, size)
 
     if(override){
@@ -311,8 +378,9 @@ function plot_obj_track(object){
         curve.tension = object.track_tension;
         const position = curve.mesh.geometry.attributes.position;
         const point = new THREE.Vector3();
-        for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {
-            const t = i / ( ARC_SEGMENTS - 1 );
+        if(object.track_n_frame>2560){alert("track_n_frame is too large, must < 2560")}
+        for ( let i = 0; i < curve.arc_seg; i ++ ) {
+            const t = i / ( curve.arc_seg - 1 );
             curve.getPoint( t, point );
             position.setXYZ( i, point.x, point.y, point.z );
         }
@@ -323,7 +391,7 @@ function plot_obj_track(object){
         curve.mesh.geometry.computeBoundingSphere();
         position.needsUpdate = true;
     }else{
-        // 初始化轨迹
+        // 初始化轨迹  
         object.track_init = true;
         const positions = [];
         for ( let i = (object.his_positions.length - object.track_n_frame); i < object.his_positions.length; i++) {
@@ -334,8 +402,9 @@ function plot_obj_track(object){
         object.track_his.curveType = 'catmullrom';
         // load positions_catmull
         let curve = object.track_his
+        curve.arc_seg = (object.track_n_frame > 250)? 5120:512
         const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array( ARC_SEGMENTS * 3 ), 3 ) );
+        geometry.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array( curve.arc_seg * 3 ), 3 ) );
         curve.mesh = new THREE.Line( geometry.clone(), new THREE.LineBasicMaterial( {
             color: object.track_color,
         } ) );
@@ -343,8 +412,8 @@ function plot_obj_track(object){
         curve.tension = object.track_tension;
         const position = curve.mesh.geometry.attributes.position;
         const point = new THREE.Vector3();
-        for ( let i = 0; i < ARC_SEGMENTS; i ++ ) {
-            const t = i / ( ARC_SEGMENTS - 1 );
+        for ( let i = 0; i < curve.arc_seg; i ++ ) {
+            const t = i / ( curve.arc_seg - 1 );
             curve.getPoint( t, point );
             position.setXYZ( i, point.x, point.y, point.z );
         }
@@ -359,27 +428,41 @@ function set_next_play_frame() {
     if (window.glb.core_L.length == 0) { return; }
     if (window.glb.play_pointer >= window.glb.core_L.length) {
         window.glb.play_pointer = window.glb.panelSettings['loop to start']?0:window.glb.core_L.length-1;
+        if(!window.glb.panelSettings['loop to start'] && window.glb.play_pointer==(window.glb.core_L.length-1)){ return; }
     }
     parse_time_step(window.glb.play_pointer)
     window.glb.solid_pointer = window.glb.sp_future; window.glb.panelSettings['play pointer'] = window.glb.solid_pointer; window.glb.sp_future = window.glb.play_pointer;
-    console.log('set_next_play_frame sp:'+window.glb.solid_pointer+' spf:'+window.glb.sp_future)
+    // console.log('set_next_play_frame sp:'+window.glb.solid_pointer+' spf:'+window.glb.sp_future)
 
     window.glb.play_pointer = window.glb.play_pointer + 1
     if (window.glb.play_pointer >= window.glb.core_L.length) {
         window.glb.play_pointer = window.glb.panelSettings['loop to start']?0:window.glb.core_L.length-1;
     }
 }
-function force_move_all(pp){ // 手动调整进度条时触发
+
+function force_move_all(pp, test_freeze=false){ // 手动调整进度条时触发
     parse_time_step(pp)
     window.glb.solid_pointer = pp; window.glb.panelSettings['play pointer'] = window.glb.solid_pointer; window.glb.sp_future = pp;
     console.log('set_next_play_frame sp:'+window.glb.solid_pointer+' spf:'+window.glb.sp_future)
     for (let i = 0; i < window.glb.core_Obj.length; i++) {
         let object = window.glb.core_Obj[i]
-        object.prev_pos.x = object.next_pos.x; object.prev_pos.y = object.next_pos.y; object.prev_pos.z = object.next_pos.z
-        object.prev_ro.x = object.next_ro.x; object.prev_ro.y = object.next_ro.y; object.prev_ro.z = object.next_ro.z
-        object.prev_opacity = object.next_opacity; object.prev_size = object.next_size;
-        change_position_rotation_size(object, 1, true, true)
-    }
+        if(!test_freeze){
+            object.prev_pos.x = object.next_pos.x; object.prev_pos.y = object.next_pos.y; object.prev_pos.z = object.next_pos.z
+            object.prev_ro.x = object.next_ro.x; object.prev_ro.y = object.next_ro.y; object.prev_ro.z = object.next_ro.z
+            object.prev_opacity = object.next_opacity; object.prev_size = object.next_size;
+        }else{
+            object.prev_pos = object.position.clone()
+            object.next_pos = object.position.clone()
+            object.prev_ro.x = object.rotation.x; object.prev_ro.y = object.rotation.y; object.prev_ro.z = object.rotation.z
+            object.next_ro.x = object.rotation.x; object.next_ro.y = object.rotation.y; object.next_ro.z = object.rotation.z
+            object.prev_opacity = object.material.opacity
+            object.next_opacity = object.material.opacity
+            object.prev_size = object.currentSize
+            object.next_size = object.currentSize
+        }
+        let reset_track = !test_freeze
+        change_position_rotation_size(object, 1, true, reset_track)
+    }	
 }
 window.glb.force_move_all = force_move_all
 
@@ -398,6 +481,7 @@ function animate() {
     requestAnimationFrame(animate);
     render();
     window.glb.stats.update();
+    window.glb.controls.update()
 }
 
 function start_transition(){
@@ -428,14 +512,71 @@ function render() {
         let percent = Math.min(dt_since / window.glb.dt_threshold, 1.0);
         move_to_future(percent);
     }
-    check_flash_life_cyc(delta)
+    check_flash_life_cyc(delta) // consider moving it somewhere else?
+
+    sprite_like_txt_update()
 
     if(window.glb.panelSettings['use orthcam']) {window.glb.renderer.render(window.glb.scene, window.glb.camera2);}
-    else{window.glb.renderer.render(window.glb.scene, window.glb.camera);}
+    else{
+        show_cam_orbit();
+        window.glb.renderer.render(window.glb.scene, window.glb.camera);
+    }
+
 }
 
+function sprite_like_txt_update(){
+    var lookAtVector = new THREE.Vector3(0, 0, -1);
+    lookAtVector.applyQuaternion(window.glb.camera.quaternion);
+    for (let i = window.glb.core_Obj.length-1; i>=0 ; i--) {
+        if (!window.glb.core_Obj[i].text_object){continue;}
+        let text_object = window.glb.core_Obj[i].text_object
+        let target = new THREE.Vector3(); 
+        text_object.getWorldPosition(target)
+        text_object.lookAt(target.add(lookAtVector.clone().negate()));
+        let object = text_object.parent;
+        let new_rel_pos;
+        if (!object.label_offset){
+            new_rel_pos = new THREE.Vector3(object.generalSize, object.generalSize, -object.generalSize);
+        }else{
+            new_rel_pos = new THREE.Vector3(object.label_offset[0], object.label_offset[2], -object.label_offset[1]);
+        }
+        let q = object.quaternion.clone().invert()
+        new_rel_pos.applyQuaternion(q)
+        text_object.position.set(new_rel_pos.x,new_rel_pos.y,new_rel_pos.z)
+    }
+}
 
-
+var cam_orbit_deleted = true;
+function show_cam_orbit(){
+    if(window.glb.panelSettings['show camera orbit']) {
+        let target = window.glb.controls.target
+        let distance = window.glb.controls.getDistance()
+        apply_simple_line_update(find_lineobj_by_id('cam_x'), {
+            'x_arr': [target.x,target.x+distance*0.2],
+            'y_arr': [target.y,target.y],
+            'z_arr': [target.z,target.z],
+            'my_id': 'cam_x', 'color_str': 'Red',
+        });
+        apply_simple_line_update(find_lineobj_by_id('cam_y'),{
+            'x_arr': [target.x,target.x],
+            'y_arr': [target.y,target.y+distance*0.2],
+            'z_arr': [target.z,target.z],
+            'my_id': 'cam_y', 'color_str': 'Blue',
+        });
+        apply_simple_line_update(find_lineobj_by_id('cam_z'),{
+            'x_arr': [target.x,target.x],
+            'y_arr': [target.y,target.y],
+            'z_arr': [target.z-distance*0.2,target.z],
+            'my_id': 'cam_z', 'color_str': 'Green',
+        });
+        cam_orbit_deleted = false
+    }else if(!cam_orbit_deleted){
+        let cam_x = find_lineobj_by_id('cam_x'); if (cam_x){window.glb.scene.remove(cam_x.mesh); window.glb.line_Obj.remove(cam_x);}
+        let cam_y = find_lineobj_by_id('cam_y'); if (cam_y){window.glb.scene.remove(cam_y.mesh); window.glb.line_Obj.remove(cam_y);}
+        let cam_z = find_lineobj_by_id('cam_z'); if (cam_z){window.glb.scene.remove(cam_z.mesh); window.glb.line_Obj.remove(cam_z);}
+        cam_orbit_deleted=true;
+    }
+}
 
 
 init();

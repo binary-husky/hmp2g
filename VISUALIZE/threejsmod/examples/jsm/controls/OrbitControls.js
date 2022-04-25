@@ -82,7 +82,14 @@ class OrbitControls extends EventDispatcher {
 		this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
 
 		// The four arrow keys
-		this.keys = { LEFT: 'ArrowLeft', UP: 'ArrowUp', RIGHT: 'ArrowRight', BOTTOM: 'ArrowDown' };
+		this.keys = {
+			FORWARD: 'KeyW', BACKWARD:'KeyS',
+			LEFT: 'KeyA', RIGHT: 'KeyD', // right arrow
+			UP: 'KeyE', BOTTOM: 'KeyF', // down arrow
+			SlowLeft: 'ArrowLeft', SlowRight: 'ArrowRight', 
+		};
+		
+		//{FORWARD: 'KeyW', BACKWARD:'KeyS', LEFT: 'ArrowLeft', UP: 'ArrowUp', RIGHT: 'ArrowRight', BOTTOM: 'ArrowDown' };
 
 		// Mouse buttons
 		this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
@@ -224,8 +231,21 @@ class OrbitControls extends EventDispatcher {
 
 				spherical.makeSafe();
 
-
-				spherical.radius *= scale;
+				if ( scope.enableDamping === true ) {
+					if (scale!=1){
+						from_radius = spherical.radius;
+						dst_radius = spherical.radius*scale;
+						delta_radius = (dst_radius - from_radius)*3; // x3 because slow
+					}
+					spherical.radius += 	      delta_radius *  scope.dampingFactor 
+					delta_radius = delta_radius - delta_radius *  scope.dampingFactor
+					if (Math.abs(delta_radius)<EPS*10){
+						delta_radius = 0
+					}
+				}
+				else{
+					spherical.radius *= scale;
+				}
 
 				// restrict radius to be between desired limits
 				spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
@@ -340,6 +360,9 @@ class OrbitControls extends EventDispatcher {
 		const sphericalDelta = new Spherical();
 
 		let scale = 1;
+		let dst_radius = 1
+		let from_radius = 1
+		let delta_radius = 1
 		const panOffset = new Vector3();
 		let zoomChanged = false;
 
@@ -629,6 +652,25 @@ class OrbitControls extends EventDispatcher {
 					needsUpdate = true;
 					break;
 
+				case scope.keys.FORWARD:
+					dollyIn( getZoomScale() );
+					needsUpdate = true;
+					break;
+
+				case scope.keys.BACKWARD:
+					dollyOut( getZoomScale() );
+					needsUpdate = true;
+					break;
+
+				case scope.keys.SlowLeft:
+					scope.autoRotate = true;
+					scope.autoRotateSpeed = 0.05;
+					break;
+
+				case scope.keys.SlowRight:
+					scope.autoRotate = true;
+					scope.autoRotateSpeed = -0.05;
+					break;
 			}
 
 			if ( needsUpdate ) {

@@ -1,30 +1,62 @@
 # import os
 # print(os.getcwd())
-import os, sys
+import os, sys, gzip
 import argparse
 from VISUALIZE.mcom import *
 
-
+# DEBUG_OOM = True
 
 class RecallProcessThreejs(Process):
-    def __init__(self, file_path):
+    def __init__(self, file_path, port):
         super(RecallProcessThreejs, self).__init__()
         self.buffer_list = []
         self.file_path = file_path
+        self.port = port
+        self.client_send_pointer = {}
 
     def init_threejs(self):
         import threading
-        t = threading.Thread(target=self.run_flask, args=(5051,))
-        # t = threading.Thread(target=self.run_flask, args=(51241,))
+        t = threading.Thread(target=self.run_flask, args=(self.port,))
+        t.daemon = True
         t.start()
 
+    def __del__(self):
+        pass
+    
     def run(self):
         self.init_threejs()
         try:
-            with open(self.file_path, 'r') as f:
-                new_buff_list = f.readlines()
+            new_buff_list = []
+            with gzip.open(self.file_path, 'rt') as zip:
+                try:
+                    for line in zip:
+                        new_buff_list.append(line)
+                        if len(new_buff_list) > 1e2:
+                            self.run_handler(new_buff_list)
+                            new_buff_list = []
+                except:
+                    print('File has bad ending! EOFError: Compressed file ended before the end-of-stream marker was reached!')
+                    print('存档的末尾是破碎的, 少量数据可能丢失了. 完整的部分已经读取完成.')
             self.run_handler(new_buff_list)
-            while True: time.sleep(1000)
+            new_buff_list = []
+            # if DEBUG_OOM:
+            #     for i in range(100):
+            #         print(i)
+            #         with gzip.open(self.file_path, 'rt') as zip:
+            #             try:
+            #                 for line in zip:
+            #                     if 'v2d_init' in line: continue
+            #                     new_buff_list.append(line)
+            #                     if len(new_buff_list) > 1e2:
+            #                         self.run_handler(new_buff_list)
+            #                         new_buff_list = []
+            #             except:
+            #                 print('File has bad ending! EOFError: Compressed file ended before the end-of-stream marker was reached!')
+            #                 print('存档的末尾是破碎的, 少量数据可能丢失了. 完整的部分已经读取完成.')
+            #         self.run_handler(new_buff_list)
+            #         new_buff_list = []
+            while True: 
+                time.sleep(1000)
         except KeyboardInterrupt:
             self.__del__()
 
@@ -39,6 +71,9 @@ class RecallProcessThreejs(Process):
     def run_flask(self, port):
         from flask import Flask, url_for, jsonify, request, send_from_directory, redirect
         from waitress import serve
+        from mimetypes import add_type
+        add_type('application/javascript', '.js')
+        add_type('text/css', '.css')
 
         app = Flask(__name__)
         dirname = os.path.dirname(__file__) + '/threejsmod'
@@ -47,12 +82,21 @@ class RecallProcessThreejs(Process):
         @app.route("/up", methods=["POST"])
         def upvote():
             # dont send too much in one POST, might overload the network traffic
-            if len(self.buffer_list)>35000:
-                tosend = self.buffer_list[:30000]
-                self.buffer_list = self.buffer_list[30000:]
+            token = request.data.decode('utf8')
+            if token not in self.client_send_pointer:
+                print('[mcom_replay.py] Establishing new connection, token:', token)
+                current_pointer = 0
             else:
-                tosend = self.buffer_list
-                self.buffer_list = []
+                current_pointer = self.client_send_pointer[token]
+
+            if len(self.buffer_list)-current_pointer>35000:
+                tosend = self.buffer_list[current_pointer:current_pointer+30000]
+                current_pointer = current_pointer+30000
+            else:
+                tosend = self.buffer_list[current_pointer:]
+                current_pointer = len(self.buffer_list)
+                
+            self.client_send_pointer[token] = current_pointer
 
             # use zlib to compress output command, worked out like magic
             buf = "".join(tosend)
@@ -94,5 +138,6 @@ if __name__ == '__main__':
     load_via_json = (hasattr(args, 'cfg') and args.cfg is not None)
     
     rp = RecallProcessThreejs(path)
+    rp.daemon = True
     rp.start()
     rp.join()

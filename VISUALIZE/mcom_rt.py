@@ -1,4 +1,4 @@
-import os, copy, atexit, time, gzip, threading
+import os, copy, atexit, time, gzip, threading, zlib, asyncio
 import numpy as np
 from colorama import init
 from multiprocessing import Process
@@ -316,6 +316,8 @@ class DrawProcessThreejs(Process):
     def flush_backup(self):
         while True:
             time.sleep(20)
+            if not os.path.exists(os.path.dirname(self.backup_file)):
+                os.makedirs(os.path.dirname(self.backup_file))
             # print('Flush backup')
             with gzip.open(self.backup_file, 'at') as f:
                 f.writelines(self.tflush_buffer)
@@ -323,14 +325,137 @@ class DrawProcessThreejs(Process):
             # print('Flush backup done')
 
     def init_threejs(self):
-        t = threading.Thread(target=self.run_flask, args=(find_free_port(),))
+        http_port = find_free_port()
+        ws_port = 8765 # http_port+1
+        t = threading.Thread(target=self.run_flask, args=(http_port,))
         t.daemon = True
         t.start()
+        t2 = threading.Thread(target=self.run_ws, args=(ws_port,))
+        t2.daemon = True
+        t2.start()
+        time.sleep(2)
 
         if self.allow_backup:
             self.tflush = threading.Thread(target=self.flush_backup)
             self.tflush.daemon = True
             self.tflush.start()
+
+    def run_ws(self, port):
+        import asyncio
+        import websockets
+
+        self.connected_ws = None
+        self.new_ws_connection_flag = False
+        
+        async def echo(websocket):
+            self.connected_ws = websocket
+            self.new_ws_connection_flag = True
+            while True:
+                try:
+                    # not supposed to receive anything, just to maintain connection
+                    await self.connected_ws.recv()   
+                except websockets.ConnectionClosed:
+                    print(f"Previous Websocket Terminated")
+                    self.connected_ws = None
+                    break
+
+        async def run_ws():
+            async with websockets.serve(echo, "localhost", port):
+                await asyncio.Future()  # run forever
+
+        self.init_cmd_captured = False
+        init_cmd_list = []
+        def init_cmd_capture_fn(tosend):
+            for strx in tosend:
+                if '>>v2d_show()\n'==strx:
+                    self.init_cmd_captured = True
+                init_cmd_list.append(strx)    
+                if self.init_cmd_captured:
+                    break
+            return
+
+        async def run_ws_main():
+            while True:
+                await asyncio.sleep(0.01)
+                if self.connected_ws is not None:
+                    # 本次正常情况下，需要发送的数据
+                    # dont send too much in one POST, might overload the network traffic
+
+                    if len(self.buffer_list)>35000:
+                        tosend = self.buffer_list[:30000]
+                        self.buffer_list = self.buffer_list[30000:]
+                    else:
+                        tosend = self.buffer_list
+                        self.buffer_list = []
+
+                    # 处理断线重连的情况，断线重连时，会出现新的token
+                    if self.new_ws_connection_flag:
+                        self.new_ws_connection_flag = False
+                        if (not self.init_cmd_captured):  
+                            # 尚未捕获初始化命令，或者第一次client
+                            buf = "".join(tosend)
+                        else:
+                            print('[mcom.py] If there are other tabs, please close them now.')
+                            tosend = [""]
+                            buf = "".join(init_cmd_list + tosend)
+                    else:
+                        # 正常连接
+                        buf = "".join(tosend)
+
+                    # 尝试捕获并保存初始化部分的命令
+                    if not self.init_cmd_captured:
+                        init_cmd_capture_fn(tosend)
+                    # use zlib to compress output command, worked out like magic
+                    buf = bytes(buf, encoding='utf8')   
+                    zlib_compress = zlib.compressobj()
+                    buf = zlib_compress.compress(buf) + zlib_compress.flush(zlib.Z_FINISH)
+                    print('await start')
+                    if not self.connected_ws.open: continue
+                    await self.connected_ws.send(buf)
+                    print('await done')
+
+        async def main():
+            task1 = asyncio.create_task(run_ws())
+            task2 = asyncio.create_task(run_ws_main())
+            await task1
+            await task2
+
+        asyncio.run(main())
+
+
+    def run_flask(self, port):
+        import json
+        from flask import Flask, request, send_from_directory
+        from waitress import serve
+        from mimetypes import add_type
+        add_type('application/javascript', '.js')
+        add_type('text/css', '.css')
+
+        app = Flask(__name__)
+        dirname = os.path.dirname(__file__) + '/threejsmod'
+        import zlib
+
+        self.init_cmd_captured = False
+        init_cmd_list = []
+
+        @app.route("/<path:path>")
+        def static_dirx(path):
+            if path=='favicon.ico': 
+                return send_from_directory("%s/"%dirname, 'files/HMP.ico')
+            return send_from_directory("%s/"%dirname, path)
+
+        @app.route("/")
+        def main_app():
+            with open('%s/examples/abc_rt.html'%dirname, 'r', encoding = "utf-8") as f:
+                buf = f.read()
+            return buf
+
+        print('\n--------------------------------')
+        print('JS visualizer online: http://%s:%d'%(get_host_ip(), port))
+        print('JS visualizer online (localhost): http://localhost:%d'%(port))
+        print('--------------------------------')
+        # app.run(host='0.0.0.0', port=port)
+        serve(app, threads=8, ipv4=True, ipv6=True, listen='*:%d'%port)
 
     def run(self):
         self.init_threejs()
@@ -340,8 +465,10 @@ class DrawProcessThreejs(Process):
             self.tcp_connection.wait_connection() # after this, the queue begin to work
             while True:
                 buff_list = []
+                buff_list.extend(queue.get(timeout=600))
                 for _ in range(queue.qsize()): buff_list.extend(queue.get(timeout=600))
                 self.run_handler(buff_list)
+
         except KeyboardInterrupt:
             self.__del__()
         self.__del__()
@@ -358,83 +485,6 @@ class DrawProcessThreejs(Process):
             # 当存储的指令超过十亿后，开始删除旧的
             del self.buffer_list[:len(new_buff_list)]
 
-    def run_flask(self, port):
-        from flask import Flask, request, send_from_directory
-        from waitress import serve
-        from mimetypes import add_type
-        add_type('application/javascript', '.js')
-        add_type('text/css', '.css')
-
-        app = Flask(__name__)
-        dirname = os.path.dirname(__file__) + '/threejsmod'
-        import zlib
-
-        self.init_cmd_captured = False
-        init_cmd_list = []
-        def init_cmd_capture_fn(tosend):
-            for strx in tosend:
-                if '>>v2d_show()\n'==strx:
-                    self.init_cmd_captured = True
-                init_cmd_list.append(strx)    
-                if self.init_cmd_captured:
-                    break
-            return
-            
-        @app.route("/up", methods=["POST"])
-        def up():
-
-            # 本次正常情况下，需要发送的数据
-            # dont send too much in one POST, might overload the network traffic
-            if len(self.buffer_list)>35000:
-                tosend = self.buffer_list[:30000]
-                self.buffer_list = self.buffer_list[30000:]
-            else:
-                tosend = self.buffer_list
-                self.buffer_list = []
-
-            # 处理断线重连的情况，断线重连时，会出现新的token
-            token = request.data.decode('utf8')
-            if token not in self.client_tokens:
-                print('[mcom.py] Establishing new connection, token:', token)
-                self.client_tokens[token] = 'connected'
-                if (len(self.client_tokens)==0) or (not self.init_cmd_captured):  
-                    # 尚未捕获初始化命令，或者第一次client 
-                    buf = "".join(tosend)
-                else:
-                    print('[mcom.py] If there are other tabs, please close them now.')
-                    buf = "".join(init_cmd_list + tosend)
-            else:
-                # 正常连接
-                buf = "".join(tosend)
-
-            # 尝试捕获并保存初始化部分的命令
-            if not self.init_cmd_captured:
-                init_cmd_capture_fn(tosend)
-
-            # use zlib to compress output command, worked out like magic
-            buf = bytes(buf, encoding='utf8')   
-            zlib_compress = zlib.compressobj()
-            buf = zlib_compress.compress(buf) + zlib_compress.flush(zlib.Z_FINISH)
-            return buf
-
-        @app.route("/<path:path>")
-        def static_dirx(path):
-            if path=='favicon.ico': 
-                return send_from_directory("%s/"%dirname, 'files/HMP.ico')
-            return send_from_directory("%s/"%dirname, path)
-
-        @app.route("/")
-        def main_app():
-            with open('%s/examples/abc.html'%dirname, 'r', encoding = "utf-8") as f:
-                buf = f.read()
-            return buf
-
-        print('\n--------------------------------')
-        print('JS visualizer online: http://%s:%d'%(get_host_ip(), port))
-        print('JS visualizer online (localhost): http://localhost:%d'%(port))
-        print('--------------------------------')
-        # app.run(host='0.0.0.0', port=port)
-        serve(app, threads=8, ipv4=True, ipv6=True, listen='*:%d'%port)
 
 
 class DrawProcess(Process):
@@ -445,7 +495,6 @@ class DrawProcess(Process):
         self.draw_udp_port = draw_udp_port
         self.tcp_connection = QueueOnTcpServer(self.draw_udp_port)
         self.image_path = kargs['image_path'] if 'image_path' in kargs else None
-
         return
 
     def init_matplot_lib(self):
@@ -495,6 +544,7 @@ class DrawProcess(Process):
             while True:
                 try: 
                     buff_list = []
+                    buff_list.extend(queue.get(timeout=0.1))
                     for _ in range(queue.qsize()): buff_list.extend(queue.get(timeout=0.1))
                     self.run_handler(buff_list)
                 except Empty: self.gui_reflesh()

@@ -41,21 +41,24 @@ function core_update(buf) {
     }
     if (eofx_i>=0){
         alert('new session detected')
-        window.glb.core_L = []
-        window.glb.parsed_core_L = []
-        for (let i = window.glb.core_Obj.length-1; i>=0; i--) {
-            window.glb.scene.remove(window.glb.core_Obj[i]);
-        }
-        window.glb.core_Obj = []
+        window.glb.core_L = [];
+        clear_everything();
+        window.glb.core_Obj = [];
         tmp.splice(0, eofx_i);
     }
     //
     window.glb.core_L = window.glb.core_L.concat(tmp);
-    if (window.glb.core_L.length>1e8){
+    // check memory remaining
+    // console.log(parseInt((performance.memory.jsHeapSizeLimit-performance.memory.usedJSHeapSize)/1024/1024),'MB');
+    // ; // will give you the JS heap size
+    // performance.memory.usedJSHeapSize; // how much you're currently using
+
+    //
+    if (window.glb.core_L.length > window.glb.buffer_size){
         window.glb.core_L.splice(0, tmp.length);
-        play_pointer = play_pointer - tmp.length;
-        if (play_pointer<0){
-            play_pointer=0;
+        window.glb.play_pointer = window.glb.play_pointer - tmp.length;
+        if (window.glb.play_pointer<0){
+            window.glb.play_pointer=0;
         }
     }
     window.glb.BarFolder.__controllers[0].max(window.glb.core_L.length);
@@ -74,3 +77,14 @@ function reg_rad(rad){
 function reg_rad_at(rad, ref){
     return reg_rad(rad-ref) + ref
 }
+
+
+function generateUUID() {
+    var d = new Date().getTime();
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = (d + Math.random()*16)%16 | 0;
+      d = Math.floor(d/16);
+      return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+    });
+    return uuid;
+};

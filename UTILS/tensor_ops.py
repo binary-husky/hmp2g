@@ -71,13 +71,14 @@ def vis_mat(mat):
             y = repeat_at(x, insert_dim, n_times)
             y.shape = (4, 666, 5, 6, 7)
 """
-def repeat_at(tensor, insert_dim, n_times):
+def repeat_at(tensor, insert_dim, n_times, copy_mem=False):
     if not isinstance(tensor, torch.Tensor):
         return np_repeat_at(tensor, insert_dim, n_times)
     tensor = tensor.unsqueeze(insert_dim)
     shape = list(tensor.shape)
     assert shape[insert_dim] == 1
     shape[insert_dim] = n_times
+    if copy_mem: tensor.repeat(*shape)
     return tensor.expand(*shape)
 
 def np_repeat_at(array, insert_dim, n_times):
@@ -151,13 +152,33 @@ def my_view_test(x, shape):
 
 
 def add_onehot_id_at_last_dim(x):
+    if isinstance(x, np.ndarray):
+        return np_add_onehot_id_at_last_dim(x)
+    _hot_dim = x.shape[-2]
+    _identity = torch.tile(torch.eye(_hot_dim, device=x.device), (*x.shape[:-2], 1, 1))
+    return torch.cat((x, _identity), -1)
+
+def np_add_onehot_id_at_last_dim(x):
     _hot_dim = x.shape[-2]
     _identity = np.tile(np.eye(_hot_dim), (*x.shape[:-2], 1, 1))
     return np.concatenate((x, _identity), -1)
 
 
+
+
+
 """
     numpy corresponding to torch.nn.functional.one_hot
+    x is array, e.g. x = [4,2,3,1]
+    n is int, e.g. n=5
+    >> np_one_hot( np.array([4,2,3,1]), n=5)
+    np.array([
+        [0,0,0,0,1],
+        [0,0,1,0,0],
+        [0,0,0,1,0],
+        [0,1,0,0,0],
+    ])
+
 """
 def np_one_hot(x, n):
     return np.eye(n)[x]
@@ -176,6 +197,18 @@ def add_obs_container_subject(container_emb, subject_emb, div):
     )
     container_out_emb = np.concatenate((container_emb, container_multihot), -1)
     return container_out_emb, subject_out_emb
+
+
+def MayGoWrong(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except:
+            print('going wrong!')
+            return f(*args, **kwargs)
+
+    return decorated
 
 
 
@@ -246,7 +279,7 @@ def Args2tensor_Return2numpy(f):
     def _2tensor(x):
         if isinstance(x, torch.Tensor):
             return x.to(cfg.device)
-        elif isinstance(x, np.ndarray):
+        elif isinstance(x, np.ndarray) and x.dtype != 'object':
             if (not cfg.use_float64) and x.dtype == np.float64:
                 x = x.astype(np.float32)
             if cfg.use_float64 and x.dtype == np.float32:
@@ -276,6 +309,8 @@ def Args2tensor_Return2numpy(f):
         for key in kwargs:
             kwargs[key] = _2tensor(kwargs[key])
         ret_tuple = f(*(_2tensor(arg) for arg in args), **kwargs)
+        if not isinstance(ret_tuple, tuple):
+            return _2cpu2numpy(ret_tuple)
         return (_2cpu2numpy(ret) for ret in ret_tuple)
 
     return decorated
@@ -318,6 +353,9 @@ def _2tensor(x):
         for key in x:
             y[key] = _2tensor(x[key])
         return y
+    elif isinstance(x, torch.nn.Module):
+        x.to(cfg.device)
+        return x
     else:
         return x
 
@@ -552,7 +590,7 @@ def sample_balance(x, y, n_class, weight=None):
         index = torch.Tensor([[0], [1], [0]])
         src.shape = (3, 2, 3)
         src.shape = (3, 1)
-        res = gather_righthand(src,index)
+        >> res = gather_righthand(src,index)
         res.shape = (3, 1, 3)
         res= tensor([[[ 0.,  1.,  2.]],
                      [[ 9., 10., 11.]],
@@ -560,13 +598,13 @@ def sample_balance(x, y, n_class, weight=None):
     eg.2
         src.shape   = (64, 16, 8, 88, 888)
         index.shape = (64, 5)
-        res = gather_righthand(src,index)
+        >> res = gather_righthand(src,index)
         res.shape   = (64, 5,  8, 88, 888)
 
     eg.3
-        src.shape   = (64, 16, 88, 888)
+        src.shape   = (64,  16,  88, 888)
         index.shape = (64, 777)
-        res = gather_righthand(src,index)
+        >> res = gather_righthand(src,index)
         res.shape   = (64, 777,  88, 888)
 
 """
@@ -586,7 +624,7 @@ def gather_righthand(src, index, check=True):
             )
         assert (
             src.shape[t_dim] != index.shape[t_dim]
-        ), "you really want to select %d item out of %d?" % (
+        ), "Do you really want to select %d item out of %d?? If so, please set check=False." % (
             index.shape[t_dim],
             src.shape[t_dim],
         )
@@ -602,6 +640,9 @@ def gather_righthand(src, index, check=True):
     )  # only this two line matters
 
 
+
+
+
 def np_gather_righthand(src, index, check=True):
     index = index.astype(np.long)
     dim = lambda x: len(x.shape)
@@ -610,7 +651,7 @@ def np_gather_righthand(src, index, check=True):
     t_dim = i_dim - 1
     if check:
         assert s_dim >= i_dim
-        assert index.max() <= src.shape[t_dim] - 1
+        assert index.max() <= src.shape[t_dim] - 1, ("\tindex.max()=", index.max(), "\tsrc.shape[t_dim]-1=", src.shape[t_dim] - 1)
         if index.max() != src.shape[t_dim] - 1:
             print(
                 "[gather_righthand] warning, index max value does not match src target dim"
@@ -634,8 +675,23 @@ def np_gather_righthand(src, index, check=True):
     # return torch.gather(src, dim=t_dim, index=index_expand) # only this two line matters
 
 
+def scatter_righthand(scatter_into, src, index, check=True):
+    index = index.long()
+    i_dim = index.dim()
+    s_dim = src.dim()
+    t_dim = i_dim - 1
+    index_new_shape = list(src.shape)
+    index_new_shape[t_dim] = index.shape[t_dim]
+    for _ in range(i_dim, s_dim):
+        index = index.unsqueeze(-1)
+    index_expand = index.expand(index_new_shape)  # only this two line matters
+    return scatter_into.scatter(t_dim, index_expand, src)
+
+
+
+
 def distance_matrix(A):
-    assert A.shape[-1] == 2  # assert 2D situation
+    # assert A.shape[-1] == 3  # assert 2D situation
     n_subject = A.shape[-2]  # is 2
     A = np.repeat(np.expand_dims(A, -2), n_subject, axis=-2)  # =>(64, 100, 100, 2)
     At = np.swapaxes(A, -2, -3)  # =>(64, 100, 100, 2)
@@ -653,12 +709,16 @@ def delta_matrix(A):
 def np_normalize_last_dim(mat):
     return mat / np.expand_dims(np.linalg.norm(mat, axis=-1) + 1e-16, axis=-1)
 
-def dir2rad(delta_pos):
+def dir2rad_old(delta_pos):
     result = np.empty(delta_pos.shape[:-1], dtype=complex)
     result.real = delta_pos[..., 0]
     result.imag = delta_pos[..., 1]
     rad_angle = np.angle(result)
+    # assert (dir2rad_new(delta_pos)==rad_angle).all()
     return rad_angle
+
+def dir2rad(delta_pos):
+    return np.arctan2(delta_pos[..., 1], delta_pos[..., 0])
 
 
 def dir3d_rad(delta_pos):
@@ -677,7 +737,6 @@ def reg_deg(deg):
 def reg_deg_at(rad, ref):
     return reg_deg(rad-ref) + ref
 
-
 def reg_rad(rad):
     # it's OK to show "RuntimeWarning: invalid value encountered in remainder"
     return (rad + np.pi) % (2 * np.pi) - np.pi
@@ -686,7 +745,9 @@ def reg_rad(rad):
 def reg_rad_at(rad, ref):
     return reg_rad(rad-ref) + ref
 
-
+# the average of two angles (in rad)
+def avg_rad(rad1, rad2):
+    return reg_rad_at(rad1, rad2)/2 + rad2/2
 
 def zeros_like_except_dim(array, except_dim, n):
     shape_ = list(array.shape)
@@ -722,3 +783,87 @@ def objload():
         return
     with open('objdump.tmp', 'rb') as f:
         return pickle.load(f)
+
+def stack_padding(l, padding=np.nan):
+    max_len = max([t.shape[0] for t in l])
+    shape_desired = (len(l), max_len, *(l[0].shape[1:]))
+    target = np.zeros(shape=shape_desired, dtype=float) + padding
+    for i in range(len(l)): target[i, :len(l[i])] = l[i]
+    return target
+
+def n_item(tensor):
+    n = 1
+    for d in tensor.shape:
+        n = n*d
+    return n
+
+ENABLE_SYC = False
+if ENABLE_SYC:
+    import pickle, os
+    # mod = 'lead'
+    mod = 'follow'
+
+    sychronize_internal_hashdict = {
+    }
+    sychronize_internal_cnt = {
+    }
+    sychronize_FILE_hashdict = 'RECYCLE/sychronize_file1'
+    sychronize_FILE_cnt = 'RECYCLE/sychronize_file2'
+    follow_cnt = {}
+    if mod == 'follow':
+        with open(sychronize_FILE_hashdict, 'rb') as f:
+            sychronize_internal_hashdict = pickle.load(f)
+        with open(sychronize_FILE_cnt, 'rb') as f:
+            sychronize_internal_cnt = pickle.load(f)
+    else:
+        try:
+            os.remove(sychronize_FILE_hashdict)
+            os.remove(sychronize_FILE_cnt)
+        except: pass
+
+    def dump_sychronize_data():
+        with open(sychronize_FILE_hashdict, 'wb+') as f:
+            pickle.dump(sychronize_internal_hashdict, f)
+        with open(sychronize_FILE_cnt, 'wb+') as f:
+            pickle.dump(sychronize_internal_cnt, f)
+
+    def sychronize_experiment(key, data, reset_when_close=False):
+        if mod == 'lead':
+            hash_code = __hash__(data)
+            if key not in sychronize_internal_hashdict:
+                sychronize_internal_cnt[key] = 0
+                sychronize_internal_hashdict[key] = [
+                    {
+                        'hash_code':hash_code,
+                        'data': data,
+                    }
+                    ,
+                ]
+            else:
+                sychronize_internal_hashdict[key].append({
+                        'hash_code':hash_code,
+                        'data': data,
+                })
+
+            sychronize_internal_cnt[key] += 1
+
+
+
+        if mod == 'follow':
+            hash_code = __hash__(data)
+            if key not in follow_cnt:
+                follow_cnt[key] = 0
+
+            if hash_code != sychronize_internal_hashdict[key][follow_cnt[key]]['hash_code']:
+                if not (torch.isclose(sychronize_internal_hashdict[key][follow_cnt[key]]['data'],data).all()) or (not isinstance(data, torch.Tensor)):
+                    print('%s: error expected hash: %s, get hash %s, data %s'%(key,
+                        sychronize_internal_hashdict[key][follow_cnt[key]]['hash_code'],
+                        hash_code,
+                        str(data)
+                    ))
+                else:
+                    print('%s: error expected hash, but very very close (<1e-5)'%key)
+                    if reset_when_close:
+                        return data
+
+            follow_cnt[key] += 1
