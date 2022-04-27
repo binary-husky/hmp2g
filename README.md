@@ -1,5 +1,8 @@
 Author: Fu Qingxu, CASIA
+
+```
 Note: This is NOT the main branch! This branch is used to archive our code used in aaai22 paper.
+```
 # Introduction
 Hybrid Multi-agent Playground (HMP) is an experimental framework designed for RL researchers.
 Unlike any other framework which only isolates the TASKs from the framework, 
