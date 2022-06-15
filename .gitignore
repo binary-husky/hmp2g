@@ -16,6 +16,7 @@ bin-release/
 *.apk
 *.so
 *.pyc
+*.pyd
 *.so
 # gpu lock
 *.glock
