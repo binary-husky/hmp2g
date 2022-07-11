@@ -90,7 +90,7 @@ class ReinforceAlgorithmFoundation(object):
             manual_dir = AlgorithmConfig.load_specific_checkpoint
             ckpt_dir = '%s/model.pt' % logdir if manual_dir == '' else '%s/%s' % (logdir, manual_dir)
             cuda_n = 'cpu' if 'cpu' in self.device else self.device
-            strict = not AlgorithmConfig.only_train_div_tree_and_ct
+            strict = True
             self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n), strict=strict)
             print黄('loaded checkpoint:', ckpt_dir)
         self.__incomplete_frag__ = None
