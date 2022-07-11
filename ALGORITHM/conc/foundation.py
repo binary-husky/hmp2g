@@ -88,12 +88,11 @@ class ReinforceAlgorithmFoundation(object):
             os.makedirs('%s/history_cpt/'%logdir)
         if self.load_checkpoint:
             manual_dir = AlgorithmConfig.load_specific_checkpoint
-            ckpt_dir = '%s/model.pt'%logdir if manual_dir=='' else '%s/%s'%(logdir, manual_dir)
-            print黄('加载检查点:', ckpt_dir)
-            if not alg_config.checkpoint_reload_cuda:
-                self.policy.load_state_dict(torch.load(ckpt_dir))
-            else:
-                self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n))
+            ckpt_dir = '%s/model.pt' % logdir if manual_dir == '' else '%s/%s' % (logdir, manual_dir)
+            cuda_n = 'cpu' if 'cpu' in self.device else self.device
+            strict = not AlgorithmConfig.only_train_div_tree_and_ct
+            self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n), strict=strict)
+            print黄('loaded checkpoint:', ckpt_dir)
         self.__incomplete_frag__ = None
         self.patience = 500 # skip currupt data detection after patience exhausted
 
