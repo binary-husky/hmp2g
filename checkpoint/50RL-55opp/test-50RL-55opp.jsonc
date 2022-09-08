@@ -2,7 +2,7 @@
     "config.py->GlobalConfig": {
         "note": "50RL-55opp",   // 实验存储路径
         "env_name": "collective_assult_debug",  // 环境（任务名称）
-        "env_path": "MISSION.collective_assult_debug", 
+        "env_path": "Mission.collective_assult_debug", 
         "draw_mode": "Img",
         "num_threads": "1",    // 环境并行数量
         "report_reward_interval": "1",
@@ -16,11 +16,11 @@
         "max_n_episode": 1000000.0,
         "seed": 22333, // 随机数种子
         "backup_files": [
-            "ALGORITHM/conc_4hist",
-            "MISSION/collective_assult"
+            "Algorithm/conc_4hist",
+            "Mission/collective_assult"
         ]
     },
-    "MISSION.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig": {
+    "Mission.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig": {
         "size": "5",
         "random_jam_prob": 0.05,
         "num_guards": 50,   // 强化学习方（蓝色）智能体数量
@@ -36,10 +36,10 @@
         "REWARD_DEBUG_Value": 3,
         "half_death_reward": "True",
         "TEAM_NAMES": [
-            "ALGORITHM.conc_4hist.foundation->ReinforceAlgorithmFoundation"
+            "Algorithm.conc_4hist.foundation->ReinforceAlgorithmFoundation"
         ]
     },
-    "ALGORITHM.conc_4hist.foundation.py->AlgorithmConfig": {
+    "Algorithm.conc_4hist.foundation.py->AlgorithmConfig": {
         "train_traj_needed": "64",
         "prevent_batchsize_oom": "True",
         "n_focus_on": 3,

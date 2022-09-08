@@ -3,7 +3,7 @@ base = """
     "config.py->GlobalConfig": {
         "note": "z_test_ppoma",
         "env_name": "uhmap",
-        "env_path": "MISSION.uhmap",
+        "env_path": "Mission.uhmap",
         "draw_mode": "Img",
         "num_threads": 16,
         "report_reward_interval": 256,
@@ -15,11 +15,11 @@ base = """
         "max_n_episode": 5000000,
         "fold": 1,
         "backup_files": [
-            "ALGORITHM/ppo_ma",
-            "MISSION/uhmap"
+            "Algorithm/ppo_ma",
+            "Mission/uhmap"
         ]
     },
-    "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
+    "Mission.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
         "n_team1agent": 10,
         "n_team2agent": 10,
         "MaxEpisodeStep": 125,
@@ -35,11 +35,11 @@ base = """
         "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer/UHMPServer.sh",
         "TimeDilation": 64,
         "TEAM_NAMES": [
-            "ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation",
-            "ALGORITHM.script_ai.uhmap_ls->DummyAlgorithmLinedAttack"
+            "Algorithm.ppo_ma.foundation->ReinforceAlgorithmFoundation",
+            "Algorithm.script_ai.uhmap_ls->DummyAlgorithmLinedAttack"
         ]
     },
-    "MISSION.uhmap.SubTasks.UhmapLargeScaleConf.py->SubTaskConfig":{
+    "Mission.uhmap.SubTasks.UhmapLargeScaleConf.py->SubTaskConfig":{
         "agent_list": [
             { "team":0,  "tid":0,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
             { "team":0,  "tid":1,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
@@ -65,15 +65,15 @@ base = """
         ]
     },
 
-    // --- Part3: config ALGORITHM 1/2 --- 
-    "ALGORITHM.script_ai.uhmap_ls.py->DummyAlgConfig": {
+    // --- Part3: config Algorithm 1/2 --- 
+    "Algorithm.script_ai.uhmap_ls.py->DummyAlgConfig": {
         "reserve": ""
     },
-    // --- Part3: config ALGORITHM 2/2 --- 
-    "ALGORITHM.ppo_ma.shell_env.py->ShellEnvConfig": {
+    // --- Part3: config Algorithm 2/2 --- 
+    "Algorithm.ppo_ma.shell_env.py->ShellEnvConfig": {
         "add_avail_act": true
     },
-    "ALGORITHM.ppo_ma.foundation.py->AlgorithmConfig": {
+    "Algorithm.ppo_ma.foundation.py->AlgorithmConfig": {
         "train_traj_needed": 256,
         "use_normalization":true,
         "load_specific_checkpoint": "",
@@ -122,7 +122,7 @@ conf_override = {
             "RVE-drone2-ppoma-traj-128-run1",
             "RVE-drone2-ppoma-traj-128-run2",
         ],
-    "ALGORITHM.ppo_ma.foundation.py->AlgorithmConfig-->train_traj_needed":
+    "Algorithm.ppo_ma.foundation.py->AlgorithmConfig-->train_traj_needed":
         [
             32,
             32,
@@ -131,7 +131,7 @@ conf_override = {
             128,
             128,
         ],
-    "ALGORITHM.ppo_ma.foundation.py->AlgorithmConfig-->lr":
+    "Algorithm.ppo_ma.foundation.py->AlgorithmConfig-->lr":
         [
             0.0001,
             0.0001,
