@@ -104,6 +104,12 @@ also refer to the last part of [setup_docker](./document/setup_docker.md) for pi
 
 # Introducing the Structure of HMP
 ## HMP's General Framework Structure
+Following components are most essential for HMP.
+- Core: main.py, task_runner.py, multi_team.py, config.py.
+- Algorithms: most algorithms are packed under ```Algorithms```, thirdparty algorithms are packed under ```thirdparty```.
+- Mission: all environments/multiagent tasks are packed under ```Mission```.
+- Util: tools, including tensor ops, share-memory communication, networking etc.
+- Visualize: 2D/3D visulization tools.
 
 ## HMP's Config System (How to experiment)
 HMP aims to optimize the parameter control experience as a framework for researchers. 
