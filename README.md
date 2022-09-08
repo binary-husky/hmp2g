@@ -28,28 +28,26 @@ By the way, we also have a gitee rep which is a mirror of this Github rep: ```ht
   * [Anti-Invasion Interception](#anti-invasion-interception)
   * [Hazardous Cargo Transport](#hazardous-cargo-transport)
   * [Decentralized Collective Assult (AAAI Paper Version)](#decentralized-collective-assult-aaai-paper-version)
-- [Dependency](#dependency)
+- [Installation and Dependency](#dependency)
+  * [Linux (Docker)](#linux)
+  * [Windows](#windows)
 - [Introducing the Structure of HMP](#introducing-the-structure-of-hmp)
-  * [HMP's General Framework Structure](#hmps-general-framework-structure)
-  * [HMP's Config System (How to experiment)](#hmps-config-system-how-to-experiment)
-    + [<1> How to Config:](#1-how-to-config)
-    + [<2> How to Add and Override A Parameter:](#2-how-to-add-and-override-a-parameter)
-    + [<3> How to Deal with Parameter Dependency:](#3-how-to-deal-with-parameter-dependency)
-- [all done! you need to do nothing else!](#all-done-you-need-to-do-nothing-else)
-  * [The Time Sequence of HMP](#the-time-sequence-of-hmp)
+  * [General Framework Structure](#hmps-general-framework-structure)
+  * [Config System (How to experiment)](#hmps-config-system-how-to-experiment)
+    + [<1> How to Configure Experiments](#1-how-to-config)
+    + [<2> How to Add and Override A Parameter](#2-how-to-add-and-override-a-parameter)
+    + [<3> How to Deal with Parameter Dependency](#3-how-to-deal-with-parameter-dependency)
+  * [Time Sequence of HMP](#the-time-sequence-of-hmp)
   * [Mission](#mission)
   * [Execution Pool](#execution-pool)
-  * [VHMAP, a Visulization Component of HMP](#vhmap-a-component-of-hmp)
+  * [Visulization Component of HMP (VHMAP)](#vhmap-a-component-of-hmp)
 - [Quick Start](#quick-start)
-  * [Dependency](#dependency-1)
+  * [Installation and Dependency](#dependency-1)
   * [AAAI 2022](#aaai-2022)
-    + [1. All Default: Testing](#1-all-default-testing)
-    + [2. All Default: Training](#2-all-default-training)
-    + [3. Change Settings](#3-change-settings)
   * [IJCNN 2022](#ijcnn-2022)
   * [Others](#others)
 - [Project Roadmap](#project-roadmap)
-- [How to Add a New Environment (Mission) in HMP](#how-to-add-a-new-environment-mission-in-hmp)
+- [Adding New Environments (Mission) in HMP](#how-to-add-a-new-environment-mission-in-hmp)
 - [Papers Supported by HMP](#papers-supported-by-hmp)
 
 # Demo
@@ -94,8 +92,11 @@ git pull && python main.py -c checkpoint/test-100+100/test-100+100.jsonc --skip
 ```
 
 # Dependency
+
+## Linux
 We use docker to solve dependency: [SetupDocker](./document/setup_docker.md).
 
+## Windows
 Please do not run on WindowsOS (low efficiency), 
 but if you have to, 
 also refer to the last part of [setup_docker](./document/setup_docker.md) for pip requirements list. 
