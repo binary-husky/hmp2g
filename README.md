@@ -1,12 +1,13 @@
+
 Author: Fu Qingxu, CASIA
 
 # Introduction
 Hybrid Multi-agent Playground (HMP) is an experimental framework designed for RL researchers.
-Unlike any other framework which only isolates the TASKs from the framework, 
+Unlike any other framework which only isolates the environments from the framework, 
 HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
 
 Any algorithm, from the most straightforward script-AI to sophisticated RL learner,
-is abstracted into a module inside ./Algorithm/*.
+is abstracted into a module inside ```Algorithm/*```.
 
 We also put effect to interface all kinds of multi-agent environments,
 including gym, SMAC, air combat, et.al.
@@ -18,6 +19,42 @@ runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a
 **Please ```star``` the root Github project. Your encouragement is extremely important to us as researchers: ```https://github.com/binary-husky/hmp2g```**
 
 By the way, we also have a gitee rep which is a mirror of this Github rep: ```https://gitee.com/hh505030475/hmp-2g```. Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
+
+# Table of Contents
+
+- [Demo](#demo)
+  * [Web Demo of DCA (AAAI Paper Version)](#web-demo-of-dca-aaai-paper-version)
+  * [Decentralized Collective Assult (Improved Version)](#decentralized-collective-assult-improved-version-more-difficult-than-aaai-paper-version)
+  * [Anti-Invasion Interception](#anti-invasion-interception)
+  * [Hazardous Cargo Transport](#hazardous-cargo-transport)
+  * [Decentralized Collective Assult (AAAI Paper Version)](#decentralized-collective-assult-aaai-paper-version)
+- [Dependency](#dependency)
+- [Introducing the Structure of HMP](#introducing-the-structure-of-hmp)
+  * [HMP's General Framework Structure](#hmps-general-framework-structure)
+  * [HMP's Config System (How to experiment)](#hmps-config-system-how-to-experiment)
+    + [<1> How to Config:](#1-how-to-config)
+    + [<2> How to Add and Override A Parameter:](#2-how-to-add-and-override-a-parameter)
+    + [<3> How to Deal with Parameter Dependency:](#3-how-to-deal-with-parameter-dependency)
+- [all done! you need to do nothing else!](#all-done-you-need-to-do-nothing-else)
+  * [The Time Sequence of HMP](#the-time-sequence-of-hmp)
+  * [Mission](#mission)
+  * [Execution Pool](#execution-pool)
+  * [VHMAP, a Visulization Component of HMP](#vhmap-a-component-of-hmp)
+- [Quick Start](#quick-start)
+  * [Dependency](#dependency-1)
+  * [AAAI 2022](#aaai-2022)
+    + [1. All Default: Testing](#1-all-default-testing)
+    + [2. All Default: Training](#2-all-default-training)
+    + [3. Change Settings](#3-change-settings)
+  * [IJCNN 2022](#ijcnn-2022)
+  * [Others](#others)
+- [Project Roadmap](#project-roadmap)
+- [How to Add a New Environment (Mission) in HMP](#how-to-add-a-new-environment-mission-in-hmp)
+- [bvr is the final name that HMP recognize, ](#bvr-is-the-final-name-that-hmp-recognize)
+- [Mission.bvr_sim.init_env is a py file, ](#missionbvr_siminit_env-is-a-py-file)
+- [ScenarioConfig is a class](#scenarioconfig-is-a-class)
+- [Papers Supported by HMP](#papers-supported-by-hmp)
+- [(Written to Myself) Steps to Mirror to Github](#written-to-myself-steps-to-mirror-to-github)
 
 # Demo
 ## Web Demo of DCA (AAAI Paper Version)
@@ -177,7 +214,7 @@ Please refer to [Mission README](./Mission/readme.md).
 ## Execution Pool
 Unfinished doc
 
-## VHMAP, a Component of HMP
+## VHMAP, a Visulization Component of HMP
 VHMAP is a visulization component of HMP. [VHMAP](./Visualize/README.md)
 
 It is unfortunate that 
