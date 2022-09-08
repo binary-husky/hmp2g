@@ -50,11 +50,7 @@ By the way, we also have a gitee rep which is a mirror of this Github rep: ```ht
   * [Others](#others)
 - [Project Roadmap](#project-roadmap)
 - [How to Add a New Environment (Mission) in HMP](#how-to-add-a-new-environment-mission-in-hmp)
-- [bvr is the final name that HMP recognize, ](#bvr-is-the-final-name-that-hmp-recognize)
-- [Mission.bvr_sim.init_env is a py file, ](#missionbvr_siminit_env-is-a-py-file)
-- [ScenarioConfig is a class](#scenarioconfig-is-a-class)
 - [Papers Supported by HMP](#papers-supported-by-hmp)
-- [(Written to Myself) Steps to Mirror to Github](#written-to-myself-steps-to-mirror-to-github)
 
 # Demo
 ## Web Demo of DCA (AAAI Paper Version)
