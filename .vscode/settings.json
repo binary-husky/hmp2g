@@ -5,5 +5,7 @@
 		"schema": {
 			"allowTrailingCommas": true
 		}
-	}],
+	}
+],
+"explorer.sortOrderLexicographicOptions": "upper",
 }

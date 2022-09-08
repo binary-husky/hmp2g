@@ -29,22 +29,22 @@ core
 TODO
 __pycache__/
 ./build/
-ALGORITHM/Starcraft/result/
-ALGORITHM/Starcraft/model/
+Algorithm/Starcraft/result/
+Algorithm/Starcraft/model/
 ZipResults/
-VISUALIZE/train no aWiseAttn
-VISUALIZE/train-half-death-reward
+Visualize/train no aWiseAttn
+Visualize/train-half-death-reward
 ZipResults/Starcraft/
 result
 # .vscode/
 forattack-train/
 full-cargo/
 T*/
-checkpoint/
+checkpoint/*
 
-PROFILE/
+temp/
 RECYCLE/
-TEMP/
+temp/
 test_only_*.py
 test_only_log
 test_only_profile.txt
@@ -56,7 +56,7 @@ test_only_profiledebug_change_self_n_agent.json.txt
 xx_profile_n_agents2.py
 xx_profile_n_agents3.py
 xx_profile_n_agents4.py
-UTIL/keys.py
+Util/keys.py
 private*.jsonc
 private*.py
 fqx*.jsonc
@@ -64,82 +64,76 @@ my_*.jsonc
 result.prof
 ignore
 bvrAI.log
-ZHECKPOINT/*
+checkpoint/*
 
-!THIRDPARTY
-THIRDPARTY/*
-!THIRDPARTY/__init__.py
-!THIRDPARTY/pymarl2
-THIRDPARTY/pymarl2/*
-!THIRDPARTY/pymarl2/__init__.py
-!THIRDPARTY/mappo
-THIRDPARTY/mappo/*
-!THIRDPARTY/mappo/__init__.py
+!thirdparty
+thirdparty/*
+!thirdparty/__init__.py
+!thirdparty/pymarl2
+thirdparty/pymarl2/*
+!thirdparty/pymarl2/__init__.py
+!thirdparty/mappo
+thirdparty/mappo/*
+!thirdparty/mappo/__init__.py
 
-!ZHECKPOINT/test-50+50
-ZHECKPOINT/test-50+50/*
-!ZHECKPOINT/test-50+50/model.pt
-!ZHECKPOINT/test-50+50/experiment.json
-!ZHECKPOINT/test-50+50/test-50+50.jsonc
-!ZHECKPOINT/test-50+50/test50.gif
+!checkpoint/test-50+50
+checkpoint/test-50+50/*
+!checkpoint/test-50+50/model.pt
+!checkpoint/test-50+50/experiment.json
+!checkpoint/test-50+50/test-50+50.jsonc
+!checkpoint/test-50+50/test50.gif
 
-!ZHECKPOINT/test-100+100
-ZHECKPOINT/test-100+100/*
-!ZHECKPOINT/test-100+100/model.pt
-!ZHECKPOINT/test-100+100/experiment.json
-!ZHECKPOINT/test-100+100/test-100+100.jsonc
+!checkpoint/test-100+100
+checkpoint/test-100+100/*
+!checkpoint/test-100+100/model.pt
+!checkpoint/test-100+100/experiment.json
+!checkpoint/test-100+100/test-100+100.jsonc
 
-!ZHECKPOINT/50RL-55opp
-ZHECKPOINT/50RL-55opp/*
-!ZHECKPOINT/50RL-55opp/test-50RL-55opp.jsonc
-!ZHECKPOINT/50RL-55opp/model.pt
-ZHECKPOINT/50RL-55opp/experiment.json
+!checkpoint/50RL-55opp
+checkpoint/50RL-55opp/*
+!checkpoint/50RL-55opp/test-50RL-55opp.jsonc
+!checkpoint/50RL-55opp/model.pt
+checkpoint/50RL-55opp/experiment.json
 
-!ZHECKPOINT/test-cargo50
-ZHECKPOINT/test-cargo50/*
-!ZHECKPOINT/test-cargo50/model.pt
-!ZHECKPOINT/test-cargo50/experiment.json
-!ZHECKPOINT/test-cargo50/test-cargo50.jsonc
-!ZHECKPOINT/test-cargo50/cargo50.jpg
+!checkpoint/test-cargo50
+checkpoint/test-cargo50/*
+!checkpoint/test-cargo50/model.pt
+!checkpoint/test-cargo50/experiment.json
+!checkpoint/test-cargo50/test-cargo50.jsonc
+!checkpoint/test-cargo50/cargo50.jpg
 
-!ZHECKPOINT/test-cargo50/history_cpt
-ZHECKPOINT/test-cargo50/history_cpt/*
-!ZHECKPOINT/test-cargo50/history_cpt/init.pkl
+!checkpoint/test-cargo50/history_cpt
+checkpoint/test-cargo50/history_cpt/*
+!checkpoint/test-cargo50/history_cpt/init.pkl
 
-!ZHECKPOINT/test-50+50/butterfly.webp
+!checkpoint/test-50+50/butterfly.webp
 
-!ZHECKPOINT/test-aii515
-ZHECKPOINT/test-aii515/*
-!ZHECKPOINT/test-aii515/model.pt
-!ZHECKPOINT/test-aii515/experiment.json
-!ZHECKPOINT/test-aii515/test-aii515.jsonc
-!ZHECKPOINT/test-aii515/aii.jpg
+!checkpoint/test-aii515
+checkpoint/test-aii515/*
+!checkpoint/test-aii515/model.pt
+!checkpoint/test-aii515/experiment.json
+!checkpoint/test-aii515/test-aii515.jsonc
+!checkpoint/test-aii515/aii.jpg
 
-!ZHECKPOINT/test-aii515/history_cpt
-ZHECKPOINT/test-aii515/history_cpt/*
-!ZHECKPOINT/test-aii515/history_cpt/init.pkl
+!checkpoint/test-aii515/history_cpt
+checkpoint/test-aii515/history_cpt/*
+!checkpoint/test-aii515/history_cpt/init.pkl
 
-!ZHECKPOINT/basic-ma-40-demo
-ZHECKPOINT/basic-ma-40-demo/*
-!ZHECKPOINT/basic-ma-40-demo/trained_model.pt
-!ZHECKPOINT/basic-ma-40-demo/train.json
-!ZHECKPOINT/basic-ma-40-demo/test.json
+!checkpoint/basic-ma-40-demo
+checkpoint/basic-ma-40-demo/*
+!checkpoint/basic-ma-40-demo/trained_model.pt
+!checkpoint/basic-ma-40-demo/train.json
+!checkpoint/basic-ma-40-demo/test.json
 
-!ZHECKPOINT/adca-demo
-ZHECKPOINT/adca-demo/*
-!ZHECKPOINT/adca-demo/model_trained.pt
-!ZHECKPOINT/adca-demo/train.json
-!ZHECKPOINT/adca-demo/test.json
+!checkpoint/adca-demo
+checkpoint/adca-demo/*
+!checkpoint/adca-demo/model_trained.pt
+!checkpoint/adca-demo/train.json
+!checkpoint/adca-demo/test.json
 
 z_*
-ALGORITHM/conc_4hist_divtree3
-ALGORITHM/conc_4hist_divtree2
+Algorithm/conc_4hist_divtree3
+Algorithm/conc_4hist_divtree2
 example_dca_cs*
 PersonalityDevelop.pdf
 
-6vs7Pr-continue-train.jsonc
-6vs7Pr.jsonc
-6vs7PrTry2-Link.jsonc
-6vs7PrTry2.jsonc
-7vs7Pr.json
-7vs7Pr.jsonc

@@ -1,7 +1,7 @@
 import time
 import numpy as np
-from UTIL.colorful import *
-from UTIL.config_args import ChainVar
+from Util.colorful import *
+from Util.config_args import ChainVar
 
 
 
@@ -10,7 +10,7 @@ from UTIL.config_args import ChainVar
     GlobalConfig: This config class will be 'injected' with new settings from JSONC.
     (E.g., override configs with ```python main.py --cfg example.jsonc```)
     (As the name indicated, ChainVars will change WITH vars it 'chained_with' during config injection)
-    (please see UTIL.config_args to find out how this advanced trick works out.)
+    (please see Util.config_args to find out how this advanced trick works out.)
 
     * Explaining a very important setting option: 
         - align_episode (True/False):
@@ -21,12 +21,12 @@ from UTIL.config_args import ChainVar
         - note (str):
             Name you experiment carefully with note setting.
             The note defines where the results of a single experiment will go. 
-            for example, if note='conc', everything produced in the experiment will be save in ZHECKPOINT/conc/*,
+            for example, if note='conc', everything produced in the experiment will be save in checkpoint/conc/*,
             including images, saved pytorch model, 
         
         - env_name:
             Which mission/environment/task to use, 
-            See ./MISSION/env_router.py for the dictionary of available envs.
+            See ./Mission/env_router.py for the dictionary of available envs.
 
         - env_path:
             The path of selected mission. In fact, hmp do not need this setting at all,
@@ -39,7 +39,7 @@ from UTIL.config_args import ChainVar
             - mission selects algorithm(s).
         In fact, if you have two teams in env, 
         you can choose two different algorithms to fight each other in the same env!
-            - Please goto ./MISSION/env_router.py to find out where the ScenarioConfig of your env is written,
+            - Please goto ./Mission/env_router.py to find out where the ScenarioConfig of your env is written,
             - Please set ```TEAM_NAMES``` to include the path of your favored algorithm(s)
 '''
 
@@ -47,8 +47,8 @@ from UTIL.config_args import ChainVar
 class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
     align_episode = True                                # ! please try to understand this with TOP priority
 
-    env_name = 'sr_tasks->cargo'                        # which environment, see ./MISSION/env_router.py
-    env_path = 'MISSION.sr_tasks.multiagent.cargo'     # path of environment
+    env_name = 'sr_tasks->cargo'                        # which environment, see ./Mission/env_router.py
+    env_path = 'Mission.sr_tasks.multiagent.cargo'     # path of environment
     draw_mode = 'OFF'                                   # 'Web','Native','Img','Threejs' 
     activate_logger = True                              # activate data plotting (Tensorboard is not used because I do not like it)
     data_logger = 'auto load, do not change this var!'  # activate data plotting (Tensorboard is not used because I do not like it)
@@ -56,10 +56,10 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
 
     seed = np.random.randint(0, 100000)                 # seed for numpy and pytorch
 
-    # ! warning, the note also determine where the experiment log is stored, typically at ./ZHECKPOINT/$note/*
+    # ! warning, the note also determine where the experiment log is stored, typically at ./checkpoint/$note/*
     note = 'more_testing'                               # in case you forget the purpose of this trainning session, write a note
-    logdir = './ZHECKPOINT/%s/'%note
-    logdir_cv = ChainVar(lambda note: './ZHECKPOINT/%s/'%note, chained_with=['note']) 
+    logdir = './checkpoint/%s/'%note
+    logdir_cv = ChainVar(lambda note: './checkpoint/%s/'%note, chained_with=['note']) 
     recall_previous_session = False                     # continue previously interrupted training session
 
     test_only = False                                   # only testing and no training, it controlls a flag sending to Alg side
@@ -94,7 +94,7 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
     test_epoch = 32 if num_threads <= 32 else num_threads    # test epoch
     test_epoch_cv = ChainVar(lambda num_threads: 32 if num_threads <= 32 else num_threads, chained_with=['num_threads'])
 
-    ScenarioConfig = 'This ScenarioConfig var will be automatically linked to task configuration later in ./MISSION/env_router.py'
+    ScenarioConfig = 'This ScenarioConfig var will be automatically linked to task configuration later in ./Mission/env_router.py'
 
 
     backup_files = []                                   # a list of files that needs to be backed up at each run
@@ -103,7 +103,7 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
     
     cfg_ready = False                                   # DO NOT change! automatically set to True when Json configuration is all locked-and-loaded
 
-    # ! uploading "./ZHECKPOINT/$note" to a data storage server 
+    # ! uploading "./checkpoint/$note" to a data storage server 
     allow_res_upload = True                             # upload results to a data storage server when exiting
     upload_after_test = False                           # upload results to a data storage server when completing a test run
     machine_info = 'auto load, do not change this var!'

@@ -9,11 +9,11 @@
 
 import time, os
 import numpy as np
-from UTIL.colorful import *
-from UTIL.exp_helper import upload_exp
+from Util.colorful import *
+from Util.exp_helper import upload_exp
 from multi_team import MMPlatform
 from config import GlobalConfig as cfg
-from MISSION.env_router import make_parallel_envs
+from Mission.env_router import make_parallel_envs
 class Runner(object):
     def __init__(self, process_pool):
         self.process_pool = process_pool
@@ -60,7 +60,7 @@ class Runner(object):
             # line 1: get action, block infomation access between teams (LINK to ARGORITHM)
             # (The controller can also handle algorithm internal state loopback by following simple rules)
             actions_list, self.info_runner = self.platform_controller.act(self.info_runner)
-            # line 2: multi-thread environment step (LINK to MISSION)
+            # line 2: multi-thread environment step (LINK to Mission)
             # (When thread align is needed, NaN actions will be used to make envs freeze for a step)
             obs, reward, done, info = self.envs.step(actions_list)
             # line 3: prepare obs and reward for next round 
@@ -235,7 +235,7 @@ class Runner(object):
 
 
     # -- If you care much about the agents running your algorthm... --
-    # -- you may delete them if monitering is established in ALGORITHM level --
+    # -- you may delete them if monitering is established in Algorithm level --
     def _init_interested_agent_logging(self):
         self.report_interval = cfg.report_reward_interval
         self.interested_agents_uid = cfg.interested_agent_uid
@@ -277,7 +277,7 @@ class Runner(object):
     # MATLAB silent logging bridge
     @staticmethod
     def get_a_logger(note):
-        from VISUALIZE.mcom import mcom
+        from Visualize.mcom import mcom
         logdir = cfg.logdir
         if cfg.activate_logger:
             mcv = mcom( path='%s/logger/'%logdir,
