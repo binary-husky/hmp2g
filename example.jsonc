@@ -1,49 +1,90 @@
 {
+    // --- Part1: config HMP core --- 
     "config.py->GlobalConfig": {
-        // please checkout config.py for information
-        "note": "example experiment",                   // in case you forget the purpose of this trainning session, write a note
-        "env_name": "collective_assult",                // which environment, see ./Mission/env_router.py
-        "env_path": "Mission.collective_assult",       // path of environment
-        "draw_mode": "Img",                             // activate data plotting (Tensorboard is not used because I do not like it)
-        "num_threads": "64",                            // run N parallel envs, a 'env' is refered to as a 'thread'
-        "report_reward_interval": "64",                 // reporting interval
-        "test_interval": "2048",                        // test every $test_interval episode
-        "fold": "1",                                    // this 'folding' is designed for IPC efficiency, you can thank python GIL for such a strange design... 
-        "seed": 8888,                                   // seed controls pytorch and numpy
-        "backup_files": [                               // backup files, pack them up
-            "example.jsonc",
-            "Algorithm/conc",
-            "Mission/collective_assult/envs/collective_assult_env.py"
-        ],
-        "device": "cuda:0",                             // choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU) 
-        // GPU memory is precious! assign multiple training process to a 'party', then they will share GPU memory 
-        "gpu_party": "off"                     // default is 'off', 
-    },
-
-
-    "Mission.collective_assult.collective_assult_parallel_run.py->ScenarioConfig": {
-        // please checkout ./Mission/collective_assult/collective_assult_parallel_run.py for information
-        "size": "5",
-        "random_jam_prob": 0.1,
-        "introduce_terrain": "True",
-        "terrain_parameters": [
-            0.05,
-            0.2
-        ],
-        "num_steps": "180",
-        "render": "False",
-        "half_death_reward": "True",
-        "TEAM_NAMES": [ //select team algorithm
-            "Algorithm.conc.foundation->ReinforceAlgorithmFoundation"
+        "note": "RVE-drone2-ppoma-run2",        // write a note !
+        "env_name": "uhmap",                    // which environment, see ./MISSION/env_router.py
+        "env_path": "Mission.uhmap",            // path of environment
+        "draw_mode": "Img",                     // activate data plotting (Tensorboard is not used because I do not like it)
+        "num_threads": 16,                      // run N parallel envs, a 'env' is refered to as a 'thread'
+        "report_reward_interval": 256,          // reporting interval
+        "test_interval": 5120,                  // test every $test_interval episode
+        "test_epoch": 256,                      // test epoch
+        "interested_team": 0,                   // print the reward of which team ?
+        "seed": 8834,                           // random seed
+        "device": "cuda",                       // auto select GPU, other options: "cpu", "cuda:0"
+        "max_n_episode": 5000000,               // max episode
+        "fold": 1,                              // this 'folding' is designed for IPC efficiency, "1" is fine
+        "backup_files": [                       // backup files, pack them up
+            "Algorithm/ppo_ma",
+            "Mission/uhmap"
         ]
     },
-    "Algorithm.conc.foundation.py->AlgorithmConfig": {
-        // please checkout ./Algorithm/conc/foundation.py for information
-        "n_focus_on": 4,                    // d_k
-        "actor_attn_mod": "False",          // add self-attention to actor network
-        "lr": 0.0005,
-        "ppo_epoch": 24,
-        "train_traj_needed": "64",
-        "load_checkpoint": false
+
+    // --- Part2: config MISSION --- 
+    "Mission.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
+        "n_team1agent": 10,                     // team1 agent num, must agree with 'SubTaskConfig'
+        "n_team2agent": 10,                     // team1 agent num, must agree with 'SubTaskConfig'
+        "MaxEpisodeStep": 125,                  // max epsiode step
+        "StepGameTime": 0.5,                    // decision interval
+        "StateProvided": false,                 // state infomation
+        "render": false,                        // render is off
+        "UElink2editor": false,                 // dev option
+        "AutoPortOverride": true,               // dev option
+        "HeteAgents": true,                     // flag
+        "UnrealLevel": "UhmapLargeScale",
+        "SubTaskSelection": "UhmapLargeScale",
+        "UhmapRenderExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer/UHMPServer.sh",
+        "TimeDilation": 64,                     // maximum simulation speed allowed
+        "TEAM_NAMES": [                         // Algorithm selection for each team
+            "Algorithm.ppo_ma.foundation->ReinforceAlgorithmFoundation",
+            "Algorithm.script_ai.uhmap_ls->DummyAlgorithmLinedAttack"
+        ]
+    },
+    "Mission.uhmap.SubTasks.UhmapLargeScaleConf.py->SubTaskConfig":{
+        "agent_list": [
+            { "team":0,  "tid":0,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
+            { "team":0,  "tid":1,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":2,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":3,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":4,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":5,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":6,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":7,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":8,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":0,  "tid":9,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
+
+            { "team":1,  "tid":0,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
+            { "team":1,  "tid":1,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":2,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":3,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":4,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":5,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":6,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":7,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":8,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
+            { "team":1,  "tid":9,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
+        ]
+    },
+
+    // --- Part3: config script AI ALGORITHM 1/2 --- 
+    "Algorithm.script_ai.uhmap_ls.py->DummyAlgConfig": {
+        "reserve": ""
+    },
+    // --- Part3: config RL AI ALGORITHM 2/2 --- 
+    "Algorithm.ppo_ma.shell_env.py->ShellEnvConfig": {
+        "add_avail_act": true
+    },
+    "Algorithm.ppo_ma.foundation.py->AlgorithmConfig": {
+        "train_traj_needed": 256,                   // batch size
+        "use_normalization": true,                  // normalize observation
+        "load_checkpoint": false,                   // load checkpoint?
+        "load_specific_checkpoint": "",             // load which checkpoint
+        "gamma": 0.99,
+        "gamma_in_reward_forwarding": "True",
+        "gamma_in_reward_forwarding_value": 0.95,
+        "prevent_batchsize_oom": "True",            // prevent GPU ram overflow error
+        "lr": 0.0004,                               // learning rate
+        "ppo_epoch": 24,                            // ppo epoch
     }
 }

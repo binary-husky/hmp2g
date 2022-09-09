@@ -99,7 +99,6 @@ class ShellEnvWrapper(object):
             self.core_dim = GlobalConfig.ScenarioConfig.obs_vec_length
         else:
             self.core_dim = space['obs_space']['obs_shape']
-        self.n_entity_placeholder = alg_config.n_entity_placeholder
 
         # whether to use avail_act to block forbiden actions
         self.AvailActProvided = False
