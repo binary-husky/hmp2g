@@ -8,6 +8,22 @@ from ..common.base_env import BaseEnv
 from .actset_lookup import binary_friendly, dictionary_n_actions
 from .agent import Agent
 
+# please register this into MISSION/env_router.py
+def make_uhmap_env(env_id, rank):
+    if ScenarioConfig.SubTaskSelection == 'UhmapEnv':
+        return UhmapEnv(rank)
+    elif ScenarioConfig.SubTaskSelection == 'UhmapBreakingBad':
+        from .SubTasks.UhmapBreakingBad import UhmapBreakingBad
+        return UhmapBreakingBad(rank)
+    elif ScenarioConfig.SubTaskSelection == 'UhmapLargeScale':
+        from .SubTasks.UhmapLargeScale import UhmapLargeScale
+        return UhmapLargeScale(rank)
+    elif ScenarioConfig.SubTaskSelection == 'UhmapJustAnIsland':
+        from .SubTasks.UhmapJustAnIsland import UhmapJustAnIsland
+        return UhmapJustAnIsland(rank)
+    else:
+        raise "unknown subtask, define it here!"
+
 def get_subtask_conf(subtask):
     if subtask == 'UhmapBreakingBad':
         from .SubTasks.UhmapBreakingBadConf import SubTaskConfig
@@ -15,6 +31,26 @@ def get_subtask_conf(subtask):
     elif subtask == 'UhmapLargeScale':
         from .SubTasks.UhmapLargeScaleConf import SubTaskConfig
         return SubTaskConfig
+    elif subtask == 'UhmapJustAnIsland':
+        from .SubTasks.UhmapJustAnIslandConf import SubTaskConfig
+        return SubTaskConfig
+    else:
+        raise "unknown subtask, define it here!"
+        
+
+
+def usual_id_arrangment(N_AGENT_EACH_TEAM):
+    """
+        e.g., 
+        input [5, 3]
+        output [range(0,5), range(5,8)]
+    """
+    AGENT_ID_EACH_TEAM = []
+    p = 0
+    for team_agent_num in N_AGENT_EACH_TEAM:
+        AGENT_ID_EACH_TEAM.append(range(p, p + team_agent_num))
+        p += team_agent_num
+    return AGENT_ID_EACH_TEAM
 
 # please register this ScenarioConfig into MISSION/env_router.py
 class ScenarioConfig(object):  
@@ -24,25 +60,21 @@ class ScenarioConfig(object):
         (As the name indicated, ChainVars will change WITH vars it 'chained_with' during config injection)
         (please see UTIL.config_args to find out how this advanced trick works out.)
     '''
-    n_team1agent = 5
-    n_team2agent = 5
 
     # <Part 1> Needed by the hmp core #
-    N_TEAM = 2
+    N_AGENT_EACH_TEAM = [10, ]
+    AGENT_ID_EACH_TEAM = usual_id_arrangment(N_AGENT_EACH_TEAM)
+    N_TEAM = len(N_AGENT_EACH_TEAM)
 
-    N_AGENT_EACH_TEAM = [n_team1agent, n_team2agent]
-    N_AGENT_EACH_TEAM_cv = ChainVar(lambda n1, n2: [n1, n2], chained_with=['n_team1agent', 'n_team2agent'])
-
-    AGENT_ID_EACH_TEAM = [range(0,n_team1agent), range(n_team1agent,n_team1agent+n_team2agent)]
-    AGENT_ID_EACH_TEAM_cv = ChainVar(lambda  n1, n2: [range(0,n1),range(n1,n1+n2)], chained_with=['n_team1agent', 'n_team2agent'])
-
-    CanTurnOff = False
-
-    # Hete agents
-    HeteAgents = False
-
-
+    # chained parameters, will change along with 'N_AGENT_EACH_TEAM'
+    AGENT_ID_EACH_TEAM_cv = ChainVar(lambda N_AGENT_EACH_TEAM: usual_id_arrangment(N_AGENT_EACH_TEAM), chained_with=['N_AGENT_EACH_TEAM'])
+    N_TEAM_cv = ChainVar(lambda N_AGENT_EACH_TEAM: len(N_AGENT_EACH_TEAM), chained_with=['N_AGENT_EACH_TEAM'])
+    
+    # algorithm selection
     TEAM_NAMES = ['ALGORITHM.None->None',]
+
+
+
 
     '''
         ## If the length of action array == the number of teams, set ActAsUnity to True
@@ -74,7 +106,9 @@ class ScenarioConfig(object):
     SubTaskConfig_cv = ChainVar(lambda UnrealLevel:get_subtask_conf(UnrealLevel), chained_with=['SubTaskSelection'])
 
     UElink2editor = False
-    AutoPortOverride = False
+    AutoPortOverride = True
+    # AutoPortOverride is usually the reverse of UElink2editor
+    AutoPortOverride_cv = ChainVar(lambda UElink2editor:(not UElink2editor), chained_with=['UElink2editor'])
 
     # this is not going to be precise,
     # the precise step time will be floor(StepGameTime/TimeDilation*FrameRate)*TimeDilation/FrameRate
@@ -91,7 +125,7 @@ class ScenarioConfig(object):
     AvailActProvided = False
     EntityOriented = True
 
-    ActionFormat = 'Multi-Digit'    # 'Single-Digit'
+    ActionFormat = 'ASCII' # 'Multi-Digit'    # 'Single-Digit'
 
     n_actions = dictionary_n_actions
     obs_vec_length = 23
@@ -99,6 +133,10 @@ class ScenarioConfig(object):
     # ObsBreakBase = 1e4
 
 
+    CanTurnOff = False
+
+    # Hete agents
+    HeteAgents = False
 
 
 
@@ -115,11 +153,11 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
         super().__init__(rank)
         self.id = rank
         self.render = ScenarioConfig.render and (self.id==0)
-        self.n_agents = ScenarioConfig.n_team1agent + ScenarioConfig.n_team2agent
+        self.n_agents = sum(ScenarioConfig.N_AGENT_EACH_TEAM)
         assert self.n_agents == len(ScenarioConfig.SubTaskConfig.agent_list), 'agent number defination error'
         self.n_teams = ScenarioConfig.N_TEAM
-        self.agents = [Agent(team=0, team_id=i, uid=i                            ) for i in range(ScenarioConfig.n_team1agent)] \
-                    + [Agent(team=1, team_id=i, uid=i+ScenarioConfig.n_team1agent) for i in range(ScenarioConfig.n_team2agent)]
+        # self.agents  = [Agent(team=0, team_id=i, uid=i                            ) for i in range(ScenarioConfig.n_team1agent)] \
+        #              + [Agent(team=1, team_id=i, uid=i+ScenarioConfig.n_team1agent) for i in range(ScenarioConfig.n_team2agent)]
         # self.observation_space = ?
         # self.action_space = ?
         if ScenarioConfig.StateProvided:
@@ -157,8 +195,9 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             self.hmp_ue_port = ScenarioConfig.UhmapPort
             if ScenarioConfig.AutoPortOverride:
                 self.hmp_ue_port, release_port_fn = find_free_port_no_repeat()   # port for hmp data exchanging
-            self.ue_vis_port, release_port_fn = find_free_port_no_repeat()    # port for remote visualizing
-            print蓝('Port %d will be used by hmp, port %d will be used by UE internally'%(self.hmp_ue_port, self.ue_vis_port))
+            if not ScenarioConfig.UElink2editor:
+                self.ue_vis_port, release_port_fn = find_free_port_no_repeat()    # port for remote visualizing
+                print蓝('Port %d will be used by hmp, port %d will be used by UE internally'%(self.hmp_ue_port, self.ue_vis_port))
             self.ip_port = (ScenarioConfig.TcpAddr, self.hmp_ue_port)
         
         
@@ -242,8 +281,10 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                 time.sleep(1)
         # now that port is bind, no need to hold them anymore
         if find_port:
-            release_port_fn(self.hmp_ue_port)
-            release_port_fn(self.ue_vis_port)
+            if ScenarioConfig.AutoPortOverride: 
+                release_port_fn(self.hmp_ue_port)
+            if not ScenarioConfig.UElink2editor:
+                release_port_fn(self.ue_vis_port)
         self.t = 0
         print('thread %d initialize complete'%rank)
 
@@ -288,13 +329,3 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
         # return (ob, RewardForAllTeams,  done, info)  # choose this if RewardAsUnity
         
 
-# please register this into MISSION/env_router.py
-def make_uhmap_env(env_id, rank):
-    if ScenarioConfig.SubTaskSelection == 'UhmapEnv':
-        return UhmapEnv(rank)
-    if ScenarioConfig.SubTaskSelection == 'UhmapBreakingBad':
-        from .SubTasks.UhmapBreakingBad import UhmapBreakingBad
-        return UhmapBreakingBad(rank)
-    if ScenarioConfig.SubTaskSelection == 'UhmapLargeScale':
-        from .SubTasks.UhmapLargeScale import UhmapLargeScale
-        return UhmapLargeScale(rank)

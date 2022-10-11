@@ -280,7 +280,7 @@ class UhmapBreakingBad(UhmapEnv):
         for i, agent in enumerate(self.agents): pos3d_arr[i] = agent.pos3d
         # use the distance matrix calculated by unreal engine to accelerate
         # dis_mat = distance_matrix(pos3d_arr)    # dis_mat is a matrix, shape = (n_agent, n_agent)
-        dis_mat = np.array(resp['dataGlobal']['distanceMat']['flat_arr']).reshape(self.n_agents,self.n_agents)
+        dis_mat = np.array(resp['dataGlobal']['distanceMat']['flat_arr'], dtype=float).reshape(self.n_agents,self.n_agents)
 
         alive_all = np.array([agent.alive for agent in self.agents])
         dis_mat[~alive_all,:] = +np.inf

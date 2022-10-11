@@ -146,6 +146,7 @@ numpy
 scipy
 numba
 cython
+filelock
 waitress
 colorama
 func_timeout
@@ -157,7 +158,7 @@ paramiko        # (for multi-server experiments)
 ipykernel       # (optional, for openning jupyter notebook)
 
 # 
-# pip install lz4 gym flask numpy scipy numba cython waitress colorama func_timeout setproctitle commentjson matplotlib psutil paramiko ipykernel
+# pip install lz4 gym flask numpy scipy numba cython waitress colorama func_timeout setproctitle commentjson matplotlib psutil paramiko ipykernel filelock
 
 ```
 
