@@ -1,4 +1,5 @@
 import json, copy, re
+from random import random
 import numpy as np
 from UTIL.tensor_ops import my_view, repeat_at
 from ...common.base_env import RawObsArray
@@ -75,7 +76,7 @@ class UhmapJustAnIsland(UhmapEnv):
             act_send = [digit2act_dictionary[a] for a in act]
         elif ScenarioConfig.ActionFormat == 'Multi-Digit':
             act_send = [decode_action_as_string(a) for a in act]
-        elif ScenarioConfig.ActionFormat == 'ASCII':
+        elif ScenarioConfig.ActionFormat == 'ASCII':            
             act_send = [digitsToStrAction(a) for a in act]
         else:
             raise "ActionFormat is wrong!"
@@ -205,6 +206,7 @@ class UhmapJustAnIsland(UhmapEnv):
                 inf = float('inf')
                 info['agentLocationArr'] = (inf, inf, inf)
                 info['agentVelocityArr'] = (inf, inf, inf)
+                info['agentRotationArr'] = (inf, inf, inf)
 
         info = resp['dataArr']
         for i, agent_info in enumerate(info):
@@ -470,51 +472,145 @@ class UhmapJustAnIsland(UhmapEnv):
         agent_class = agent_info['type']
         team = agent_info['team']
         n_team_agent = 10
-        tid = agent_info['tid']
-        uid = agent_info['uid']
         
-        x = 0 + 800*(tid - n_team_agent//2) //N_COL
-        y = 2000 * (-1)**(team+1)
-        x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-        z = 10000
+        # 此处代码仅做demo使用
+        # tid = agent_info['tid']
+        N_ROW = 10
+        uid = agent_info['uid']
+        tid = agent_info['uid'] if team == 0 else None
+        assert tid is not None, 'Lost tid!'
+
+        if tid < n_team_agent / 2:
+            y = -10000 + (tid%N_ROW) * 5000
+            x = -58000 - (tid//N_ROW) * 5000
+            z = 3000
+        else: 
+            y = 30000 + (tid - n_team_agent/2)%N_ROW * 5000   
+            x = -58000 - ((tid-n_team_agent/2)//N_ROW) * 5000
+            z = 6000
+        
         yaw = 90 if team==0 else -90
-        assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
+       
         agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
-                'DebugAgent': False,
-                # max drive/fly speed
-                'MaxMoveSpeed':  900,
-                # also influence object mass, please change it with causion!
+                # 'DebugAgent': False,
+                # # max drive/fly speed
+                # 'MaxMoveSpeed':  900,
+                # # also influence object mass, please change it with causion!
                 'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
-                # probability of escaping dmg 闪避
-                "DodgeProb": 0.0,
-                # ms explode dmg
-                "ExplodeDmg": 10,           
+                # # probability of escaping dmg 闪避
+                # "DodgeProb": 0.0,
+                # # ms explode dmg
+                # "ExplodeDmg": 10,           
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
                 'ClassName': agent_class,
-                # Weapon CD
-                'WeaponCD': 3,
-                # open fire range
-                "PerceptionRange":  2500,
-                "GuardRange":       1800,
-                "FireRange":        1700,
-                # debugging
-                'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700',
-                # regular
-                'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
-                # agent hp
-                'AgentHp':50,
+                # # Weapon CD
+                # 'WeaponCD': 3,
+                # # open fire range
+                # "PerceptionRange":  2500,
+                # "GuardRange":       1800,
+                # "FireRange":        1700,
+                # # debugging
+                # 'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700',
+                # # regular
+                # 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
+                # # agent hp
+                # 'AgentHp':50,
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system
                 'UID': uid, 
-                # show color
-                'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
+                # # show color
+                # 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location
                 'InitLocation': { 'x': x,  'y': y, 'z': z, },
                 # initial facing direction et.al.
                 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
         }),
         return agent_property
+
+
+    def init_target(self, agent_info, pos_ro):
+        agent_class = agent_info['type']
+        team = agent_info['team']
+        n_team_agent = 5
+
+        tid = agent_info['tid']
+        uid = agent_info['uid']
+        assert tid is not None, 'Lost ID!'
+
+        # initial positions (within 5 regions)
+        if tid == 0:
+            x = np.random.uniform(140000, 200000)
+            y = np.random.uniform(-162460, -102460)
+            z = 2550
+
+        if tid == 1:
+            x = np.random.uniform(52120, 100120)
+            y = np.random.uniform(-100970, -36970)
+            z = 2550
+
+        if tid == 2:
+            x = np.random.uniform(52050, 95050)
+            y = np.random.uniform(-32220, 47780)
+            z = 2550
+
+        if tid == 3:
+            x = np.random.uniform(36870, 96870)
+            y = np.random.uniform(49000, 112560)
+            z = 2550
+
+        if tid == 4:
+            x = np.random.uniform(22802, 89820)
+            y = np.random.uniform(117310, 157310)
+            z = 2550
+
+
+        # x = np.random.uniform(120000, 200000)
+        # y = np.random.uniform(-172460, -92460)
+        # z = 7550
+
+        agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
+        agent_property.update({
+                # 'DebugAgent': False,
+                # # max drive/fly speed
+                # 'MaxMoveSpeed':  900,
+                # # also influence object mass, please change it with causion!
+                'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+                # # probability of escaping dmg 闪避
+                # "DodgeProb": 0.0,
+                # # ms explode dmg
+                # "ExplodeDmg": 10,           
+                # team belonging
+                'AgentTeam': team,
+                # choose ue class to init
+                'ClassName': agent_class,
+                # # Weapon CD
+                # 'WeaponCD': 3,
+                # # open fire range
+                # "PerceptionRange":  2500,
+                # "GuardRange":       1800,
+                # "FireRange":        1700,
+                # # debugging
+                'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700',
+                # # regular
+                # 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
+                # # agent hp
+                # 'AgentHp':50,
+                # the rank of agent inside the team
+                'IndexInTeam': tid, 
+                # the unique identity of this agent in simulation system
+                'UID': uid, 
+                # # show color
+                # 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
+                # initial location
+                'InitLocation': { 'x': x,  'y': y, 'z': z, },
+                # initial facing direction et.al.
+                # 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
+        }),
+        return agent_property
+
+        
+

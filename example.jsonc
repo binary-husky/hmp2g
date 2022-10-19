@@ -10,6 +10,7 @@
         "test_epoch": 128,
         "interested_team": 0,
         "seed": 3562,
+
         "device": "cuda:0",
         "max_n_episode": 5000000,
         "fold": 1,
@@ -18,8 +19,9 @@
         ],
     },
     "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
-        "N_AGENT_EACH_TEAM": [10,],
-        "MaxEpisodeStep": 125,
+        // "N_AGENT_EACH_TEAM": [4, 5],
+        "N_AGENT_EACH_TEAM": [5, ],
+        "MaxEpisodeStep": 5000,
         "StepGameTime": 0.5,
         "StateProvided": false,
         "render": true,
@@ -28,25 +30,30 @@
         "UnrealLevel": "UhmapJustAnIsland",
         "SubTaskSelection": "UhmapJustAnIsland",
         "UhmapRenderExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxNoEditor/UHMP.sh",
+        // "UhmapRenderExe": "E:/UE/Projects/Build/WindowsNoEditor/UHMP.exe",
         "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer/UHMPServer.sh",
-        "TimeDilation": 1,
+        "TimeDilation": 5,
         "TEAM_NAMES": [
-            "ALGORITHM.script_ai.uhmap_island->DummyAlgorithmIdle"
+            // "ALGORITHM.script_ai.uhmap_island->DummyAlgorithmIdle",
+            "ALGORITHM.script_ai.uhmap_island->DummyAlgorithmIdleTarget",
+
         ]
     },
 
     "MISSION.uhmap.SubTasks.UhmapJustAnIslandConf.py->SubTaskConfig": {
         "agent_list": [
-            { "team":0,  "tid":0,  "uid":0,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":1,  "uid":1,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":2,  "uid":2,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":3,  "uid":3,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":4,  "uid":4,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":5,  "uid":5,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":6,  "uid":6,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":7,  "uid":7,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":8,  "uid":8,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
-            { "team":0,  "tid":9,  "uid":9,  "n_team_agent":10, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
+            // { "team":0,  "tid":0,  "uid":0,  "n_team_agent":4, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
+            // { "team":0,  "tid":1,  "uid":1,  "n_team_agent":4, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
+            // { "team":0,  "tid":2,  "uid":2,  "n_team_agent":4, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
+            // { "team":0,  "tid":3,  "uid":3,  "n_team_agent":4, "type":"PlaneAgent",  "init_fn_name":"init_air",  },
+
+
+            { "team":0,  "tid":0,  "uid":0,  "n_team_agent":5, "type":"commandcenter",  "init_fn_name":"init_target",  },
+            { "team":0,  "tid":1,  "uid":1,  "n_team_agent":5, "type":"commandcenter",  "init_fn_name":"init_target",  },
+            { "team":0,  "tid":2,  "uid":2,  "n_team_agent":5, "type":"commandcenter",  "init_fn_name":"init_target",  },
+            { "team":0,  "tid":3,  "uid":3,  "n_team_agent":5, "type":"commandcenter",  "init_fn_name":"init_target",  },
+            { "team":0,  "tid":4,  "uid":4,  "n_team_agent":5, "type":"commandcenter",  "init_fn_name":"init_target",  },
+
         ]
     },
 

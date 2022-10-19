@@ -8,11 +8,9 @@ def strActionToDigits(act_string):
     return (t+pad)
 
 def digitsToStrAction(digits):
+    if all([a==0 for a in digits]): return 'ActionSet3::N/A;N/A'
     arr = [chr(d) for d in digits.astype(int) if d >= 0]
-    if all([arr==0]):  
-        return 'ActionSet3::N/A;N/A'
-    else:
-        return ''.join(arr)
+    return ''.join(arr)
 
 """
 'ActionSet3::ChangeHeight;100'
