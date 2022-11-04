@@ -79,8 +79,8 @@ RUN $useProxyNetwork curl cip.cc
 # pip install everything we need
 USER hmp
 SHELL ["/bin/bash", "-c"]
-RUN $useProxyNetwork pip install numpy scipy
-RUN $useProxyNetwork pip install lz4 gym flask cython waitress colorama func_timeout setproctitle 
+RUN $useProxyNetwork pip install numpy scipy sklearn
+RUN $useProxyNetwork pip install lz4 gym flask cython waitress colorama func_timeout setproctitle filelock 
 RUN $useProxyNetwork pip install commentjson matplotlib psutil paramiko ipykernel onedrivedownloader flock
 
 
@@ -109,7 +109,8 @@ WORKDIR /home/hmp/hmp2g
 
 USER root
 
-RUN sed -i 's/22/2233/g' /etc/ssh/sshd_config
+# RUN sed -i 's/22/2233/g' /etc/ssh/sshd_config
+RUN echo "Port 2233" >> /etc/ssh/sshd_config
 RUN echo "service ssh start" >> /entrypoint.sh
 # CMD ["/bin/bash -c echo clara | sudo -S /entrypoint.sh"]
 
@@ -145,8 +146,6 @@ COPY ./bashrc_suffix /home/hmp/bashrc_suffix
 RUN cat /home/hmp/bashrc_suffix >> /home/hmp/.bashrc
 
 # docker build --network=host --progress=plain -t py311 .
-# docker run -itd  --name  hmp-fqx --net host --gpus all --shm-size=16G py311:latest
-#  && docker exec -it -u 0 hmp-fqx  service ssh start
-# docker logs hmp-fqx
+# docker run -itd  --name  hmp-fqx --net host --gpus all --shm-size=16G py311:latest && docker exec -it -u 0 hmp-fqx  service ssh start
 # docker exec -it hmp-fqx bash
 # docker stop hmp-fqx && docker rm hmp-fqx
