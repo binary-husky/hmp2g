@@ -402,7 +402,10 @@ class UhmapLargeScale(UhmapEnv):
 
 
 def init_ground(agent_info, pos_ro):
-    N_COL = 2
+    if len(SubTaskConfig.agent_list) > 50:
+        N_COL = 7
+    else:
+        N_COL = 2
     agent_class = agent_info['type']
     team = agent_info['team']
     n_team_agent = 10
@@ -455,7 +458,10 @@ def init_ground(agent_info, pos_ro):
     return agent_property
 
 def init_air(agent_info, pos_ro):
-    N_COL = 2
+    if len(SubTaskConfig.agent_list) > 50:
+        N_COL = 7
+    else:
+        N_COL = 2
     agent_class = agent_info['type']
     team = agent_info['team']
     n_team_agent = 10
