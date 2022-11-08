@@ -10,10 +10,10 @@ from UTIL.tensor_ops import _2tensor, __hash__, repeat_at
 from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
 class TrajPoolSampler():
-    def __init__(self, n_div, traj_pool, flag, prevent_batchsize_oom=False):
+    def __init__(self, n_div, traj_pool, flag, prevent_batchsize_oom=False, mcv=None):
         self.n_pieces_batch_division = n_div
         self.prevent_batchsize_oom = prevent_batchsize_oom    
-
+        self.mcv = mcv
         if self.prevent_batchsize_oom:
             assert self.n_pieces_batch_division==1, ('?')
 
@@ -85,7 +85,16 @@ class TrajPoolSampler():
             n_sample = min(self.big_batch_size, max_n_sample)
             if not hasattr(self,'reminded'):
                 self.reminded = True
-                print('droping %.1f percent samples..'%((self.big_batch_size-n_sample)/self.big_batch_size*100))
+                drop_percent = (self.big_batch_size-n_sample)/self.big_batch_size*100
+                if self.mcv is not None:
+                    self.mcv.rec(drop_percent, 'drop percent')
+                if drop_percent > 20: 
+                    print_ = print亮红
+                    print_('droping %.1f percent samples..'%(drop_percent))
+                    assert False, "GPU OOM!"
+                else:
+                    print_ = print
+                    print_('droping %.1f percent samples..'%(drop_percent))
             self.sampler = BatchSampler(SubsetRandomSampler(range(n_sample)), n_sample, drop_last=False)
 
         for indices in self.sampler:

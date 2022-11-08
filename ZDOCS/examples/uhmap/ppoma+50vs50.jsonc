@@ -1,22 +1,22 @@
 {
     // --- Part1: config HMP core --- 
     "config.py->GlobalConfig": {
-        "note": "z-hete-50",// http://localhost:59547
+        "note": "ppoma-uhmap50vs50",// http://localhost:59547
         "env_name": "uhmap",
         "env_path": "MISSION.uhmap",
         // "heartbeat_on": "False",
         "draw_mode": "Img",
-        "num_threads": 16,  // 请预留 num_threads * 1 GB 的内存空间
+        "num_threads": 32,  // 请预留 num_threads * 1 GB 的内存空间
         "report_reward_interval": 128,
         "test_interval": 1280,
-        "test_epoch": 256,
+        "test_epoch": 512,
         "interested_team": 0,
         "seed": 10098,
         "device": "cuda",
         "max_n_episode": 5000000,
         "fold": 1,
         "backup_files": [
-            "ALGORITHM/hete_league_onenet_fix",
+            "ALGORITHM/ppo_ma",
             "MISSION/uhmap"
         ]
     },
@@ -42,7 +42,7 @@
         "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer_Ver2.4/UHMPServer.sh",
         "TimeDilation": 64, // simulation time speed up, larger is faster
         "TEAM_NAMES": [
-            "ALGORITHM.hete_league_onenet_fix.foundation->ReinforceAlgorithmFoundation",
+            "ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation",
             "ALGORITHM.script_ai.uhmap_ls->DummyAlgorithmLinedAttack",
         ]
     },
@@ -164,28 +164,25 @@
     },
 
     // --- Part3: config ALGORITHM 2/2 --- 
-    "ALGORITHM.hete_league_onenet_fix.shell_env.py->ShellEnvConfig": {
+    "ALGORITHM.ppo_ma.shell_env.py->ShellEnvConfig": {
         "add_avail_act": true
     },
-    "ALGORITHM.hete_league_onenet_fix.foundation.py->AlgorithmConfig": {
+    "ALGORITHM.ppo_ma.foundation.py->AlgorithmConfig": {
         "train_traj_needed": 64,
-        "hete_n_alive_frontend": 2,
-        "hete_n_net_placeholder":5,
-        "hete_same_prob": 1.0,
-        "load_checkpoint": false,
+        "use_normalization": true,
+        "load_specific_checkpoint": "",
         "gamma": 0.99,
         "gamma_in_reward_forwarding": "True",
         "gamma_in_reward_forwarding_value": 0.95,
         "prevent_batchsize_oom": "True",
-        "lr": 0.0001,
+        "lr": 0.0004,
         "ppo_epoch": 24,
-        "hete_lasted_n":3,
-        "policy_resonance": true,
-        "hete_exclude_zero_wr": true,
-        "debug": false,
+        "policy_resonance": false,
+        "debug": true,
         "n_entity_placeholder": 11
     },
-    "ALGORITHM.hete_league_onenet_fix.stage_planner.py->PolicyRsnConfig": {
+
+    "ALGORITHM.ppo_ma.stage_planner.py->PolicyRsnConfig": {
         "resonance_start_at_update": 1,
         "yita_min_prob": 0.05,
         "yita_max": 0.5,
