@@ -137,6 +137,7 @@ ZHECKPOINT/adca-demo/*
 ZHECKPOINT/uhmap_hete10vs10/backup_files
 ZHECKPOINT/uhmap_hete10vs10/logger
 !ZHECKPOINT/uhmap_hete10vs10/model_trained.pt
+THIRDPARTY/pymarl2/pymarl2src.diff
 
 cmd_io.txt
 rec.jpg
