@@ -236,10 +236,12 @@ class Net(nn.Module):
                                     (5, 6, 7, 8, 9),],    # history
                                     n=10):
         assert n == self.n_entity_placeholder
-        if mat.shape[-2]==n:
+        if mat.dtype is torch.float:
             tmp = (mat[..., t, :] for t in type)
-        elif mat.shape[-1]==n:
+        elif mat.dtype is torch.bool:
             tmp = (mat[..., t] for t in type)
+        else:
+            assert False
         return tmp
 
     def _act(self, obs, test_mode, eval_mode=False, eval_actions=None, avail_act=None):
@@ -275,7 +277,7 @@ class Net(nn.Module):
                                                                 test_mode=test_mode, eval_actions=eval_act, avail_act=avail_act)
 
         def re_scale(t):
-            SAFE_LIMIT = 11
+            SAFE_LIMIT = 8
             r = 1. /2. * SAFE_LIMIT
             return (torch.tanh_(t/r) + 1.) * r
 

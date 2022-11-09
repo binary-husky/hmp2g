@@ -277,7 +277,7 @@ class PPO():
 
 
         # threat approximation
-        SAFE_LIMIT = 11
+        SAFE_LIMIT = 8
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
         if self.turn_off_threat_est: 
@@ -351,7 +351,7 @@ class PPO():
             newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, action=action, test_mode=False)
             entropy_loss = entropy.mean()
             # threat approximation
-            SAFE_LIMIT = 11
+            SAFE_LIMIT = 8
             filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
             threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
             if n%20 == 0: est_check(x=others['threat'][filter], y=real_threat[filter])
