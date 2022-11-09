@@ -197,7 +197,7 @@ class PPO():
                     assert TrajPoolSampler.MaxSampleNum[-1]>0
                     TrajPoolSampler.MaxSampleNum[-1] = -1
 
-                    print亮红('显存不足！ 回溯上次的样本量')
+                    print亮红('Insufficient gpu memory, using previous sample size !')
                 else:
                     self.n_div += 1
                     print亮红('显存不足！ 切分样本, 当前n_div: %d'%self.n_div)
@@ -332,60 +332,5 @@ class PPO():
 
 
         return loss_final, others
-
-
-
-    def debug_pytorch_graph(self, flag, sample, n):
-
-
-        def mybuild_loss(flag, sample, n):
-            obs = _2tensor(sample['obs'])
-            advantage = _2tensor(sample['advantage'])
-            action = _2tensor(sample['action'])
-            oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
-            real_value = _2tensor(sample['return'])
-            real_threat = _2tensor(sample['threat'])
-            batchsize = advantage.shape[0]
-            batch_agent_size = advantage.shape[0]*advantage.shape[1]
-            assert flag == 'train'
-            newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, action=action, test_mode=False)
-            entropy_loss = entropy.mean()
-            # threat approximation
-            SAFE_LIMIT = 8
-            filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
-            threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
-            if n%20 == 0: est_check(x=others['threat'][filter], y=real_threat[filter])
-            value_loss = 0.5 * F.mse_loss(real_value, newPi_value)
-            nz_mask = real_value!=0
-            value_loss_abs = (real_value[nz_mask] - newPi_value[nz_mask]).abs().mean()
-
-            CT_net_loss = threat_loss * 0.1 + value_loss * 1.0
-            loss_final = CT_net_loss # + AT_net_loss + AE_new_loss # + 
-            others = {
-                'Value loss Abs':           value_loss_abs,
-                'threat loss':              threat_loss,
-                'CT_net_loss':              CT_net_loss,
-            }
-            return loss_final, others
-
-        def step(loss_final, step):
-            self.at_optimizer.zero_grad()
-            self.ct_optimizer.zero_grad()
-            # self.ae_optimizer.zero_grad()
-            loss_final.backward()
-            self.at_optimizer.step()
-            self.ct_optimizer.step()
-            # self.ae_optimizer.step()
-
-        for t in range(16):
-            self.trivial_dict = {}
-            loss_final, others = mybuild_loss(flag, sample, t)
-            self.log_trivial(dictionary=others)
-            others = None
-            
-            step(loss_final, t)
-            self.log_trivial_finalize(print=False)
-
-
 
 

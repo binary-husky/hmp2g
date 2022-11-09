@@ -7,8 +7,8 @@
         // "interested_agent_num":100,                         // only for reward logging, **not needed because sc2 use uniform team reward
         "draw_mode": "Img",                                 // plot curlves as image
         "num_threads": "16",                                 // number of parallel envs
-        "report_reward_interval": "16",                      // report the reward averaging x episodes
-        "test_interval": "256",                             // begin a test run every x episodes, test run is managed by pymarl side
+        "report_reward_interval": "128",                      // report the reward averaging x episodes
+        "test_interval": "512",                             // begin a test run every x episodes, test run is managed by pymarl side
         "test_epoch": "64",                                 // begin a test run every x episodes, test run is managed by pymarl side
         "device": "cuda",
         "max_n_episode": 1500000,
@@ -32,7 +32,7 @@
 
     "ALGORITHM.conc_4hist_scdb.foundation.py->AlgorithmConfig": {
         "train_traj_needed": "128",
-        "n_focus_on": 5,
+        "n_focus_on": 3,
         "actor_attn_mod": "False",
         "lr": 0.0001,
         "ppo_epoch": 24,
