@@ -78,6 +78,7 @@ class ScenarioConfig(object):
 
     UElink2editor = False
     AutoPortOverride = False
+    AutoPortOverride_cv = ChainVar(lambda UElink2editor: ~UElink2editor, chained_with=['UElink2editor'])
 
     # this is not going to be precise,
     # the precise step time will be floor(StepGameTime/TimeDilation*FrameRate)*TimeDilation/FrameRate
