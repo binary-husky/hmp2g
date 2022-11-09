@@ -156,10 +156,10 @@ def prepare_tmp_folder():
     #         print亮红('Warning, find temp file which is not empty: %s !'%tmp)
     #         time.sleep(5)
 
-    _tmp_files_to_investigate = glob.glob(global_temp_folder+'/GpuLock/*.register'    )
-    for tmp in _tmp_files_to_investigate:
-        from .gpu_share import check_lock_file
-        check_lock_file(tmp)
+    # _tmp_files_to_investigate = glob.glob(global_temp_folder+'/GpuLock/*.register'    )
+    # for tmp in _tmp_files_to_investigate:
+    #     from .gpu_share import check_lock_file
+    #     check_lock_file(tmp)
 
 def register_machine_info(logdir):
     import socket, json, subprocess, uuid

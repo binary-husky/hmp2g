@@ -1,4 +1,4 @@
-import torch, math, traceback
+import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -6,23 +6,28 @@ import numpy as np
 from random import randint, sample
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from UTIL.colorful import *
-from UTIL.tensor_ops import _2tensor, __hash__, repeat_at
+from UTIL.tensor_ops import _2tensor, __hash__, repeat_at, _2cpu2numpy
+from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
 from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
+
 class TrajPoolSampler():
     def __init__(self, n_div, traj_pool, flag, prevent_batchsize_oom=False, mcv=None):
         self.n_pieces_batch_division = n_div
         self.prevent_batchsize_oom = prevent_batchsize_oom    
         self.mcv = mcv
         if self.prevent_batchsize_oom:
-            assert self.n_pieces_batch_division==1, ('?')
+            assert self.n_pieces_batch_division==1, 'self.n_pieces_batch_division should be 1'
 
         self.num_batch = None
         self.container = {}
         self.warned = False
         assert flag=='train'
-        req_dict =        ['hete_type', 'gp_sel_summary', 'avail_act', 'obs', 'action', 'actionLogProb', 'return', 'reward', 'hete_pick', 'value']
-        req_dict_rename = ['hete_type', 'gp_sel_summary', 'avail_act', 'obs', 'action', 'actionLogProb', 'return', 'reward', 'hete_pick', 'state_value']
+        req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
+        req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
+        if cfg.ScenarioConfig.AvailActProvided:
+            req_dict.append('avail_act')
+            req_dict_rename.append('avail_act')
         return_rename = "return"
         value_rename =  "state_value"
         advantage_rename = "advantage"
@@ -60,23 +65,6 @@ class TrajPoolSampler():
     def __len__(self):
         return self.n_pieces_batch_division
 
-    def determine_max_n_sample(self):
-        assert self.prevent_batchsize_oom
-        if not hasattr(TrajPoolSampler,'MaxSampleNum'):
-            # initialization
-            TrajPoolSampler.MaxSampleNum =  [int(self.big_batch_size*(i+1)/50) for i in range(50)]
-            max_n_sample = self.big_batch_size
-        elif TrajPoolSampler.MaxSampleNum[-1] > 0:  
-            # meaning that oom never happen, at least not yet
-            # only update when the batch size increases
-            if self.big_batch_size > TrajPoolSampler.MaxSampleNum[-1]: TrajPoolSampler.MaxSampleNum.append(self.big_batch_size)
-            max_n_sample = self.big_batch_size
-        else:
-            # meaning that oom already happened, choose TrajPoolSampler.MaxSampleNum[-2] to be the limit
-            assert TrajPoolSampler.MaxSampleNum[-2] > 0
-            max_n_sample = TrajPoolSampler.MaxSampleNum[-2]
-        return max_n_sample
-
     def reset_and_get_iter(self):
         if not self.prevent_batchsize_oom:
             self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
@@ -108,3 +96,20 @@ class TrajPoolSampler():
                 selected[mainkey][subkey] = selected[key]
                 del selected[key]
             yield selected
+
+    def determine_max_n_sample(self):
+        assert self.prevent_batchsize_oom
+        if not hasattr(TrajPoolSampler,'MaxSampleNum'):
+            # initialization
+            TrajPoolSampler.MaxSampleNum =  [int(self.big_batch_size*(i+1)/50) for i in range(50)]
+            max_n_sample = self.big_batch_size
+        elif TrajPoolSampler.MaxSampleNum[-1] > 0:  
+            # meaning that oom never happen, at least not yet
+            # only update when the batch size increases
+            if self.big_batch_size > TrajPoolSampler.MaxSampleNum[-1]: TrajPoolSampler.MaxSampleNum.append(self.big_batch_size)
+            max_n_sample = self.big_batch_size
+        else:
+            # meaning that oom already happened, choose TrajPoolSampler.MaxSampleNum[-2] to be the limit
+            assert TrajPoolSampler.MaxSampleNum[-2] > 0
+            max_n_sample = TrajPoolSampler.MaxSampleNum[-2]
+        return max_n_sample
