@@ -62,29 +62,38 @@ class TrajPoolSampler():
         # size of minibatch for each agent
         self.mini_batch_size = math.ceil(self.big_batch_size / self.n_pieces_batch_division)  
 
+        # do once
+        self.do_once_fin = False
+
     def __len__(self):
         return self.n_pieces_batch_division
 
-    def reset_and_get_iter(self):
+    def reminder(self, n_sample):
+        if not self.do_once_fin:
+            self.do_once_fin = True
+            drop_percent = (self.big_batch_size-n_sample) / self.big_batch_size*100
+            if self.mcv is not None: self.mcv.rec(drop_percent, 'drop percent')
+            if drop_percent > 20: 
+                print_ = print亮红
+                print_('droping %.1f percent samples..'%(drop_percent))
+                assert False, "GPU OOM!"
+            else:
+                print_ = print
+                print_('droping %.1f percent samples..'%(drop_percent))
+
+    def get_sampler(self):
         if not self.prevent_batchsize_oom:
-            self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
+            # 
+            sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
         else:
             max_n_sample = self.determine_max_n_sample()
             n_sample = min(self.big_batch_size, max_n_sample)
-            if not hasattr(self,'reminded'):
-                self.reminded = True
-                drop_percent = (self.big_batch_size-n_sample)/self.big_batch_size*100
-                if self.mcv is not None:
-                    self.mcv.rec(drop_percent, 'drop percent')
-                if drop_percent > 20: 
-                    print_ = print亮红
-                    print_('droping %.1f percent samples..'%(drop_percent))
-                    assert False, "GPU OOM!"
-                else:
-                    print_ = print
-                    print_('droping %.1f percent samples..'%(drop_percent))
-            self.sampler = BatchSampler(SubsetRandomSampler(range(n_sample)), n_sample, drop_last=False)
+            self.reminder(n_sample)
+            sampler = BatchSampler(SubsetRandomSampler(range(n_sample)), n_sample, drop_last=False)
+        return sampler
 
+    def reset_and_get_iter(self):
+        self.sampler = self.get_sampler()
         for indices in self.sampler:
             selected = {}
             for key in self.container:
@@ -97,6 +106,7 @@ class TrajPoolSampler():
                 del selected[key]
             yield selected
 
+
     def determine_max_n_sample(self):
         assert self.prevent_batchsize_oom
         if not hasattr(TrajPoolSampler,'MaxSampleNum'):
@@ -106,7 +116,8 @@ class TrajPoolSampler():
         elif TrajPoolSampler.MaxSampleNum[-1] > 0:  
             # meaning that oom never happen, at least not yet
             # only update when the batch size increases
-            if self.big_batch_size > TrajPoolSampler.MaxSampleNum[-1]: TrajPoolSampler.MaxSampleNum.append(self.big_batch_size)
+            if self.big_batch_size > TrajPoolSampler.MaxSampleNum[-1]:
+                TrajPoolSampler.MaxSampleNum.append(self.big_batch_size)
             max_n_sample = self.big_batch_size
         else:
             # meaning that oom already happened, choose TrajPoolSampler.MaxSampleNum[-2] to be the limit

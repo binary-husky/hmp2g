@@ -1,87 +1,42 @@
 base = """
 {
     "config.py->GlobalConfig": {
-        "note": "qmix-catobs-run1",
-        "env_name": "uhmap",
-        "env_path": "MISSION.uhmap",
-        "draw_mode": "Img",
-        "num_threads": 8,
-        "report_reward_interval": 256,
-        "test_interval": 5120,
-        "test_epoch": 256,
-        "interested_team": 0,
-        "seed": 8529,
+        "note": "sc-MMM2-conc-db1",               // experiment note, also means the log saving directory
+        // "train_time_testing": "False",                      // do not manage train time testing, pymarl env manage the testing itself
+        "env_name":"sc2",                                   // starcraft 2
+        "env_path":"MISSION.starcraft.sc2_env_wrapper",    // starcraft 2
+        // "interested_agent_num":100,                         // only for reward logging, **not needed because sc2 use uniform team reward
+        "draw_mode": "Img",                                 // plot curlves as image
+        "num_threads": "16",                                 // number of parallel envs
+        "report_reward_interval": "128",                      // report the reward averaging x episodes
+        "test_interval": "512",                             // begin a test run every x episodes, test run is managed by pymarl side
+        "test_epoch": "64",                                 // begin a test run every x episodes, test run is managed by pymarl side
         "device": "cuda",
-        "max_n_episode": 5000000,
-        "fold": 1,
-        "backup_files": [
-            "ALGORITHM/pymarl2_compat",
-            "MISSION/uhmap"
+        "max_n_episode": 1500000,
+        "fold": "1",                                        // each linux process handle x parallel envs
+        "backup_files":[
         ]
     },
-    "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
-        "n_team1agent": 10,
-        "n_team2agent": 10,
-        "MaxEpisodeStep": 125,
-        "StepGameTime": 0.5,
-        "StateProvided": false,
-        "render": false,
-        "UElink2editor": false,
-        "AutoPortOverride": true,
-        "HeteAgents": true,
-        "UnrealLevel": "UhmapLargeScale",
-        "SubTaskSelection": "UhmapLargeScale",
-        "UhmapRenderExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer_Ver1.0/UHMPServer.sh",
-        "TimeDilation": 64,
+
+    "MISSION.starcraft.sc2_env_wrapper.py->ScenarioConfig": {
+        "map_": "MMM2",
+        "sc_version": "2.4.6",
+        // "map_": "5m_vs_6m",
+        // "SINGLE_TEAM_N_AGENT": 5,
+        // "episode_limit": 60,
+        // "reward_vec": true,
         "TEAM_NAMES": [
-            "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",
-            "ALGORITHM.script_ai.uhmap_ls->DummyAlgorithmLinedAttack"
-        ]
-    },
-    "MISSION.uhmap.SubTasks.UhmapLargeScaleConf.py->SubTaskConfig":{
-        "agent_list": [
-            { "team":0,  "tid":0,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
-            { "team":0,  "tid":1,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":2,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":3,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":4,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":5,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":6,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":7,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":8,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":0,  "tid":9,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
-
-            { "team":1,  "tid":0,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
-            { "team":1,  "tid":1,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":2,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":3,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":4,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":5,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":6,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":7,   "type":"RLA_CAR",         "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":8,   "type":"RLA_CAR_Laser",   "init_fn_name":"init_ground"   },
-            { "team":1,  "tid":9,   "type":"RLA_UAV_Support", "init_fn_name":"init_air"      },
+            "ALGORITHM.conc_4hist_scdb.foundation->ReinforceAlgorithmFoundation"
         ]
     },
 
-
-    "ALGORITHM.script_ai.uhmap_ls.py->DummyAlgConfig": {
-        "reserve": ""
-    },
-    "ALGORITHM.pymarl2_compat.pymarl2_compat.py->AlgorithmConfig": {
-        "use_shell": "mini_shell_uhmap",
-        "state_compat": "obs_cat",
-        "pymarl_config_injection": {
-            "controllers.my_n_controller.py->PymarlAlgorithmConfig": {
-                "use_normalization": "True",
-                "use_vae": "False"
-            },
-            "config.py->GlobalConfig": {
-                "batch_size": 128,
-                "load_checkpoint": "False"
-            }
-        }
+    "ALGORITHM.conc_4hist_scdb.foundation.py->AlgorithmConfig": {
+        "train_traj_needed": "128",
+        "n_focus_on": 3,
+        "actor_attn_mod": "False",
+        "lr": 0.0001,
+        "ppo_epoch": 24,
+        "load_checkpoint": "False"
     }
 }
 """
@@ -100,9 +55,8 @@ n_run_mode = [
 ]*n_run
 assert len(n_run_mode)==n_run
 
-sum_note = "uhmap-qmix-catobs"
+sum_note = "MMM2-conc4hist"
 conf_override = {
-
 
     "config.py->GlobalConfig-->seed":       
         [
@@ -111,29 +65,27 @@ conf_override = {
 
     "config.py->GlobalConfig-->device":
         [
-            'cuda:2',
-            'cuda:2',
-            'cuda:4',
-            'cuda:4',
+            'cuda',
+            'cuda',
+            'cuda',
+            'cuda',
         ],
-
-    "config.py->GlobalConfig-->gpu_fraction":
-        [
-            0.5,
-            0.5,
-            0.5,
-            0.5,
-        ],
-
 
     "config.py->GlobalConfig-->note":
         [
-            "run1",
-            "run2",
-            "run3",
-            "run4",
+            "n_focus_on_run1_3focus",
+            "n_focus_on_run2_3focus",
+            "n_focus_on_run1_5focus",
+            "n_focus_on_run2_5focus",
         ],
 
+    "ALGORITHM.conc_4hist_scdb.foundation.py->AlgorithmConfig-->n_focus_on":
+        [
+            3,
+            3,
+            5,
+            5,
+        ],
 }
 
 if __name__ == '__main__':
