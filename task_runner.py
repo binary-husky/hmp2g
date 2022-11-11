@@ -246,6 +246,7 @@ class Runner(object):
         return
     def _checkout_interested_agents(self):
         # (1). record mean reward
+        self.mcv.rec(self.current_n_episode, 'time')
         recent_rewards = np.stack(self.info_runner['Recent-Reward-Sum'])
         if self.RewardAsUnity:
             mean_reward = recent_rewards[:, self.interested_team].mean()

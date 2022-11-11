@@ -105,6 +105,7 @@ class PPO():
         for k in tags:
             mcv2.rec(np.array(tags[k]).mean(), k)
         mcv2.rec_show()
+
     def train_on_traj_(self, traj_pool, task):
         self.log_reward_rich(traj_pool, self.mcv2)
         ppo_valid_percent_list = []

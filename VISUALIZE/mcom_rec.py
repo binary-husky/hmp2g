@@ -104,6 +104,7 @@ class rec_family(object):
             self.current_time = var
             if self.time_index is None:
                 self.time_index = index
+                self.handle_all_missing_time()
             else:
                 assert self.time_index == index
         else:
@@ -115,6 +116,13 @@ class rec_family(object):
 
         # finally, add var value
         self.line_list[index].append(var)
+
+    def handle_all_missing_time(self):
+        for name in self.name_list:
+            if name=='time': continue
+            index = self.get_index(name)
+            if len(self.line_list[index]) != len(self.time_list[index]):
+                self.handle_missing_time(self.line_list[index], self.time_list[index])
 
     def handle_missing_time(self, line_arr, time_arr):
         assert len(line_arr) > len(time_arr)
@@ -320,10 +328,10 @@ class rec_family(object):
                 # _xdata_ = np.array(self.line_list[time_index], dtype=np.double)
                 _xdata_ = np.array(self.time_list[index], dtype=np.double)
             if (self.line_plot_handle[index] is None):# || ~isvalid(self.line_plot_handle[index])):
-                    if time_explicit:
-                        self.line_plot_handle[index], =  target_subplot.plot(_xdata_, self.line_list[index],lw=1,c=self.colorC)
-                    else:
-                        self.line_plot_handle[index], =  target_subplot.plot(self.line_list[index], lw=1, c=self.colorC)
+                if time_explicit:
+                    self.line_plot_handle[index], =  target_subplot.plot(_xdata_, self.line_list[index],lw=1,c=self.colorC)
+                else:
+                    self.line_plot_handle[index], =  target_subplot.plot(self.line_list[index], lw=1, c=self.colorC)
                         
             else:
                 if time_explicit:

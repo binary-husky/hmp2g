@@ -3,9 +3,22 @@ import threading
 import copy, os
 import time
 import json
+from UTIL.network import get_host_ip
 from UTIL.colorful import *
+def get_info(script_path):
+    info = {
+        'HostIP': get_host_ip(),
+        'RunPath': os.getcwd(),
+        'ScriptPath': os.path.abspath(script_path),
+        'StartDateTime': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    }
+    try:
+        info['DockerContainerHash'] = subprocess.getoutput(r'cat /proc/self/cgroup | grep -o -e "docker/.*"| head -n 1 |sed "s/docker\\/\\(.*\\)/\\1/" |cut -c1-12')
+    except: 
+        info['DockerContainerHash'] = 'None'
+    return info
 
-def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override):
+def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path):
     arg_base = ['python', 'main.py']
     time_mark_only = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
     time_mark = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + '-' + sum_note
@@ -124,16 +137,24 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override):
         print亮紫('byobu new-window -t %s'%time_mark_only)
         time.sleep(1)
 
-
         cmd = 'cd  ' + src_path
         stdin, stdout, stderr = ssh.exec_command(command='byobu send-keys -t %s "%s" C-m'%(time_mark_only, cmd), timeout=1)
         print亮紫('byobu send-keys "%s" C-m'%cmd)
         time.sleep(1)
 
+        
+        cmd = ' '.join(['echo',  str(get_info(script_path)) ,'>>', './private_remote_execution.log'])
+        stdin, stdout, stderr = ssh.exec_command(command='byobu send-keys -t %s "%s" C-m'%(time_mark_only, cmd), timeout=1)
+        print亮紫('byobu send-keys "%s" C-m'%cmd)
+        time.sleep(1)
+
+
         cmd = ' '.join(final_arg_list[ith_run])
         stdin, stdout, stderr = ssh.exec_command(command='byobu send-keys -t %s "%s" C-m'%(time_mark_only, cmd), timeout=1)
         print亮紫('byobu send-keys "%s" C-m'%cmd)
         time.sleep(1)
+
+
 
 
         print亮蓝("command send is done!")
