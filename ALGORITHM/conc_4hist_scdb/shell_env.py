@@ -1,20 +1,26 @@
 import numpy as np
 from UTIL.colorful import *
-from UTIL.tensor_ops import my_view, __hash__, repeat_at
+from UTIL.tensor_ops import my_view, __hash__, repeat_at, np_one_hot
 from .cython_func import roll_hisory
 
 class ShellEnvWrapper(object):
-    def __init__(self, n_agent, n_thread, space, mcv, RL_functional, alg_config, ScenarioConfig):
+    def __init__(self, n_agent, n_thread, space, mcv, rl_functional, alg_config, ScenarioConfig):
         self.n_agent = n_agent
         self.n_thread = n_thread
+        self.n_action = ScenarioConfig.n_actions
         self.space = space
         self.mcv = mcv
-        self.RL_functional = RL_functional
+        self.rl_functional = rl_functional
         self.ScenarioConfig = ScenarioConfig
+        self.alg_config = alg_config
         if self.ScenarioConfig.EntityOriented:
-            self.core_dim = self.ScenarioConfig.obs_vec_length
+            self.rawobs_dim = self.core_dim = self.ScenarioConfig.obs_vec_length
         else:
-            self.core_dim = space['obs_space']['obs_shape']
+            self.rawobs_dim = self.core_dim = space['obs_space']['obs_shape']
+        if alg_config.shell_obs_add_id:
+            self.core_dim = self.core_dim + self.n_agent
+        if alg_config.shell_obs_add_previous_act:
+            self.core_dim = self.core_dim + self.n_action
         self.n_entity_placeholder = alg_config.n_entity_placeholder
         assert self.n_entity_placeholder >= 4
 
@@ -25,6 +31,7 @@ class ShellEnvWrapper(object):
 
         # whether to load previously saved checkpoint
         self.load_checkpoint = alg_config.load_checkpoint
+        self.use_policy_resonance = alg_config.use_policy_resonance
         self.cold_start = True
 
     @staticmethod
@@ -46,18 +53,37 @@ class ShellEnvWrapper(object):
         P = State_Recall['ENV-PAUSE']
         RST = State_Recall['Env-Suffered-Reset']
 
+        if RST.all():
+            if self.use_policy_resonance: self.rl_functional.stage_planner.uprate_eprsn(self.n_thread)
+            previous_act_onehot = np.zeros((self.n_thread, self.n_agent, self.n_action), dtype=float)
+        else:
+            previous_act_onehot = State_Recall['_Previous_Act_Onehot_'] # 利用State_Recall的回环特性，读取上次决策的状态
+        # shell_obs_add_id
+        if self.alg_config.shell_obs_add_id:
+            obs = np.concatenate((obs, repeat_at(repeat_at(np.eye(10,dtype=obs.dtype), -2, obs.shape[-2]), 0, obs.shape[0])), -1)
+        if self.alg_config.shell_obs_add_previous_act:
+            obs = np.concatenate((obs, repeat_at(previous_act_onehot, -2, obs.shape[-2])), -1)
+
         act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
         his_pool_obs = State_Recall['_Histpool_Obs_'] if '_Histpool_Obs_' in State_Recall \
             else my_view(np.zeros_like(obs),[0, 0, -1, self.core_dim])
         his_pool_obs[RST] = 0
+        state = np.array([info['state'] for info in State_Recall['Latest-Team-Info']])
+
+
 
         obs_feed = obs[~P]
+        state_feed = state[~P]
         his_pool_obs_feed = his_pool_obs[~P]
         obs_feed_in, his_pool_next = self.solve_duplicate(obs_feed.copy(), his_pool_obs_feed.copy())
         his_pool_obs[~P] = his_pool_next
         his_pool_obs[P] = 0
+        eprsn = self.rl_functional.stage_planner.eprsn[~P] if self.use_policy_resonance else None
 
-        I_State_Recall = {'obs':obs_feed_in, 
+        I_State_Recall = {
+            'obs':obs_feed_in, 
+            'state':state_feed, 
+            'eprsn':eprsn, 
             'Test-Flag':State_Recall['Test-Flag'], 
             'threads_active_flag':~P, 
             'Latest-Team-Info':State_Recall['Latest-Team-Info'][~P],
@@ -66,7 +92,8 @@ class ShellEnvWrapper(object):
             avail_act = np.array([info['avail-act'] for info in np.array(State_Recall['Latest-Team-Info'][~P], dtype=object)])
             I_State_Recall.update({'avail_act':avail_act})
 
-        act_active, internal_recall = self.RL_functional.interact_with_env_genuine(I_State_Recall)
+
+        act_active, internal_recall = self.rl_functional.interact_with_env_genuine(I_State_Recall)
 
         act[~P] = act_active
         actions_list = np.swapaxes(act, 0, 1) # swap thread(batch) axis and agent axis
@@ -77,6 +104,7 @@ class ShellEnvWrapper(object):
         # <2> call a empty frame to gather reward
         # State_Recall['_Previous_Obs_'] = obs
         State_Recall['_Histpool_Obs_'] = his_pool_obs
+        State_Recall['_Previous_Act_Onehot_'] = np_one_hot(act, n=self.n_action)
         
         State_Recall['_hook_'] = internal_recall['_hook_']
         assert State_Recall['_hook_'] is not None

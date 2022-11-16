@@ -215,7 +215,7 @@ class HeteNet(nn.Module):
             'feature': [
                 win_rate
             ],
-            })
+        })
         
         # sort according to win rate
         self.ckpg_info.sort(key=lambda x:x['win_rate'])

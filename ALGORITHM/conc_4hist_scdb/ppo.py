@@ -173,6 +173,7 @@ class PPO():
 
     def establish_pytorch_graph(self, flag, sample, n):
         obs = _2tensor(sample['obs'])
+        state = _2tensor(sample['state'])
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
@@ -184,7 +185,7 @@ class PPO():
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
-        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, eval_actions=action, test_mode=False, avail_act=avail_act)
+        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, state=state, eval_actions=action, test_mode=False, avail_act=avail_act)
         entropy_loss = entropy.mean()
 
 

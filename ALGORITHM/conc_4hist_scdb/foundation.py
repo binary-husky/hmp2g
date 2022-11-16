@@ -51,9 +51,12 @@ class AlgorithmConfig:
     dual_conc = True
     use_my_attn = True
     alternative_critic = False
+    use_policy_resonance = False
 
     # net
     net_hdim = 32
+    shell_obs_add_id = True
+    shell_obs_add_previous_act = False
 
 class ReinforceAlgorithmFoundation(object):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -61,8 +64,12 @@ class ReinforceAlgorithmFoundation(object):
         self.n_agent = n_agent
         self.act_space = space['act_space']
         self.obs_space = space['obs_space']
+        self.state_dim = self.obs_space['state_shape']
         self.ScenarioConfig = GlobalConfig.ScenarioConfig
         n_actions = GlobalConfig.ScenarioConfig.n_actions
+        # self.StagePlanner
+        from .stage_planner import StagePlanner
+        self.stage_planner = StagePlanner(mcv=mcv)
 
         from .shell_env import ShellEnvWrapper
         self.shell_env = ShellEnvWrapper(
@@ -70,11 +77,15 @@ class ReinforceAlgorithmFoundation(object):
             
         from .net import Net
         self.device = GlobalConfig.device
-        if self.ScenarioConfig.EntityOriented :
+        if self.ScenarioConfig.EntityOriented:
             rawob_dim = self.ScenarioConfig.obs_vec_length
         else:
             rawob_dim = space['obs_space']['obs_shape']
-        self.policy = Net(rawob_dim=rawob_dim, n_action=n_actions)
+        if AlgorithmConfig.shell_obs_add_id:
+            rawob_dim = rawob_dim + self.n_agent
+        if AlgorithmConfig.shell_obs_add_previous_act:
+            rawob_dim = rawob_dim + n_actions
+        self.policy = Net(rawob_dim=rawob_dim, state_dim=self.state_dim, n_action=n_actions, stage_planner=self.stage_planner)
         self.policy = self.policy.to(self.device)
 
         # initialize policy network and traj memory manager
@@ -120,10 +131,12 @@ class ReinforceAlgorithmFoundation(object):
         obs, threads_active_flag = StateRecall['obs'], StateRecall['threads_active_flag']
         assert len(obs) == sum(threads_active_flag), ('Make sure the right batch of obs!')
         avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
+        state = StateRecall['state'] if 'state' in StateRecall else None
+        eprsn = repeat_at(StateRecall['eprsn'], -1, self.n_agent) if 'eprsn' in StateRecall else None
 
         with torch.no_grad():
             action, value, action_log_prob = self.policy.act(
-                obs, test_mode=test_mode, avail_act=avail_act)
+                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
 
         # Warning! vars named like _x_ are aligned, others are not!
         traj_frag = {
@@ -131,6 +144,7 @@ class ReinforceAlgorithmFoundation(object):
             "value":         value,
             "actionLogProb": action_log_prob,
             "obs":           obs,
+            "state":         state,
             "action":        action,
         }
         if avail_act is not None:
@@ -163,6 +177,8 @@ class ReinforceAlgorithmFoundation(object):
         if self.batch_traj_manager.can_exec_training():
             # time to start a training routine
             self.batch_traj_manager.train_and_clear_traj_pool()
+            self.stage_planner.update_plan()
+
 
     '''
         Get event from hmp task runner, save model now!
