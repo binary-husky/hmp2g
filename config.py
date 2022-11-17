@@ -47,8 +47,8 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
     align_episode = True                                # ! please try to understand this with TOP priority
 
     env_name = 'sr_tasks->cargo'                        # which environment, see ./MISSION/env_router.py
-    env_path = 'MISSION.sr_tasks.multiagent.cargo'     # path of environment
-    draw_mode = 'OFF'                                   # 'Web','Native','Img','Threejs' 
+    env_path = 'MISSION.sr_tasks.multiagent.cargo'      # path of environment, double check to prevent mistake
+    draw_mode = 'OFF'                                   # 'Img','Threejs','Web','Native' 
     activate_logger = True                              # activate data plotting (Tensorboard is not used because I do not like it)
     data_logger = 'auto load, do not change this var!'  # activate data plotting (Tensorboard is not used because I do not like it)
     resume_mod = False                                  # resume unfinished
@@ -66,8 +66,8 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
 
     device = 'cuda'                                     # choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU)
     gpu_party = 'off'                                   # GPU memory is precious! assign multiple training process to a 'party', they will share GPU memory
-    manual_gpu_ctl = False                              # auto variable, do not alter! do not change!
-    gpu_fraction = 1.0
+    manual_gpu_ctl = False                              # auto variable, do not change!
+    gpu_fraction = 1.0                                  # maximum GPU memory usage percent, e.g., 0.5 means using half GPU memory
 
     num_threads = 64                                    # run N parallel envs, a 'env' is refered to as a 'thread'
     fold = 1                                            # A 'linux process' can handle multiple envs ('thread'), run N parallel envs, on (N//fold) processes
