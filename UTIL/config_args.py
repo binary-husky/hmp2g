@@ -87,7 +87,7 @@ def override_config_file(cfg_group, new_cfg, vb):
         arg_summary(default_configs, new_cfg, altered_cv)
         print绿(''.join(['-']*len(str_pro)),'\n\n\n')
     if 'TEAM_NAMES' in new_cfg:
-        return [item.split('->')[0] for item in new_cfg['TEAM_NAMES']]
+        return [item.split('->')[0] for item in new_cfg['TEAM_NAMES'] if not item.startswith('TEMP')]
     return None
 
 def secure_chained_vars(default_cfg, new_cfg, vb):

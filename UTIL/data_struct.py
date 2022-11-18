@@ -21,6 +21,9 @@ class UniqueList():
     
     def len(self):
         return len(self._list)
+    
+    def __len__(self):
+        return len(self._list)
 
     def get(self):
         return self._list

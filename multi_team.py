@@ -1,6 +1,6 @@
 import numpy as np
 import importlib
-
+from UTIL.data_struct import UniqueList
 
 class MMPlatform(object):
 
@@ -10,8 +10,13 @@ class MMPlatform(object):
         n_agents_each_t =    GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM     # n_agents_each_t => n_agents_each_team
         self.t_member_list = GlobalConfig.ScenarioConfig.AGENT_ID_EACH_TEAM
         self.t_name =        GlobalConfig.ScenarioConfig.TEAM_NAMES
+        assert self.n_t == len(self.t_name), 'Team does not match agent id'
+        assert self.n_t == len(UniqueList(self.t_name)), 'Team name must not repeat' # please duplicate algorithm if needed
         self.align_episode = GlobalConfig.align_episode
         self.n_thread =      GlobalConfig.num_threads
+        self.legacy_act_order = True
+        if GlobalConfig.mt_act_order == 'new_method':
+            self.legacy_act_order = False
         self.RewardAsUnity = False # env give reward of each team instead of agent
         if hasattr(GlobalConfig.ScenarioConfig, 'RewardAsUnity'):
             self.RewardAsUnity = GlobalConfig.ScenarioConfig.RewardAsUnity 
@@ -44,8 +49,7 @@ class MMPlatform(object):
             # each t (controlled by their different algorithm) interacts with env and act
             _act_, _t_intel_ = algo_fdn.interact_with_env(_t_intel_)
             # concat actions of each agent
-            assert _act_.shape[0]==len(t_members), ('number of actions differs number of agents!')
-            append_op = actions_list.append if self.ActAsUnity else actions_list.extend; append_op(_act_)
+            actions_list = self._append_act_to_list(_act_, actions_list, t_members)
             # loop back internal states registered in _t_intel_  (e.g._division_obs_)
             if _t_intel_ is None: continue
             # process internal states loop back, featured with keys that startswith and endswith '_'
@@ -125,6 +129,12 @@ class MMPlatform(object):
         # t_intel_basic = self.filter_running(t_intel_basic, RUNNING)
         return t_intel_basic
 
+    def _append_act_to_list(self, _act_, actions_list, t_members):
+        if self.legacy_act_order: _act_ = np.swapaxes(_act_, 0, 1) 
+        assert _act_.shape[0]==len(t_members), ('number of actions differs number of agents!')
+        append_op = actions_list.append if self.ActAsUnity else actions_list.extend
+        append_op(_act_)
+        return actions_list
 
     def deal_with_hook(self, hook, t_intel_basic):
         # use the hook left by algorithm to callback some function 
