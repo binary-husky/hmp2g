@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn.modules.linear import Linear
-from ..commom.attention import MultiHeadAttention
-from ..commom.norm import DynamicNormFix
-from ..commom.mlp import LinearFinal, SimpleMLP, ResLinear
+from ALGORITHM.commom.attention import MultiHeadAttention
+from ALGORITHM.commom.norm import DynamicNormFix
+from ALGORITHM.commom.mlp import LinearFinal, SimpleMLP, ResLinear
 from .ccategorical import CCategorical
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, __hash__, __hashn__, pad_at_dim
 from UTIL.tensor_ops import repeat_at, one_hot_with_nan, gather_righthand, pt_inf

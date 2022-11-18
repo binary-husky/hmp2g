@@ -6,8 +6,8 @@ from torch.distributions.categorical import Categorical
 from UTIL.colorful import print亮绿
 from UTIL.tensor_ops import Args2tensor_Return2numpy, Args2tensor, __hashn__, cat_last_dim, __hash__, one_hot_with_nan, repeat_at, scatter_righthand, gather_righthand, _2cpu2numpy, my_view
 from .foundation import AlgorithmConfig
-from ..commom.pca import pca
-from ..commom.net_manifest import weights_init
+from ALGORITHM.commom.pca import pca
+from ALGORITHM.commom.net_manifest import weights_init
 from .net import Net, NetCentralCritic
 
 def popgetter(*items):

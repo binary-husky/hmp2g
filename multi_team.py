@@ -10,7 +10,7 @@ class MMPlatform(object):
         n_agents_each_t =    GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM     # n_agents_each_t => n_agents_each_team
         self.t_member_list = GlobalConfig.ScenarioConfig.AGENT_ID_EACH_TEAM
         self.t_name =        GlobalConfig.ScenarioConfig.TEAM_NAMES
-        assert self.n_t == len(self.t_name), 'Team does not match agent id'
+        assert self.n_t == len(self.t_name), 'Team does not match agent id'    # check N_TEAM
         assert self.n_t == len(UniqueList(self.t_name)), 'Team name must not repeat' # please duplicate algorithm if needed
         self.align_episode = GlobalConfig.align_episode
         self.n_thread =      GlobalConfig.num_threads
@@ -44,11 +44,11 @@ class MMPlatform(object):
     def act(self, runner_info):
         actions_list = []
         for t_name, t_members, algo_fdn, t_index in zip(self.t_name, self.t_member_list, self.algo_foundations, range(self.n_t)):
-            # split info such as reward and observation
+            # split intel such as reward and observation into different teams
             _t_intel_ = self._split_intel(runner_info, t_members, t_name, t_index)
-            # each t (controlled by their different algorithm) interacts with env and act
+            # each team (controlled by different algorithms) interacts with env and act
             _act_, _t_intel_ = algo_fdn.interact_with_env(_t_intel_)
-            # concat actions of each agent
+            # concat actions of each agent ('_act_' --> 'actions_list')
             actions_list = self._append_act_to_list(_act_, actions_list, t_members)
             # loop back internal states registered in _t_intel_  (e.g._division_obs_)
             if _t_intel_ is None: continue
@@ -83,7 +83,7 @@ class MMPlatform(object):
 
     # seperate observation between teams
     def _split_intel(self, runner_info, t_members, t_name, t_index):
-        RUNNING = ~runner_info['ENV-PAUSE']
+        # RUNNING = ~runner_info['ENV-PAUSE']
         # Team_Info and ter_obs_echo are None when runner_info['Latest-Team-Info'] is absent
         Team_Info = None
         ter_obs_echo = None
@@ -130,7 +130,7 @@ class MMPlatform(object):
         return t_intel_basic
 
     def _append_act_to_list(self, _act_, actions_list, t_members):
-        if self.legacy_act_order: _act_ = np.swapaxes(_act_, 0, 1) 
+        if not self.legacy_act_order: _act_ = np.swapaxes(_act_, 0, 1) 
         assert _act_.shape[0]==len(t_members), ('number of actions differs number of agents!')
         append_op = actions_list.append if self.ActAsUnity else actions_list.extend
         append_op(_act_)
@@ -141,7 +141,7 @@ class MMPlatform(object):
         # to deliver reward and reset signals
         # assert self.L_RUNNING is not None
         # t_intel_basic = self.filter_running(t_intel_basic, self.L_RUNNING)
-        hook({'reward':t_intel_basic['Latest-Reward'], 
+        hook({  'reward':t_intel_basic['Latest-Reward'], 
                 'done': t_intel_basic['Env-Suffered-Reset'],
                 'info': t_intel_basic['Latest-Team-Info'],
                 'Latest-Obs':t_intel_basic['Latest-Obs'],

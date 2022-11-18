@@ -1,6 +1,6 @@
 import argparse, os, time, func_timeout
 from ast import Global
-from shutil import copyfile, copytree, ignore_patterns
+from shutil import copyfile, copytree, ignore_patterns, rmtree
 from .colorful import *
 
 '''
@@ -33,6 +33,8 @@ def prepare_args(vb=True):
     if vb: print亮绿('reading configuration at', args.cfg)
     # inject configuration into place
     with open(args.cfg, encoding='utf8') as f: json_data = json.load(f)
+    # check and process tmp alg folder
+    if vb: prepare_alg_tmp_folder(json_data)
     # inject configuration into place
     load_config_via_json(json_data, vb)
     # read the new global configuration
@@ -131,35 +133,43 @@ def random_seed_warning(json_data):
         time.sleep(5)
 
 def prepare_tmp_folder():
-    def is_file_empty(file_path):
-        with open(file_path, 'r') as f: 
-            file_content = f.read()
-        if file_content == '' or file_content == '\n': 
-            return True
-        else:
-            return False
-        
     def init_dir(dir):
         if not os.path.exists(dir):  os.makedirs(dir)
-
-    import glob
     local_temp_folder = './TEMP'
     global_temp_folder = os.path.expanduser('~/HmapTemp')
     init_dir(local_temp_folder)
     init_dir(global_temp_folder+'/GpuLock')
     init_dir(global_temp_folder+'/PortFinder')
 
-    # _tmp_files_to_investigate = glob.glob(global_temp_folder+'/PortFinder/*.txt' )
-    
-    # for tmp in _tmp_files_to_investigate:
-    #     if not is_file_empty(tmp):
-    #         print亮红('Warning, find temp file which is not empty: %s !'%tmp)
-    #         time.sleep(5)
-
-    # _tmp_files_to_investigate = glob.glob(global_temp_folder+'/GpuLock/*.register'    )
-    # for tmp in _tmp_files_to_investigate:
-    #     from .gpu_share import check_lock_file
-    #     check_lock_file(tmp)
+def prepare_alg_tmp_folder(json_data):
+    try:
+        # scan mission conf
+        mission_key = [k for k in json_data.keys() if k.startswith('MISSION')][0]
+        # obtain algorithm assignment
+        TEAM_NAMES = json_data[mission_key]['TEAM_NAMES']
+        for tname in TEAM_NAMES:
+            if not tname.startswith('TEMP'): continue
+            # obtain the path of algorithm to be mirrored
+            path = tname.split('->')[0].replace('.','/')
+            # trace path parent to algorithm folder.
+            trace_success = False
+            for _ in range(5):
+                parent = os.path.relpath(path+'/..')
+                if os.path.basename(parent) == 'ALGORITHM': 
+                    trace_success = True
+                    break
+                path = parent
+            # transmit temp algorithm
+            if trace_success:
+                rmtree(path, ignore_errors=True)
+                src_path = path.strip('TEMP/')
+                print亮绿('[config] Copying mirror algorithm from {src_path} to {path}')
+                copytree(src_path, path)
+                time.sleep(2)
+    except:
+        print亮红('[config] Errors occurs when executing prepare_alg_tmp_folder')
+        time.sleep(5)
+        return
 
 def register_machine_info(logdir):
     import socket, json, subprocess, uuid
