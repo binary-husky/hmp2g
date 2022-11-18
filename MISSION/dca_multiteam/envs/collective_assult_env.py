@@ -129,32 +129,16 @@ class collective_assultEnvV1(gym.Env):
         return [agent for agent in self.world.agents if (agent.belong_blue_team)]
 
     def reward(self, agent):
+        main_reward = 0
+
         if agent.alive or agent.justDied:
-            main_reward = self.attacker_reward(agent) if agent.belong_red_team else self.guard_reward(agent)
-        else:
-            main_reward = 0
+            if agent.hit:
+                main_reward += 1
+            if agent.wasHit:
+                main_reward = -1 if not self.half_death_reward else -0.5
+
         return main_reward
 
-    def attacker_reward(self, agent):
-        rew3, rew4 = 0,0
-        for agents in self.alive_red():
-            if agents.hit:
-                rew3 = +1
-            if agents.wasHit:
-                rew4 = -1 if not self.half_death_reward else -0.5
-
-        self.attacker_reward_sum = rew3+rew4
-        return self.attacker_reward_sum
-
-    def guard_reward(self, agent):
-        rew5, rew6 = 0,0
-        if agent.hit:
-            rew5 += 1
-        if agent.wasHit:
-            rew6 = -1 if not self.half_death_reward else -0.5
-        self.guard_reward_sum = rew5+rew6
-
-        return self.guard_reward_sum
         
     raw_obs_size = -1
     class raw_obs_array(object):

@@ -239,7 +239,7 @@ class World():
         for i,entity in enumerate(self.alive_agents):
             if entity.can_fire:
                 for b, entity_b in enumerate(self.alive_agents):
-                    if entity.attacker == entity_b.attacker: continue # both attacker or both defender
+                    if entity.team == entity_b.team: continue
 
                     fanRadius  = entity.shootRad*entity.terrain
                     fanOpenRad = entity.shootWin
