@@ -18,7 +18,7 @@ class collective_assultEnvV1(gym.Env):
         self.world.team_blue_n_agent = team_blue_n_agent  # initial number of guards, attackers and bullets
         self.world.team_red_n_agent = team_red_n_agent
         self.world.numAgents = self.world.team_blue_n_agent + self.world.team_red_n_agent
-        self.world.numAliveGuards, self.world.numAliveAttackers, self.world.numAliveAgents = self.world.team_blue_n_agent, self.world.team_red_n_agent, self.world.numAgents
+        self.world.n_alive_blue_agent, self.world.n_alive_red_agent, self.world.numAliveAgents = self.world.team_blue_n_agent, self.world.team_red_n_agent, self.world.numAgents
         self.world.atttacker_reached = False     ## did any attacker succeed to reach the gate?
         self.attacker_reward_sum = 0
         self.guard_reward_sum = 0
@@ -45,7 +45,6 @@ class collective_assultEnvV1(gym.Env):
         self.world.max_time_steps = None #  set inside malib/environments/collective_assult 最大步数为100 在外围初始化
         self.world.vizDead = True         # whether to visualize the dead agents
         self.world.vizAttn = True        # whether to visualize attentions
-        self.world.gameResult = np.array([0,0,0,0,0]) #  [blue all win, blue win, red all win, red win, draw]
         self.reset_world()        
 
 
@@ -54,10 +53,9 @@ class collective_assultEnvV1(gym.Env):
         self.world.render_reset_flag = True
         self.world.time_step = 0
         self.world.bullets = [] ##
-        self.world.numAliveAttackers = self.world.team_red_n_agent
-        self.world.numAliveGuards = self.world.team_blue_n_agent
+        self.world.n_alive_red_agent = self.world.team_red_n_agent
+        self.world.n_alive_blue_agent = self.world.team_blue_n_agent
         self.world.numAliveAgents = self.world.numAgents
-        self.world.gameResult[:] = 0
         theta = (2*np.random.rand()-1)*np.pi
         self.world.init_theta = theta
         rotate = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])

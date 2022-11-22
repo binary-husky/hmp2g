@@ -248,36 +248,52 @@ class Runner(object):
         # (1). record mean reward
         self.mcv.rec(self.current_n_episode, 'time')
         recent_rewards = np.stack(self.info_runner['Recent-Reward-Sum'])
+        mean_reward_each_team = []
         if self.RewardAsUnity:
-            mean_reward = recent_rewards[:, self.interested_team].mean()
+            for interested_team in range(self.n_team):
+                mean_reward_each_team.append(recent_rewards[:, interested_team].mean())
         else:
-            if recent_rewards.shape[-1] != len(self.interested_agents_uid): 
-                print('warning! interested_agents_uid:', self.interested_agents_uid)
-            mean_reward = recent_rewards[:, self.interested_agents_uid].mean()
-        self.mcv.rec(mean_reward, 'reward')
+            for interested_team in range(self.n_team):
+                tean_agent_uid = cfg.ScenarioConfig.AGENT_ID_EACH_TEAM[interested_team]
+                mean_reward_each_team.append(recent_rewards[:, tean_agent_uid].mean())
+
+        for team in range(self.n_team):
+            self.mcv.rec(mean_reward_each_team[team], f'reward of=team-{team}')
+
         # (2).reflesh historical top reward
-        if self.top_rewards is None: self.top_rewards = mean_reward
-        if mean_reward > self.top_rewards: self.top_rewards = mean_reward
-        self.mcv.rec(self.top_rewards, 'top reward')
+        if self.top_rewards is None: 
+            self.top_rewards = mean_reward_each_team
+
+        for team in range(self.n_team):
+            if mean_reward_each_team[team] > self.top_rewards[team]:
+                self.top_rewards[team] = mean_reward_each_team[team]
+            self.mcv.rec(self.top_rewards[team], f'top reward of=team-{team}')
+
         # (3).record winning rate (single-team) or record winning rate (multi-team)
-        win_rate = np.array(self.info_runner['Recent-Win']).mean()
+        # for team in range(self.n_team):
         teams_ranking = self.info_runner['Recent-Team-Ranking']
         if len(teams_ranking)>0:
-            rank_itr_team = np.array(teams_ranking)[:,self.interested_team]
-            win_rate = (rank_itr_team==0).mean()  # 0 means rank first
-            self.mcv.rec(win_rate, 'top-rank ratio')
+            win_rate_each_team = []
+            for team in range(self.n_team):
+                rank_itr_team = np.array(teams_ranking)[:, team]
+                win_rate = (rank_itr_team==0).mean()  # 0 means rank first
+                win_rate_each_team.append(win_rate)
+                self.mcv.rec(win_rate, f'top-rank ratio of=team-{team}')
         else:
-            self.mcv.rec(win_rate, 'win rate')
+            team = 0
+            win_rate = np.array(self.info_runner['Recent-Win']).mean()
+            self.mcv.rec(win_rate, f'win rate of=team-{team}')
+
         # plot the figure
         self.mcv.rec_show()
-        print靛('\r[task runner]: (%s) finished episode %d, frame %d. | agents of interest: recent reward %.3f, best reward %.3f, win rate %.3f'
-                % (self.note, self.current_n_episode, self.current_n_frame, mean_reward, self.top_rewards, win_rate))
+        print靛('\r[task runner]: (%s) finished episode %d, frame %d. | team-%d: recent reward %.3f, best reward %.3f'
+                % (self.note, self.current_n_episode, self.current_n_frame, 
+                self.interested_team, mean_reward_each_team[self.interested_team], self.top_rewards[self.interested_team]))
         return
 
 
     # -- below is nothing of importance --
     # -- you may delete it or replace it with Tensorboard --
-    # MATLAB silent logging bridge
     @staticmethod
     def get_a_logger(note):
         from VISUALIZE.mcom import mcom

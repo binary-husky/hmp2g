@@ -105,7 +105,7 @@ def est_check(x, y):
     return
 
 class PPO():
-    def __init__(self, policy_and_critic, ppo_config, mcv=None):
+    def __init__(self, policy_and_critic, ppo_config, mcv=None, team=0):
         self.policy_and_critic = policy_and_critic
         self.clip_param = ppo_config.clip_param
         self.ppo_epoch = ppo_config.ppo_epoch
@@ -114,6 +114,7 @@ class PPO():
         self.entropy_coef = ppo_config.entropy_coef
         self.max_grad_norm = ppo_config.max_grad_norm
         self.add_prob_loss = ppo_config.add_prob_loss
+        self.team = team
         self.lr = ppo_config.lr
         self.extral_train_loop = ppo_config.extral_train_loop
         self.turn_off_threat_est = ppo_config.turn_off_threat_est
@@ -234,7 +235,7 @@ class PPO():
         for key in self.trivial_dict:
             self.trivial_dict[key] = self.trivial_dict[key].mean()
             print_buf.append(' %s:%.3f, '%(key, self.trivial_dict[key]))
-            if self.mcv is not None:  self.mcv.rec(self.trivial_dict[key], key)
+            if self.mcv is not None:  self.mcv.rec(self.trivial_dict[key], key+' of=%d'%self.team)
         if print: print紫(''.join(print_buf))
         if self.mcv is not None:
             self.mcv.rec_show()

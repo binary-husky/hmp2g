@@ -47,7 +47,7 @@ class ScenarioConfig(object):
     MaxEpisodeStep = 180
     MaxEpisodeStep_cv = ChainVar(lambda num_steps:num_steps, chained_with=['num_steps'])
 
-    init_distance = 4  # 5-2,5+2
+    init_distance = 2  # 5-2,5+2
     render = False
     render_with_unity = False
     render_ip_with_unity = '127.0.0.1:11088'
@@ -220,15 +220,16 @@ class collective_assultGlobalEnv(gym.Env):
 
         
         ## implement single done reflecting game state
-        done, info = self._get_done()
+        done, WinningResultInfo = self._get_done()
+        info = WinningResultInfo
         # info['others'] = info_n
         reward_n = np.array(reward_n)
         # if done:
         #     print('win', info['win'])
-        if ScenarioConfig.REWARD_DEBUG and done and info['win']:
-            win_extra_reward = ScenarioConfig.REWARD_DEBUG_Value
-            reward_n += win_extra_reward
-            pass
+        # if ScenarioConfig.REWARD_DEBUG and done and info['win']:
+        #     win_extra_reward = ScenarioConfig.REWARD_DEBUG_Value
+        #     reward_n += win_extra_reward
+        #     pass
 
         # all agents get total reward in cooperative case
         # print(reward_n)
@@ -284,24 +285,29 @@ class collective_assultGlobalEnv(gym.Env):
     # get done for the whole environment
     # unused right now -- agents are allowed to go beyond the viewing screen
     def _get_done(self):
-        
         terminate_cond = [    
-            self.world.numAliveAttackers == 0,
-            self.world.numAliveGuards == 0,
+            self.world.n_alive_red_agent == 0,
+            self.world.n_alive_blue_agent == 0,
             self.world.time_step == self.world.max_time_steps-1
         ]
         if any(terminate_cond):
-            guard_win = (self.world.numAliveAttackers*self.world.team_blue_n_agent <= self.world.numAliveGuards*self.world.team_red_n_agent)
-
-            if terminate_cond[0]:
-                self.world.gameResult[0] = 1
-                return True, {'win': True}
-            if terminate_cond[1]:
-                self.world.gameResult[2] = 1
-                return True, {'win': False}
-            if terminate_cond[2]:
-                return True, {'win': guard_win}
-
+            if self.world.n_alive_red_agent == self.world.n_alive_blue_agent:
+                WinningResult = {
+                    "team_ranking": [-1, -1],
+                    "end_reason": 'TimeUp'
+                }
+            elif self.world.n_alive_red_agent > self.world.n_alive_blue_agent:
+                WinningResult = {
+                    "team_ranking": [1, 0],
+                    "end_reason": 'RedWin'
+                }
+            elif self.world.n_alive_red_agent < self.world.n_alive_blue_agent:
+                #  WinTeam=0=blue
+                WinningResult = {
+                    "team_ranking": [0, 1],
+                    "end_reason": 'BlueWin'
+                }
+            return True, WinningResult
 
         # otherwise not done
         return False, {}
@@ -431,9 +437,9 @@ class collective_assultGlobalEnv(gym.Env):
 
         n_red= len([0 for agent in self.world.agents if agent.alive and agent.belong_red_team])
         n_blue = len([0 for agent in self.world.agents if agent.alive and agent.belong_blue_team])
-        who_is_winning = '<Blue>Blue(MARL AI)<Black> is leading' if n_blue>n_red else '<Red>Red(Script AI)<Black> is leading'
+        who_is_winning = '<Blue>Blue<Black> is leading' if n_blue>n_red else '<Red>Red<Black> is leading'
         self.threejs_bridge.v2dx('tower2|1004|Gray|0.2', 0, 0, 1, ro_x=0, ro_y=0, ro_z=0, label_bgcolor='GhostWhite',
-            label='<Blue>Blue(MARL AI)<Black>Agents Remain: <Blue>%d\n<Red>Red(Script AI)<Black>Agents Remain: <Red>%d \n%s<End>'%(n_blue, n_red, who_is_winning), label_color='DarkGreen', opacity=0)
+            label='<Blue>Blue<Black>Agents Remain: <Blue>%d\n<Red>Red<Black>Agents Remain: <Red>%d \n%s<End>'%(n_blue, n_red, who_is_winning), label_color='DarkGreen', opacity=0)
 
  
         for index, agent in enumerate(self.world.agents):

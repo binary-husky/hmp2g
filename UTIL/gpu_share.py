@@ -82,11 +82,11 @@ class GpuShareUnit():
 
     def release_gpu_lock(self):
         if self.manual_gpu_ctl:
-            if self.n_gpu_process_online > 1: 
-                torch.cuda.empty_cache()
-                self.gpu_lock.__exit__(None,None,None)
-            else:
-                print('GPU not shared')
+            # if self.n_gpu_process_online > 1: 
+            torch.cuda.empty_cache()
+            self.gpu_lock.__exit__(None,None,None)
+            # else:
+                # print('GPU not shared')
         return
     
     def register_pid(self):

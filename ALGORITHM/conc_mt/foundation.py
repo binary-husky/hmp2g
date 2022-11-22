@@ -49,6 +49,7 @@ class ReinforceAlgorithmFoundation(object):
         self.n_agent = n_agent
         self.act_space = space['act_space']
         self.obs_space = space['obs_space']
+        self.team = team
         ScenarioConfig = GlobalConfig.ScenarioConfig
         n_actions = GlobalConfig.ScenarioConfig.n_actions
         alg_config = AlgorithmConfig
@@ -75,7 +76,7 @@ class ReinforceAlgorithmFoundation(object):
 
         self.AvgRewardAgentWise = alg_config.TakeRewardAsUnity
         from .ppo import PPO
-        self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv)
+        self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv, team=self.team)
         from .trajectory import BatchTrajManager
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread,
                                                    traj_limit=int(ScenarioConfig.MaxEpisodeStep), 
@@ -207,12 +208,12 @@ class ReinforceAlgorithmFoundation(object):
         flag = '%s/save_now'%logdir
         if os.path.exists(flag) or update_cnt%50==0:
             # dir 1
-            pt_path = '%s/model.pt'%logdir
+            pt_path = f'{logdir}/{self.team}-model.pt'
             print绿('saving model to %s'%pt_path)
             torch.save(self.policy.state_dict(), pt_path)
 
             # dir 2
-            pt_path = '%s/history_cpt/model_%d.pt'%(logdir, update_cnt)
+            pt_path = f'{logdir}/history_cpt/{self.team}-model_{update_cnt}.pt'
             torch.save(self.policy.state_dict(), pt_path)
             try: os.remove(flag)
             except: pass

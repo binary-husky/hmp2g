@@ -268,9 +268,9 @@ class World():
                 agent.alive = False
                 agent.justDied = True
                 if agent.belong_red_team:
-                    self.numAliveAttackers -= 1
+                    self.n_alive_red_agent -= 1
                 else:
-                    self.numAliveGuards -= 1
+                    self.n_alive_blue_agent -= 1
 
     # integrate physical state
     def integrate_state(self, p_force):
