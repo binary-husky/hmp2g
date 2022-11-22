@@ -8,7 +8,7 @@ from config import GlobalConfig
 StandardPlotFig = 1
 ComparePlotFig = 2
 class rec_family(object):
-    def __init__(self, colorC=None, draw_mode='Native', image_path=None, figsize=(12, 6), rec_exclude=[], **kwargs):
+    def __init__(self, colorC=None, draw_mode='Native', image_path=None, figsize=None, rec_exclude=[], **kwargs):
         # the list of vars' name (with order), string
         self.name_list = []
         # the list of vars' value sequence (with order), float
@@ -28,7 +28,7 @@ class rec_family(object):
         self.current_time = None
         self.time_index = None
 
-        self.figsize = figsize
+        self.figsize_given = figsize
         self.colorC = 'k' if colorC is None else colorC
         self.Working_path = 'Testing-beta'
         self.image_num = -1
@@ -129,6 +129,13 @@ class rec_family(object):
         for i in range(len(line_arr) - len(time_arr)):
             time_arr.append(self.current_time - i - 1)
     
+    def get_figure_size(self, image_num):
+        if self.figsize_given is None:
+            expand_ratio = max((image_num - 10)/4, 1)
+            return (12*expand_ratio, 6*expand_ratio)
+        else:
+            return self.figsize_given
+            
     # This function is ugly because it is translated from MATLAB
     def rec_show(self):
         # the number of total subplots | 一共有多少条曲线
@@ -139,7 +146,7 @@ class rec_family(object):
             if 'of=' in name: draw_advance_fig = True
 
         if self.working_figure_handle is None:
-            self.working_figure_handle = self.plt.figure(StandardPlotFig, figsize=self.figsize, dpi=100)
+            self.working_figure_handle = self.plt.figure(StandardPlotFig, figsize=self.get_figure_size(image_num), dpi=100)
             if self.draw_mode == 'Native': 
                 self.working_figure_handle.canvas.set_window_title(self.Working_path)
                 self.plt.show()
@@ -201,12 +208,7 @@ class rec_family(object):
 
     def plot_advanced(self):
         #画重叠曲线，如果有的话
-        if self.working_figure_handle2 is None:
-            self.working_figure_handle2 = self.plt.figure(ComparePlotFig, figsize=self.figsize, dpi=100)
-            if self.draw_mode == 'Native': 
-                self.working_figure_handle2.canvas.set_window_title('Working-Comp')
-                self.plt.show()
-        
+
         group_name = []
         group_member = []
         time_explicit = ('time' in self.name_list)
@@ -237,6 +239,12 @@ class rec_family(object):
             rows = 4 #大与12张图，则放4行
         
         cols = int(np.ceil(image_num_multi/rows))#根据行数求列数
+
+        if self.working_figure_handle2 is None:
+            self.working_figure_handle2 = self.plt.figure(ComparePlotFig, figsize=self.get_figure_size(num_group), dpi=100)
+            if self.draw_mode == 'Native': 
+                self.working_figure_handle2.canvas.set_window_title('Working-Comp')
+                self.plt.show()
         
         for i in range(num_group):
 
