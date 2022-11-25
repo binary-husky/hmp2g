@@ -2,6 +2,7 @@ import argparse, os, time, func_timeout
 from ast import Global
 from shutil import copyfile, copytree, ignore_patterns, rmtree
 from .colorful import *
+from .data_struct import remove_prefix, remove_suffix
 
 '''
     This a chained var class, it deal with hyper-parameters that are bound together, 
@@ -12,6 +13,16 @@ class ChainVar(object):
     def __init__(self, chain_func, chained_with):
         self.chain_func = chain_func
         self.chained_with = chained_with
+
+# ChainVar relationship must end with '_cv' or '_CV'
+def is_chained_key(key):
+    if key.endswith('_cv'):
+        return True, remove_suffix(key, '_cv')
+    elif key.endswith('_CV'):
+        return True, remove_suffix(key, '_CV')
+    else:
+        return False, key
+
 
 
 '''
@@ -96,8 +107,8 @@ def secure_chained_vars(default_cfg, new_cfg, vb):
     default_cfg_dict = default_cfg.__dict__
     altered_cv = []
     for key in default_cfg_dict:
-        if not key.endswith('_cv'): continue
-        o_key = key.replace('_cv','')
+        is_chain, o_key = is_chained_key(key)
+        if not is_chain: continue
         if o_key in new_cfg: continue
         assert hasattr(default_cfg, o_key), ('twin var does not have original')
         # get twin
@@ -156,14 +167,15 @@ def prepare_alg_tmp_folder(json_data):
             for _ in range(5):
                 parent = os.path.relpath(path+'/..')
                 if os.path.basename(parent) == 'ALGORITHM': 
+                    src_path = os.path.relpath(path, start=os.path.relpath(parent+'/..'))
                     trace_success = True
                     break
                 path = parent
             # transmit temp algorithm
             if trace_success:
                 rmtree(path, ignore_errors=True)
-                src_path = path.strip('TEMP/')
-                print亮绿('[config] Copying mirror algorithm from {src_path} to {path}')
+                # src_path = remove_prefix(path, 'TEMP/')
+                print亮绿(f'[config] Copying mirror algorithm from {src_path} to {path}')
                 copytree(src_path, path)
                 time.sleep(2)
     except:
@@ -230,7 +242,8 @@ def askChoice():
 def arg_summary(config_class, modify_dict = {}, altered_cv = []):
     for key in config_class.__dict__: 
         if '__' in key: continue
-        if key.endswith('_cv'): continue
+        is_chain, _ = is_chained_key(key)
+        if is_chain: continue
         if (not key in modify_dict) or (modify_dict[key] is None): 
             if key not in altered_cv: 
                 print绿(key.center(25), '-->', str(getattr(config_class,key)))
@@ -299,7 +312,9 @@ def make_json(conf_list):
         local_conf = {}
         config_class = conf['class']
         for key in config_class.__dict__: 
-            if '__' in key or '_cv' in key: continue
+            if '__' in key: continue
+            is_chain, _ = is_chained_key(key)
+            if is_chain: continue
             item_to_be_serialize = getattr(config_class, key)
             try:
                 json.dumps(item_to_be_serialize)

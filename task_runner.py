@@ -11,7 +11,6 @@ import time, os
 import numpy as np
 from UTIL.colorful import *
 from UTIL.exp_helper import upload_exp
-from multi_team import MMPlatform
 from config import GlobalConfig as cfg
 from MISSION.env_router import make_parallel_envs
 class Runner(object):
@@ -19,6 +18,8 @@ class Runner(object):
         self.process_pool = process_pool
         self.envs = make_parallel_envs(process_pool)          # parallel environments start
         self.mcv = self.get_a_logger(cfg.note)                # MATLAB silent logging bridge active
+        if cfg.mt_parallel: from multi_team_parallel import MMPlatform
+        else: from multi_team import MMPlatform
         self.platform_controller = MMPlatform(self.mcv, self.envs)  # block infomation access between teams
         self.info_runner = {}                                       # dict of realtime obs, reward, reward, info et.al.
         self.n_agent  =  sum(cfg.ScenarioConfig.N_AGENT_EACH_TEAM)

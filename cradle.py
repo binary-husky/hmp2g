@@ -1,69 +1,10 @@
-from VISUALIZE.mcom import mcom
-
-mcv = mcom(
-    path='./TEMP',
-    draw_mode='Img',
-    resume_mod=True,
-    figsize=(48,12),
-    # resume_file='ZHECKPOINT/RVE-drone2-ppoma-run1/logger/mcom_buffer_0____starting_session.txt',
-    resume_file='mcom_buffer_0____starting_session.txt',
-    # resume_file='x.txt',
-    image_path='./temp.jpg',
-    rec_exclude=["r*", "n*", 
-        "*0.00*", 
-        "*0.01*", 
-        "*0.04*", 
-        "*0.06*", 
-        "*0.11*", 
-        "*0.18*", 
-        "*0.25*", 
-    ],
-)
-
-#####################################################
-
-# with open('mcom_buffer_0____starting_session.txt', 'r') as f:
-#     lines = f.readlines()
-
-# pointer = 0
-# cnt = 0
-# while True:
-#     if pointer+2 > len(lines): break
-#     if "r [1.00,1.00,1.00]" in lines[pointer]:
-#         lines[pointer+2] = ">>rec(%d, \"time\")\n"%cnt
-#         cnt += 1
-#     pointer += 1
-    
-# for i, line in enumerate(lines):
-#     lines[i] = line.replace("w [", "w of=[")
-
-# with open('x.txt', 'w+') as f:
-#     f.writelines(lines)
-
-#####################################################
-
-# mcv = mcom(
-#     path='./TEMP',
-#     draw_mode='Img',
-#     resume_mod=False,
-#     image_path='./temp.jpg',
-# )
-# mcv.rec(1.1, 'x')
-# mcv.rec(5, 'time')
-
-# mcv.rec(1.2, 'x')
-# mcv.rec(6, 'time')
-
-# mcv.rec(1.3, 'x')
-# mcv.rec(0.3, 'y')
-# mcv.rec(7, 'time')
-
-# mcv.rec(0.4, 'y')
-# mcv.rec(1.4, 'x')
-# mcv.rec(8, 'time')
-
-# mcv.rec(0.5, 'y')
-# mcv.rec(1.5, 'x')
-# mcv.rec(9, 'time')
-# mcv.rec_show()
-input('wait complete')
+import numpy as np
+def get_rank(score_list):
+    print('各队伍得分:', score_list)
+    rank = np.array([sum([ s2 > s1 for s2 in score_list ]) for s1 in score_list])
+    if (rank == 0).all():  # if all team draw, then all team lose
+        rank[:] = -1
+    print('各队伍排名:', rank)
+    return rank
+get_rank([1,2,2,0,2])
+get_rank([9,9,9,9,9])

@@ -34,17 +34,6 @@ class ShellEnvWrapper(object):
         self.use_policy_resonance = alg_config.use_policy_resonance
         self.cold_start = True
 
-    @staticmethod
-    def get_binary_array(n, n_bits, dtype=np.float32):
-        arr = np.zeros(n_bits, dtype=dtype)
-        pointer = 0
-        while True:
-            arr[pointer] = int(n%2==1)
-            n = n >> 1
-            pointer += 1
-            if n == 0: break
-        return arr
-
     def interact_with_env(self, State_Recall):
         obs = State_Recall['Latest-Obs']
         if not self.ScenarioConfig.EntityOriented:    # 如果环境观测非EntityOriented，可以额外创生一个维度，具体细节需要斟酌

@@ -101,15 +101,6 @@ class Pnet(nn.Module):
         
         return logits, value, None
 
-    @staticmethod
-    def get_binary_array(n_int, n_bits=8, dtype=torch.float32):
-        arr = torch.zeros(size=(*n_int.shape, n_bits), dtype=dtype, device=n_int.device)
-        for i in range(8):
-            arr[:, i] = (n_int%2==1).int()
-            n_int = n_int / 2
-            n_int = n_int.int()
-        return arr
-
     def logit2act(self, logits_agent_cluster, eval_mode, test_mode, eval_actions=None):
         act_dist = Categorical(logits = logits_agent_cluster)
         if not test_mode:

@@ -15,8 +15,6 @@ from .cython_func import laser_hit_improve3
 # properties and state of physical world entity
 class Entity(object):
     def __init__(self, size = 0.05 ,color = None):
-        # name 
-        self.name = ''
         # properties:
         self.size = size
         # entity can move / be pushed
@@ -65,7 +63,7 @@ class Agent(Entity):
         self.hit = False        # in last time
         self.wasHit = False
         ## shooting cone's radius and width (in radian)
-        self.shootRad = 0.4 # default value (same for guards and attackers, can be changed in collective_assult_env)
+        self.shootRad = 0.4 
         self.shootWin = np.pi/4
         self.alive = True   # alive/dead
         self.justDied = False   # helps compute reward for agent when it just died
@@ -96,101 +94,24 @@ class World():
         self.contact_force = 1e+2
         self.contact_margin = 1e-10 # 1e-3
         ## wall positions
-        # self.wall_pos = [-1,1,-0.8,0.8] # (xmin, xmax) vertical and  (ymin,ymax) horizontal walls
-
         self.wall_pos = [-1, 1, -1, 1]  # (xmin, xmax) vertical and  (ymin,ymax) horizontal walls
-
         # written by qth, 2021/04/20,用于判断是否第一次初始化
         self.start_flag = True
         self.target_index = 0
-        # self.leader_id = 4
-        self.tar_pos = np.full((4, 2), 0, "float")
-        # red
-        # self.tar_pos[0][0] = 0
-        # self.tar_pos[0][1] = -0.5
-        # self.tar_pos[1][0] = 0.5
-        # self.tar_pos[1][1] = 0
-        # self.tar_pos[2][0] = -0.5
-        # self.tar_pos[2][1] = 0
-        # self.tar_pos[3][0] = 0
-        # self.tar_pos[3][1] = 1
         self.teams_result_step1 = None
         self.team_centroid_step1 = None
         from .collective_assult_parallel_run import ScenarioConfig
         self.s_cfg = ScenarioConfig
 
-    # return all alive agents
-    @property
-    def alive_agents(self):
-        return [agent for agent in self.agents if agent.alive]
 
-    # return all agents that are not adversaries
-    @property
-    def alive_blue(self):
-        return [agent for agent in self.agents if (agent.alive and agent.belong_blue_team)]
-
-    # return all agents that are not adversaries
-    @property
-    def get_blue_agents(self):
-        return [agent for agent in self.agents if agent.belong_blue_team]
-
-    # return all adversarial agents
-    @property
-    def alive_red(self):
-        return [agent for agent in self.agents if (agent.alive and agent.belong_red_team)]
-
-
-    # return all adversarial agents
-    @property
-    def get_red_agents(self):
-        return [agent for agent in self.agents if agent.belong_red_team]
-
-    # return all active in the world
-    @property
-    def active_entities(self):
-        return [agent for agent in self.agents if agent.alive] + self.landmarks + self.bullets ## now bullets are also entities
-
-
-    # return all entities in the world
-    @property
-    def entities(self):
-        return [agent for agent in self.agents] + self.landmarks + self.bullets ## now bullets are also entities
-
-    # return all agents controllable by external policies
-    @property
-    def alive_policy_agents(self):
-        return [agent for agent in self.agents if (agent.alive and agent.action_callback is None)]
-
-
-    # return all agents controllable by external policies
-    @property
-    def policy_agents(self):
-        return [agent for agent in self.agents if agent.action_callback is None]
-
-
-    # return all agents controlled by world scripts
-    @property
-    def active_scripted_agents(self):
-        return [agent for agent in self.agents if (agent.alive and agent.action_callback is not None)]
-
-
-    # return all agents controlled by world scripts
-    @property
-    def scripted_agents(self):
-        return [agent for agent in self.agents if agent.action_callback is not None]
-
-    # return all agents controlled by world scripts
-    @property
-    def scripted_agents_test(self):
-        return [agent for agent in self.agents if agent.action_callback_test is not None]
     # update state of the world
     def step(self):
-
+        self.before_step_alive_agents = [a for a in self.agents if a.alive]
         ## -------- apply effects of laser ------------- ##
         self.apply_laser_effect()  
         
         # ------------- Calculate total physical (p_force) on each agent ------------- #
-        p_force = [None] * len(self.active_entities)
+        p_force = [None] * len(self.before_step_alive_agents)
         # apply agent physical controls
         p_force = self.apply_action_force(p_force)
         # apply environment forces
@@ -203,13 +124,12 @@ class World():
 
     # gather agent action forces
     def apply_action_force(self, p_force):
-        for i,agent in enumerate(self.alive_agents):
+        for i,agent in enumerate(self.before_step_alive_agents):
             p_force[i] = agent.act[:2] 
         return p_force
 
-
     def apply_wall_collision_force(self, p_force):
-        for a,agent in enumerate(self.alive_agents):
+        for a,agent in enumerate(self.before_step_alive_agents):
             f = self.get_wall_collision_force(agent)
             if(f is not None):
                 assert p_force[a] is not None
@@ -220,25 +140,25 @@ class World():
         terrain_A = self.s_cfg.terrain_parameters[0]
         terrain_B = self.s_cfg.terrain_parameters[1]
         if self.s_cfg.introduce_terrain:
-            pos_arr = np.array([a.pos for a in self.alive_agents])
+            pos_arr = np.array([a.pos for a in self.before_step_alive_agents])
             terrain = self.get_terrain(pos_arr, theta=self.init_theta, A=terrain_A, B=terrain_B)
-            for i,entity in enumerate(self.alive_agents):
+            for i,entity in enumerate(self.before_step_alive_agents):
                 entity.terrain = terrain[i]
         else:
-            for i,entity in enumerate(self.alive_agents):
+            for i,entity in enumerate(self.before_step_alive_agents):
                 entity.terrain = 1.0
 
 
     def apply_laser_effect(self):
         ## reset bullet hitting states
-        for i,entity in enumerate(self.alive_agents):
+        for i,entity in enumerate(self.before_step_alive_agents):
             entity.hit = False
             entity.wasHit = False
             entity.wasHitBy = None
 
-        for i,entity in enumerate(self.alive_agents):
+        for _, entity in enumerate(self.before_step_alive_agents):
             if entity.can_fire:
-                for b, entity_b in enumerate(self.alive_agents):
+                for _, entity_b in enumerate(self.before_step_alive_agents):
                     if entity.team == entity_b.team: continue
 
                     fanRadius  = entity.shootRad*entity.terrain
@@ -248,50 +168,50 @@ class World():
                         entity.pos, entity_b.pos, 
                         fanRadius, fanOpenRad, fanDirRad
                     )
-
-                    # assert hit__3==hit__4
                     if hit__4:
-                        entity.hit = True
-                        entity.numHit += 1
-                        entity_b.wasHit = True
-                        entity_b.wasHitBy = entity
-                        entity_b.numWasHit += 1
-        
+                        base_prob = 0.8
+                        terrain_advantage_delta_limit = 0.1
+                        terrain_advantage = max(min(
+                            entity.terrain - entity_b.terrain, 
+                            terrain_advantage_delta_limit),
+                            -terrain_advantage_delta_limit)
+                        hit_prob_final = base_prob + terrain_advantage
+                        if np.random.rand() < hit_prob_final:
+                            entity.hit = True
+                            entity.numHit += 1
+                            entity_b.wasHit = True
+                            entity_b.wasHitBy = entity
+                            entity_b.numWasHit += 1
+
         # update just died state of dead agents
         for agent in self.agents:
             if not agent.alive:
                 agent.justDied = False
 
         ## laser directly kills with one shot
-        for agent in self.alive_agents:
+        for agent in self.before_step_alive_agents:
             if agent.wasHit:
                 agent.alive = False
                 agent.justDied = True
-                if agent.belong_red_team:
-                    self.n_alive_red_agent -= 1
-                else:
-                    self.n_alive_blue_agent -= 1
 
     # integrate physical state
     def integrate_state(self, p_force):
         def reg_angle(rad):
             return (rad + np.pi)%(2*np.pi) -np.pi
-        for i,entity in enumerate(self.active_entities):
+        for i,entity in enumerate(self.before_step_alive_agents):
             if not entity.movable: continue
-            if not 'bullet' in entity.name:
-                entity.vel = entity.vel * (1 - self.damping)
-                if (p_force[i] is not None):
-                    entity.vel += (p_force[i] / entity.mass) * self.dt
-                if entity.max_speed is not None:
-                    speed = np.sqrt(np.square(entity.vel[0]) + np.square(entity.vel[1]))
-                    if speed > entity.max_speed:
-                        entity.vel = entity.vel / np.sqrt(np.square(entity.vel[0]) +
-                                                                      np.square(entity.vel[1])) * entity.max_speed
-                ## simple model for rotation
-                # entity.atk_rad += entity.act[2]%(2*np.pi)    ## 导致数值爆炸，这是哪个伞兵写的？脑子被驴踢了
-                if entity.alive:
-                    entity.atk_rad += entity.act[2]
-                    entity.atk_rad = reg_angle(entity.atk_rad)
+            entity.vel = entity.vel * (1 - self.damping)
+            if (p_force[i] is not None):
+                entity.vel += (p_force[i] / entity.mass) * self.dt
+            if entity.max_speed is not None:
+                speed = np.sqrt(np.square(entity.vel[0]) + np.square(entity.vel[1]))
+                if speed > entity.max_speed:
+                    entity.vel = entity.vel / np.sqrt(np.square(entity.vel[0]) +
+                                                                    np.square(entity.vel[1])) * entity.max_speed
+            ## simple model for rotation
+            if entity.alive:
+                entity.atk_rad += entity.act[2]
+                entity.atk_rad = reg_angle(entity.atk_rad)
                 
             entity.pos += entity.vel * self.dt
 

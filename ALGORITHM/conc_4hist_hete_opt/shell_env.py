@@ -129,17 +129,6 @@ class ShellEnvWrapper(object):
         assert self.n_agent == len(self_type_list)
         ActionConvertLegacy.confirm_parameters_are_correct(team, self.n_agent, len(opp_type_list))
         self.patience = 2000
-        
-    @staticmethod
-    def get_binary_array(n, n_bits, dtype=np.float32):
-        arr = np.zeros(n_bits, dtype=dtype)
-        pointer = 0
-        while True:
-            arr[pointer] = int(n%2==1)
-            n = n >> 1
-            pointer += 1
-            if n == 0: break
-        return arr
 
     def interact_with_env(self, StateRecall):
         if not hasattr(self, 'agent_type'):

@@ -53,6 +53,7 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
     data_logger = 'auto load, do not change this var!'  # activate data plotting (Tensorboard is not used because I do not like it)
     resume_mod = False                                  # resume unfinished
     mt_act_order = 'old_method'                         # resume unfinished
+    mt_parallel = False                         # resume unfinished
 
     seed = np.random.randint(0, 100000)                 # seed for numpy and pytorch
 

@@ -31,3 +31,13 @@ class UniqueList():
     def __iter__(self):
         return self._list.__iter__()
 
+# # https://stackoverflow.com/questions/16891340/remove-a-prefix-from-a-string
+# def remove_prefix(text, prefix):
+#     return text[text.startswith(prefix) and len(prefix):]
+
+# https://stackoverflow.com/questions/3663450/remove-substring-only-at-the-end-of-string
+def remove_suffix(s, sub):
+    return s[:-len(sub)] if s.endswith(sub) else s
+
+def remove_prefix(s, sub):
+    return s[len(sub):] if s.startswith(sub) else s

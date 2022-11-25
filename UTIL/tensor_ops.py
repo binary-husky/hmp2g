@@ -1,5 +1,7 @@
 import copy, json
 import numpy as np
+from functools import lru_cache
+
 try:
     import torch
     import torch.nn.functional as F
@@ -884,3 +886,50 @@ def cat_last_dim(tensor, cat):
             cat = repeat_at(cat, i, s)
     cat = tensor[..., :cat.shape[-1]] * 0 + cat
     return torch.cat((tensor, cat), -1)
+
+"""
+    input: [25, 25]
+    output: [ range(0,25), range(25,50) ]
+"""
+# @lru_cache(10)
+def arrange_id(N_AGENT_EACH_TEAM):
+    AGENT_ID_EACH_TEAM_cv = []
+    begin = 0
+    for _, n in enumerate(N_AGENT_EACH_TEAM):
+        b = begin
+        s = begin + n
+        AGENT_ID_EACH_TEAM_cv.append(range(b, s))
+        begin = s
+    return AGENT_ID_EACH_TEAM_cv
+
+"""
+    convert digit to binary
+    >> get_binary(3, 8)
+    np.array([  1,1,0,0,  0,0,0,0   ])
+"""
+@lru_cache(500)
+def get_binary(n:int, n_bits:int, dtype=np.float32):
+    arr = np.zeros(n_bits, dtype=dtype)
+    pointer = 0
+    while True:
+        arr[pointer] = int(n%2==1)
+        n = n >> 1
+        pointer += 1
+        if n == 0: break
+    return arr
+
+"""
+    >> get_binary_n_rows( 3, 8)
+    array([[0., 0., 0., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 1., 0., 0., 0., 0., 0., 0.]], dtype=float32)
+"""
+@lru_cache(10)
+def get_binary_n_rows(n_row, n_bit=8, dtype=np.float32):
+    n_int = np.arange(n_row)
+    arr = np.zeros((n_row, n_bit), dtype=dtype)
+    for i in range(n_bit):
+        arr[:, i] = (n_int%2==1).astype(int)
+        n_int = n_int / 2
+        n_int = n_int.astype(np.int8)
+    return arr
