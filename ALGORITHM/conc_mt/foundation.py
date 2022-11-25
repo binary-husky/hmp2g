@@ -42,6 +42,7 @@ class AlgorithmConfig:  # configuration, open to jsonc modification
     experimental_rmDeadSample = False
     experimental_useApex = False
 
+    gpu_party_override = "no-override"
     
 class ReinforceAlgorithmFoundation(object):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):

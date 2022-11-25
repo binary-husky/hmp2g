@@ -4,7 +4,7 @@
         "env_name": "dca_multiteam",  // 环境（任务名称）
         "env_path": "MISSION.dca_multiteam", 
         "draw_mode": "Img",
-        "num_threads": "16",    // 环境并行数量
+        "num_threads": 32,    // 环境并行数量
         "report_reward_interval": "64",
         "test_interval": "2048",
         "test_epoch": "256",
@@ -24,7 +24,7 @@
     },
     "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
         "N_TEAM": 3,
-        "N_AGENT_EACH_TEAM": [50, 50, 50],
+        "N_AGENT_EACH_TEAM": [25, 25, 25],
         "introduce_terrain": "True",
         "terrain_parameters": [0.15, 0.2],
         "size": "5",
@@ -42,10 +42,11 @@
         ]
     },
     "ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "train_traj_needed": "16",
+        "gpu_party_override": "cuda3_party0", // 是否允许多进程共享显存
+        "train_traj_needed": 32,
         "n_focus_on": 3,
         "actor_attn_mod": "False",
-        "lr": 0.0005,
+        "lr": 0.0003,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
         // "gamma_in_reward_forwarding_value": 0.95,
@@ -54,10 +55,11 @@
         "load_checkpoint": false
     },
     "TEMP.TEAM2.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "train_traj_needed": "16",
+        "gpu_party_override": "cuda3_party1", // 是否允许多进程共享显存
+        "train_traj_needed": 32,
         "n_focus_on": 3,
         "actor_attn_mod": "False",
-        "lr": 0.0005,
+        "lr": 0.0003,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
         // "gamma_in_reward_forwarding_value": 0.95,
@@ -66,10 +68,11 @@
         "load_checkpoint": false
     },
     "TEMP.TEAM3.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "train_traj_needed": "16",
+        "gpu_party_override": "cuda3_party2", // 是否允许多进程共享显存
+        "train_traj_needed": 32,
         "n_focus_on": 3,
         "actor_attn_mod": "False",
-        "lr": 0.0005,
+        "lr": 0.0003,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
         // "gamma_in_reward_forwarding_value": 0.95,

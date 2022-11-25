@@ -74,35 +74,6 @@ class TrajPoolSampler():
                 del selected[key]
             yield selected
 
-def est_check(x, y):
-    import random
-    y = y.flatten()
-    x = x.flatten()
-    size = y.shape[0]
-    index = list(range(size))
-    random.shuffle(index)
-    index = index[:500]
-    xsub = y[index]
-    new_index = ~torch.isnan(xsub)
-    
-    final = []
-    t = xsub.max()
-    for i in range(15):
-        if new_index.any():
-            t = xsub[torch.where(new_index)[0][0]]
-            final.append(index[torch.where(new_index)[0][0]])
-            new_index = new_index & (xsub!=t)
-        else:
-            break
-    
-    x_ = x[final]
-    y_ = y[final]
-    s = torch.argsort(y_)
-    y_ = y_[s]
-    x_ = x_[s]
-    print(x_.detach().cpu().numpy())
-    print(y_.detach().cpu().numpy())
-    return
 
 class PPO():
     def __init__(self, policy_and_critic, ppo_config, mcv=None, team=0):
@@ -155,8 +126,12 @@ class PPO():
         assert self.n_pieces_batch_division == 1
         self.n_div = 1
         # print亮红(self.n_div)
+        if ppo_config.gpu_party_override == "no-override":
+            gpu_party = cfg.gpu_party
+        else:
+            gpu_party = ppo_config.gpu_party_override
 
-        self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party)
+        self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=gpu_party)
 
         self.experimental_useApex = ppo_config.experimental_useApex
         if self.experimental_useApex:
