@@ -4,7 +4,6 @@ from UTIL.colorful import *
 from .net import Net
 from config import GlobalConfig
 from UTIL.tensor_ops import __hash__, pad_vec_array, copy_clone, my_view
-
 class AlgorithmConfig:  # configuration, open to jsonc modification
     gamma = 0.99
     tau = 0.95
@@ -42,10 +41,23 @@ class AlgorithmConfig:  # configuration, open to jsonc modification
     experimental_rmDeadSample = False
     experimental_useApex = False
 
+    device_override = "no-override"
     gpu_party_override = "no-override"
-    
+
+def override_cuda_settings(AlgorithmConfig):
+    # change Local cuda settings according to AlgorithmConfig
+    if AlgorithmConfig.device_override != "no-override":
+        # reflesh the cuda setting inherited from main.py
+        GlobalConfig.device = AlgorithmConfig.device_override
+        from main import pytorch_gpu_init; pytorch_gpu_init(GlobalConfig)
+        # reflesh the cached cuda setting in tensor_ops
+        from UTIL.tensor_ops import cuda_cfg; cuda_cfg.read_cfg()
+    if AlgorithmConfig.device_override != "no-override":
+        GlobalConfig.gpu_party = AlgorithmConfig.gpu_party_override
+
 class ReinforceAlgorithmFoundation(object):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
+        override_cuda_settings(AlgorithmConfig)
         self.n_thread = n_thread
         self.n_agent = n_agent
         self.act_space = space['act_space']

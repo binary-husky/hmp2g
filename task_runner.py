@@ -122,7 +122,7 @@ class Runner(object):
             if self.align_episode: self.info_runner['ENV-PAUSE'][i] = True
             # monitoring agents/team of interest
             if self.current_n_episode % self.report_interval == 0: 
-                self._checkout_interested_agents()  # monitor rewards for some specific agents
+                self._checkout_interested_agents(self.info_runner)  # monitor rewards for some specific agents
                 self.info_runner['Recent-Reward-Sum'] = []
                 self.info_runner['Recent-Win'] = []
                 self.info_runner['Recent-Team-Ranking'] = []
@@ -161,28 +161,9 @@ class Runner(object):
                 # If the test run reach its end, record the reward and win-rate:
                 if (self.test_info_runner['Thread-Episode-Cnt']>=num_runs).all():
                     # get the reward average
-                    reward_of_each_ep = np.stack(self.test_info_runner['Recent-Reward-Sum']) #.squeeze()
-                    if self.RewardAsUnity: 
-                        reward_avg_itr_agent = reward_of_each_ep[:, self.interested_team].mean()
-                    else:
-                        reward_avg_itr_agent = reward_of_each_ep[:, self.interested_agents_uid].mean()
-                    # get the win rate
-                    win_rate = np.array(self.test_info_runner['win']).mean()
-                    teams_ranking = self.test_info_runner['Recent-Team-Ranking']
-                    if len(teams_ranking)>0:
-                        rank_itr_team = np.array(teams_ranking)[:,self.interested_team]
-                        win_rate = (rank_itr_team==0).mean()  # 0 means rank first
-                        self.mcv.rec(win_rate, 'test top-rank ratio')
-                    else:
-                        self.mcv.rec(win_rate, 'test-win-rate')
-                    self.mcv.rec(reward_avg_itr_agent, 'test-reward')
-                    self.mcv.rec_show()
-                    print_info = 'average reward: %.2f, win rate: %.2f'%(reward_avg_itr_agent, win_rate)
-                    print靛('\r[task runner]: test finished, %s'%print_info )
+                    self._checkout_interested_agents(self.test_info_runner, testing=True)
                     self.platform_controller.before_terminate(self.test_info_runner)
-                    if cfg.upload_after_test: upload_exp(cfg)
-                    self.platform_controller.notify_teams(message='test done:%s', 
-                        win_rate=win_rate, mean_reward=reward_avg_itr_agent)
+                    self.platform_controller.notify_teams(message='test done')
                     # close all
                     if self.test_env_sleepy: self.test_envs.sleep()
                     return
@@ -245,10 +226,11 @@ class Runner(object):
         self.interested_team = cfg.interested_team
         self.top_rewards = None
         return
-    def _checkout_interested_agents(self):
+    def _checkout_interested_agents(self, info_runner, testing=False):
         # (1). record mean reward
-        self.mcv.rec(self.current_n_episode, 'time')
-        recent_rewards = np.stack(self.info_runner['Recent-Reward-Sum'])
+        if not testing: self.mcv.rec(self.current_n_episode, 'time')
+        prefix = 'test' if testing else ''
+        recent_rewards = np.stack(info_runner['Recent-Reward-Sum'])
         mean_reward_each_team = []
         if self.RewardAsUnity:
             for interested_team in range(self.n_team):
@@ -259,7 +241,7 @@ class Runner(object):
                 mean_reward_each_team.append(recent_rewards[:, tean_agent_uid].mean())
 
         for team in range(self.n_team):
-            self.mcv.rec(mean_reward_each_team[team], f'reward of=team-{team}')
+            self.mcv.rec(mean_reward_each_team[team], f'{prefix} reward of=team-{team}')
 
         # (2).reflesh historical top reward
         if self.top_rewards is None: 
@@ -268,28 +250,38 @@ class Runner(object):
         for team in range(self.n_team):
             if mean_reward_each_team[team] > self.top_rewards[team]:
                 self.top_rewards[team] = mean_reward_each_team[team]
-            self.mcv.rec(self.top_rewards[team], f'top reward of=team-{team}')
+            self.mcv.rec(self.top_rewards[team], f'{prefix} top reward of=team-{team}')
 
         # (3).record winning rate (single-team) or record winning rate (multi-team)
         # for team in range(self.n_team):
-        teams_ranking = self.info_runner['Recent-Team-Ranking']
+        teams_ranking = info_runner['Recent-Team-Ranking']
+        win_rate_each_team = [0]*self.n_team
         if len(teams_ranking)>0:
-            win_rate_each_team = []
             for team in range(self.n_team):
                 rank_itr_team = np.array(teams_ranking)[:, team]
                 win_rate = (rank_itr_team==0).mean()  # 0 means rank first
-                win_rate_each_team.append(win_rate)
-                self.mcv.rec(win_rate, f'top-rank ratio of=team-{team}')
+                win_rate_each_team[team] = win_rate
+                self.mcv.rec(win_rate, f'{prefix} top-rank ratio of=team-{team}')
         else:
             team = 0
-            win_rate = np.array(self.info_runner['Recent-Win']).mean()
-            self.mcv.rec(win_rate, f'win rate of=team-{team}')
+            win_rate_each_team[team] = win_rate
+            win_rate = np.array(info_runner['Recent-Win']).mean()
+            self.mcv.rec(win_rate, f'{prefix} win rate of=team-{team}')
 
         # plot the figure
         self.mcv.rec_show()
-        print靛('\r[task runner]: (%s) finished episode %d, frame %d. | team-%d: recent reward %.3f, best reward %.3f'
-                % (self.note, self.current_n_episode, self.current_n_frame, 
-                self.interested_team, mean_reward_each_team[self.interested_team], self.top_rewards[self.interested_team]))
+        if testing: 
+            print_info = ['\r[task runner]: Test result at episode %d.'%(self.current_n_episode)]
+        else:
+            print_info = ['\r[task runner]: (%s) Finished episode %d, frame %d.'%(self.note, self.current_n_episode, self.current_n_frame)]
+
+        for team in range(self.n_team): 
+            print_info.append(' | team-%d: win rate: %.3f, recent reward %.3f'%(team, win_rate_each_team[team], mean_reward_each_team[team]))
+        print靛(''.join(print_info))
+            
+            # print靛('\r[task runner]: (%s) finished episode %d, frame %d. | team-%d: recent reward %.3f, best reward %.3f'
+            #     % (self.note, self.current_n_episode, self.current_n_frame, 
+            #     self.interested_team, mean_reward_each_team[self.interested_team], self.top_rewards[self.interested_team]))
         return
 
 

@@ -26,6 +26,7 @@ def write_json(fp, buf):
 
 
 class GpuShareUnit():
+    flesh = True
     def __init__(self, which_gpu, lock_path=None, manual_gpu_ctl=True, gpu_party=''):
         self.device = which_gpu
         self.manual_gpu_ctl = True
@@ -94,11 +95,12 @@ class GpuShareUnit():
         need_write = False
 
         # check all pid alive occasionally
-        if random.random() < 0.05:
+        if GpuShareUnit.flesh or random.random() < 0.05:
             for pid in list(all_pids.keys()):
                 if not pid_exist(pid):
                     all_pids.pop(pid); print('removing dead item', pid)
                     need_write = True
+            GpuShareUnit.flesh = False
 
         # add entry if not exist
         if self.pid_str not in all_pids:

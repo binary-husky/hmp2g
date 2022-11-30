@@ -12,6 +12,8 @@ class alg_parallel_wrapper(object):
 
     def interact_with_env(self, _input_):
         _act_, _t_intel_ = self.alg.interact_with_env(_input_)
+        for k in list(_t_intel_.keys()):
+            if not k.startswith('_'): _t_intel_.pop(k)
         # _act_.shape=(n_thread, n_agent, action_dim)
         if '_hook_' in _t_intel_ and _t_intel_['_hook_'] is not None:
             self._hook_deligate_ = _t_intel_.pop('_hook_')
