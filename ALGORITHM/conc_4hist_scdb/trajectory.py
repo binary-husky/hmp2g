@@ -240,8 +240,6 @@ class BatchTrajManager(TrajManagerBase):
         self.trainer_hook = trainer_hook
         self.traj_limit = traj_limit
         self.train_traj_needed = AlgorithmConfig.train_traj_needed
-        self.upper_training_epoch = AlgorithmConfig.upper_training_epoch
-        self.pool_manager = TrajPoolManager(n_pool=self.upper_training_epoch)
 
     def update(self, traj_frag, index):
         assert traj_frag is not None

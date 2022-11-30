@@ -4,14 +4,14 @@ from .foundation import AlgorithmConfig
 from UTIL.colorful import *
 
 class PolicyRsnConfig:
-    resonance_start_at_update = 100
+    resonance_start_at_update = 1
     yita_min_prob = 0.15  #  should be >= (1/n_action)
-    yita_max = 0.75
+    yita_max = 0.5
     yita_inc_per_update = 0.0075 # (increase to 0.75 in 500 updates)
     freeze_critic = False
     
-    yita_shift_method = 'slow-inc'
-    yita_shift_cycle = 400
+    yita_shift_method = '-sin'
+    yita_shift_cycle = 1000
 
 
 class StagePlanner:
