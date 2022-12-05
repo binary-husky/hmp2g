@@ -55,7 +55,6 @@ class PPO():
         self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
         self.lr = ppo_config.lr
         self.extral_train_loop = ppo_config.extral_train_loop
-        self.turn_off_threat_est = ppo_config.turn_off_threat_est
         self.all_parameter = list(policy_and_critic.named_parameters())
         self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AT_' in p_name]
         self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'CT_' in p_name]
@@ -84,7 +83,6 @@ class PPO():
         # 轮流训练式
         self.mcv = mcv
         self.ppo_update_cnt = 0
-        self.loss_bias =  ppo_config.balance
         self.batch_size_reminder = True
         self.trivial_dict = {}
 
@@ -193,11 +191,7 @@ class PPO():
         SAFE_LIMIT = 8
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
-        if self.turn_off_threat_est: 
-            # print('清空threat_loss')
-            threat_loss = 0
-        # if n==14: est_check(x=others['threat'][filter], y=real_threat[filter])
-        
+
         # probs_loss (should be turn off now)
         n_actions = probs.shape[-1]
         if self.add_prob_loss: assert n_actions <= 15  # 

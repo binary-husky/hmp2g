@@ -169,7 +169,6 @@ class Net(nn.Module):
 
         self.skip_connect = True
         self.n_action = n_action
-        self.alternative_critic = AlgorithmConfig.alternative_critic
         
         # observation normalization
         if self.use_normalization:
@@ -206,8 +205,6 @@ class Net(nn.Module):
             Linear(h_dim, 1)
         )
 
-        if self.alternative_critic:
-            self.CT_get_value_alternative_critic = nn.Sequential(Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),Linear(h_dim, 1))
 
         # part
         self.check_n = self.n_focus_on*2
@@ -305,7 +302,6 @@ class Net(nn.Module):
         # choose action selector
         logit2act = self._logit2act_rsn if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
         
-        assert not self.alternative_critic
         act, actLogProbs, distEntropy, probs = logit2act(logits, eval_mode=eval_mode, greedy=test_mode, eprsn=eprsn,
                                                                 eval_actions=eval_act, avail_act=avail_act)
 

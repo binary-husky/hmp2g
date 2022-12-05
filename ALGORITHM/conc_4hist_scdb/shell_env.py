@@ -105,9 +105,9 @@ class ShellEnvWrapper(object):
         # State_Recall['_Previous_Obs_'] = obs
         State_Recall['_Histpool_Obs_'] = his_pool_obs
         State_Recall['_Previous_Act_Onehot_'] = np_one_hot(act, n=self.n_action)
-        
-        State_Recall['_hook_'] = internal_recall['_hook_']
-        assert State_Recall['_hook_'] is not None
+        if not State_Recall['Test-Flag']:
+            State_Recall['_hook_'] = internal_recall['_hook_'] 
+            assert State_Recall['_hook_'] is not None
         return actions_list, State_Recall 
 
     def solve_duplicate(self, obs_feed_new, prev_his_pool):
