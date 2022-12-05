@@ -194,7 +194,10 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         info = str(update_cnt) if info is None else ''.join([str(update_cnt), '_', info])
         pt_path2 = f'{GlobalConfig.logdir}/history_cpt/model_{info}.pt'
         shutil.copyfile(pt_path, pt_path2)
+
         print绿('save_model fin')
+
+
 
     def process_framedata(self, traj_framedata):
         ''' 
