@@ -1,4 +1,4 @@
-import torch, math  # v
+import torch, math
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -6,99 +6,11 @@ import numpy as np
 from random import randint, sample
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from UTIL.colorful import *
-from UTIL.tensor_ops import _2tensor, _2cpu2numpy, repeat_at
+from UTIL.tensor_ops import _2tensor, __hash__, repeat_at, _2cpu2numpy
 from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
 from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
-
-class TrajPoolSampler():
-    def __init__(self, n_div, traj_pool, flag, prevent_batchsize_oom=False):
-        self.n_pieces_batch_division = n_div
-        self.prevent_batchsize_oom = prevent_batchsize_oom    
-
-        if self.prevent_batchsize_oom:
-            assert self.n_pieces_batch_division==1, ('?')
-
-        self.num_batch = None
-        self.container = {}
-        self.warned = False
-        assert flag=='train'
-        if cfg.ScenarioConfig.AvailActProvided:
-            req_dict =        ['avail_act', 'obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
-            req_dict_rename = ['avail_act', 'obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
-        else:
-            req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
-            req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
-        return_rename = "return"
-        value_rename =  "state_value"
-        advantage_rename = "advantage"
-        # replace 'obs' to 'obs > xxxx'
-        for key_index, key in enumerate(req_dict):
-            key_name =  req_dict[key_index]
-            key_rename = req_dict_rename[key_index]
-            if not hasattr(traj_pool[0], key_name):
-                real_key_list = [real_key for real_key in traj_pool[0].__dict__ if (key_name+'>' in real_key)]
-                assert len(real_key_list) > 0, ('check variable provided!', key,key_index)
-                for real_key in real_key_list:
-                    mainkey, subkey = real_key.split('>')
-                    req_dict.append(real_key)
-                    req_dict_rename.append(key_rename+'>'+subkey)
-        self.big_batch_size = -1  # vector should have same length, check it!
-        
-        # load traj into a 'container'
-        for key_index, key in enumerate(req_dict):
-            key_name =  req_dict[key_index]
-            key_rename = req_dict_rename[key_index]
-            if not hasattr(traj_pool[0], key_name): continue
-            set_item = np.concatenate([getattr(traj, key_name) for traj in traj_pool], axis=0)
-            if not (self.big_batch_size==set_item.shape[0] or (self.big_batch_size<0)):
-                print('error')
-            assert self.big_batch_size==set_item.shape[0] or (self.big_batch_size<0), (key,key_index)
-            self.big_batch_size = set_item.shape[0]
-            self.container[key_rename] = set_item    # 指针赋值
-
-        # normalize advantage inside the batch
-        self.container[advantage_rename] = self.container[return_rename] - self.container[value_rename]
-        self.container[advantage_rename] = ( self.container[advantage_rename] - self.container[advantage_rename].mean() ) / (self.container[advantage_rename].std() + 1e-5)
-        # size of minibatch for each agent
-        self.mini_batch_size = math.ceil(self.big_batch_size / self.n_pieces_batch_division)  
-
-    def __len__(self):
-        return self.n_pieces_batch_division
-
-    def reset_and_get_iter(self):
-        if not self.prevent_batchsize_oom:
-            self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
-        else:
-            if not hasattr(TrajPoolSampler,'MaxSampleNum'):
-                print('第一次初始化')
-                TrajPoolSampler.MaxSampleNum = [self.big_batch_size, ]
-                max_n_sample = self.big_batch_size
-            elif TrajPoolSampler.MaxSampleNum[-1] > 0:
-                TrajPoolSampler.MaxSampleNum.append(self.big_batch_size)
-                max_n_sample = self.big_batch_size
-            else:
-                assert TrajPoolSampler.MaxSampleNum[-2] > 0
-                max_n_sample = TrajPoolSampler.MaxSampleNum[-2]
-
-            n_sample = min(self.big_batch_size, max_n_sample)
-                    
-            if not hasattr(self,'reminded'):
-                self.reminded = True
-                print('droping %.1f percent samples..'%((self.big_batch_size-n_sample)/self.big_batch_size*100))
-            self.sampler = BatchSampler(SubsetRandomSampler(range(n_sample)), n_sample, drop_last=False)
-
-        for indices in self.sampler:
-            selected = {}
-            for key in self.container:
-                selected[key] = self.container[key][indices]
-            for key in [key for key in selected if '>' in key]:
-                # 重新把子母键值组合成二重字典
-                mainkey, subkey = key.split('>')
-                if not mainkey in selected: selected[mainkey] = {}
-                selected[mainkey][subkey] = selected[key]
-                del selected[key]
-            yield selected
+from .ppo_sampler import TrajPoolSampler
 
 def est_check(x, y):
     import random
@@ -197,7 +109,7 @@ class PPO():
                     assert TrajPoolSampler.MaxSampleNum[-1]>0
                     TrajPoolSampler.MaxSampleNum[-1] = -1
 
-                    print亮红('显存不足！ 回溯上次的样本量')
+                    print亮红('Insufficient gpu memory, using previous sample size !')
                 else:
                     self.n_div += 1
                     print亮红('显存不足！ 切分样本, 当前n_div: %d'%self.n_div)
@@ -261,6 +173,7 @@ class PPO():
 
     def establish_pytorch_graph(self, flag, sample, n):
         obs = _2tensor(sample['obs'])
+        state = _2tensor(sample['state'])
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
@@ -272,12 +185,12 @@ class PPO():
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
-        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, eval_actions=action, test_mode=False, avail_act=avail_act)
+        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, state=state, eval_actions=action, test_mode=False, avail_act=avail_act)
         entropy_loss = entropy.mean()
 
 
         # threat approximation
-        SAFE_LIMIT = 11
+        SAFE_LIMIT = 8
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
         if self.turn_off_threat_est: 
@@ -332,60 +245,5 @@ class PPO():
 
 
         return loss_final, others
-
-
-
-    def debug_pytorch_graph(self, flag, sample, n):
-
-
-        def mybuild_loss(flag, sample, n):
-            obs = _2tensor(sample['obs'])
-            advantage = _2tensor(sample['advantage'])
-            action = _2tensor(sample['action'])
-            oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
-            real_value = _2tensor(sample['return'])
-            real_threat = _2tensor(sample['threat'])
-            batchsize = advantage.shape[0]
-            batch_agent_size = advantage.shape[0]*advantage.shape[1]
-            assert flag == 'train'
-            newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, action=action, test_mode=False)
-            entropy_loss = entropy.mean()
-            # threat approximation
-            SAFE_LIMIT = 11
-            filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
-            threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
-            if n%20 == 0: est_check(x=others['threat'][filter], y=real_threat[filter])
-            value_loss = 0.5 * F.mse_loss(real_value, newPi_value)
-            nz_mask = real_value!=0
-            value_loss_abs = (real_value[nz_mask] - newPi_value[nz_mask]).abs().mean()
-
-            CT_net_loss = threat_loss * 0.1 + value_loss * 1.0
-            loss_final = CT_net_loss # + AT_net_loss + AE_new_loss # + 
-            others = {
-                'Value loss Abs':           value_loss_abs,
-                'threat loss':              threat_loss,
-                'CT_net_loss':              CT_net_loss,
-            }
-            return loss_final, others
-
-        def step(loss_final, step):
-            self.at_optimizer.zero_grad()
-            self.ct_optimizer.zero_grad()
-            # self.ae_optimizer.zero_grad()
-            loss_final.backward()
-            self.at_optimizer.step()
-            self.ct_optimizer.step()
-            # self.ae_optimizer.step()
-
-        for t in range(16):
-            self.trivial_dict = {}
-            loss_final, others = mybuild_loss(flag, sample, t)
-            self.log_trivial(dictionary=others)
-            others = None
-            
-            step(loss_final, t)
-            self.log_trivial_finalize(print=False)
-
-
 
 

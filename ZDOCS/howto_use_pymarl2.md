@@ -2,6 +2,10 @@
 ## step 1: clone hmap code (dev-uhmp)
 ```
 git clone https://github.com/binary-husky/hmp2g.git -b dev-uhmp
+
+git submodule update --init
+
+git submodule foreach -q --recursive 'branch="$(git config -f $toplevel/.gitmodules submodule.$name.branch)"; git switch $branch'
 ```
 
 

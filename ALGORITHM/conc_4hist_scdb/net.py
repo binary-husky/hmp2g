@@ -5,12 +5,12 @@ import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn.modules.linear import Linear
-from ..commom.attention import MultiHeadAttention
-from ..commom.norm import DynamicNorm
-from ..commom.mlp import LinearFinal, SimpleMLP, ResLinear
-from UTIL.colorful import print亮紫
+from ALGORITHM.commom.attention import MultiHeadAttention
+from ALGORITHM.commom.norm import DynamicNormFix
+from ALGORITHM.commom.mlp import LinearFinal, SimpleMLP, ResLinear
+from .ccategorical import CCategorical
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, __hash__, __hashn__, pad_at_dim
-from UTIL.tensor_ops import _2cpu2numpy, one_hot_with_nan, gather_righthand, pt_inf
+from UTIL.tensor_ops import repeat_at, one_hot_with_nan, gather_righthand, pt_inf
 
 
 def weights_init(m):
@@ -24,7 +24,7 @@ def weights_init(m):
         'Pnet':None,'Sequential':None,'DataParallel':None,'Tanh':None,
         'ModuleList':None,'ModuleDict':None,'MultiHeadAttention':None,
         'SimpleMLP':None,'Extraction_Module':None,'SelfAttention_Module':None,
-        'ReLU':None,'Softmax':None,'DynamicNorm':None,'EXTRACT':None,
+        'ReLU':None,'Softmax':None,'DynamicNormFix':None,'EXTRACT':None,
         'LinearFinal':lambda m:init_Linear(m, final_layer=True),
         'Linear':init_Linear, 'ResLinear':None, 'LeakyReLU':None,'SimpleAttention':None
     }
@@ -147,8 +147,11 @@ class Extraction_Module(nn.Module): # merge by MLP version
 """
 class Net(nn.Module):
     def __init__(self, 
-                rawob_dim, 
-                n_action):
+                rawob_dim,
+                state_dim,
+                n_action,
+                stage_planner,
+                ):
         super().__init__()
 
         from .foundation import AlgorithmConfig
@@ -158,7 +161,11 @@ class Net(nn.Module):
         self.actor_attn_mod = AlgorithmConfig.actor_attn_mod
         self.dual_conc = AlgorithmConfig.dual_conc
         self.n_entity_placeholder = AlgorithmConfig.n_entity_placeholder
+        self.stage_planner = stage_planner
+        self.ccategorical = CCategorical(stage_planner)
+        self.use_policy_resonance = AlgorithmConfig.use_policy_resonance
         h_dim = AlgorithmConfig.net_hdim
+        state_dim = state_dim
 
         self.skip_connect = True
         self.n_action = n_action
@@ -166,7 +173,8 @@ class Net(nn.Module):
         
         # observation normalization
         if self.use_normalization:
-            self._batch_norm = DynamicNorm(rawob_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True)
+            self._batch_norm = DynamicNormFix(rawob_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True)
+            self._state_batch_norm = DynamicNormFix(state_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True)
 
         self.AT_obs_encoder = nn.Sequential(nn.Linear(rawob_dim, h_dim), nn.ReLU(inplace=True), nn.Linear(h_dim, h_dim))
 
@@ -189,8 +197,14 @@ class Net(nn.Module):
                             adopt_selfattn=self.actor_attn_mod)
  
         tmp_dim = h_dim if not self.dual_conc else h_dim*2
-        self.CT_get_value = nn.Sequential(Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),Linear(h_dim, 1))
-        self.CT_get_threat = nn.Sequential(Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),Linear(h_dim, 1))
+        self.CT_get_value = nn.Sequential(
+            Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
+            Linear(h_dim, 1)
+        )
+        self.CT_get_threat = nn.Sequential(
+            Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
+            Linear(h_dim, 1)
+        )
 
         if self.alternative_critic:
             self.CT_get_value_alternative_critic = nn.Sequential(Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),Linear(h_dim, 1))
@@ -201,25 +215,38 @@ class Net(nn.Module):
             nn.Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),
             nn.Linear(h_dim, h_dim//2), nn.ReLU(inplace=True),
             LinearFinal(h_dim//2, self.n_action))
+            
 
         self.is_recurrent = False
         self.apply(weights_init)
         return
 
-    # two ways to support avail_act, but which one is better?
-    def logit2act(self, logits_agent_cluster, eval_mode, test_mode, eval_actions=None, avail_act=None):
+    def _logit2act_rsn(self, logits_agent_cluster, eval_mode, greedy, eval_actions=None, avail_act=None, eprsn=None):
         if avail_act is not None: logits_agent_cluster = torch.where(avail_act>0, logits_agent_cluster, -pt_inf())
-        act_dist = Categorical(logits = logits_agent_cluster)
-        if not test_mode:  act = act_dist.sample() if not eval_mode else eval_actions
-        else:              act = torch.argmax(act_dist.probs, axis=2)
-        def _get_act_log_probs(distribution, action):
-            return distribution.log_prob(action.squeeze(-1)).unsqueeze(-1)
-        actLogProbs = _get_act_log_probs(act_dist, act) # the policy gradient loss will feedback from here
+        act_dist = self.ccategorical.feed_logits(logits_agent_cluster)
+        
+        if not greedy:    act = self.ccategorical.sample(act_dist, eprsn) if not eval_mode else eval_actions
+        else:             act = torch.argmax(act_dist.probs, axis=2)
+        # the policy gradient loss will feedback from here
+        actLogProbs = self._get_act_log_probs(act_dist, act) 
         # sum up the log prob of all agents
         distEntropy = act_dist.entropy().mean(-1) if eval_mode else None
         return act, actLogProbs, distEntropy, act_dist.probs
 
+    def _logit2act(self, logits_agent_cluster, eval_mode, greedy, eval_actions=None, avail_act=None, **kwargs):
+        if avail_act is not None: logits_agent_cluster = torch.where(avail_act>0, logits_agent_cluster, -pt_inf())
+        act_dist = Categorical(logits = logits_agent_cluster)
+        if not greedy:     act = act_dist.sample() if not eval_mode else eval_actions
+        else:              act = torch.argmax(act_dist.probs, axis=2)
+        actLogProbs = self._get_act_log_probs(act_dist, act) # the policy gradient loss will feedback from here
+        # sum up the log prob of all agents
+        distEntropy = act_dist.entropy().mean(-1) if eval_mode else None
+        return act, actLogProbs, distEntropy, act_dist.probs
 
+    @staticmethod
+    def _get_act_log_probs(distribution, action):
+        return distribution.log_prob(action.squeeze(-1)).unsqueeze(-1)
+        
     @Args2tensor_Return2numpy
     def act(self, *args, **kargs):
         act = self._act if self.dual_conc else self._act_singlec
@@ -231,22 +258,26 @@ class Net(nn.Module):
         return act(*args, **kargs, eval_mode=True)
 
     # div entity for DualConc models, distincting friend or hostile (present or history)
-    def div_entity(self, mat, type=[(0,),# self
-                                    (1, 2, 3, 4),     # current
-                                    (5, 6, 7, 8, 9),],    # history
-                                    n=10):
-        assert n == self.n_entity_placeholder
-        if mat.shape[-2]==n:
+    def div_entity(self, mat, n):
+        assert n == self.n_entity_placeholder and n % 2 == 0
+        type=[  (0,),                      # self
+                tuple(range(1, n//2)),     # current
+                tuple(range(n//2, n)),]    # history
+        
+        if mat.dtype is torch.float:
             tmp = (mat[..., t, :] for t in type)
-        elif mat.shape[-1]==n:
+        elif mat.dtype is torch.bool:
             tmp = (mat[..., t] for t in type)
+        else:
+            assert False
         return tmp
 
-    def _act(self, obs, test_mode, eval_mode=False, eval_actions=None, avail_act=None):
+    def _act(self, obs, state, test_mode, eval_mode=False, eval_actions=None, avail_act=None, eprsn=None):
         eval_act = eval_actions if eval_mode else None
         others = {}
         if self.use_normalization:
             obs = self._batch_norm(obs)
+            state = self._state_batch_norm(state)
         mask_dead = torch.isnan(obs).any(-1)    # find dead agents
         obs = torch.nan_to_num_(obs, 0)         # replace dead agents' obs, from NaN to 0
         v = self.AT_obs_encoder(obs)
@@ -263,19 +294,23 @@ class Net(nn.Module):
         v_C_fuse = torch.cat((vf_C, vh_C), dim=-1)  # (vs + vs + check_n + check_n)
         logits = self.AT_get_logit_db(v_C_fuse) # diverge here
 
-
         # motivation encoding fusion
-        v_M_fuse = torch.cat((vf_M, vh_M), dim=-1)
+        n_agent = vh_M.shape[-2]
+        state_cp = repeat_at(state, -2, n_agent)
+        v_M_fuse = torch.cat((vf_M, vh_M, state_cp), dim=-1)
         # motivation objectives
         value = self.CT_get_value(v_M_fuse)
         threat = self.CT_get_threat(v_M_fuse)
 
+        # choose action selector
+        logit2act = self._logit2act_rsn if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
+        
         assert not self.alternative_critic
-        act, actLogProbs, distEntropy, probs = self.logit2act(logits, eval_mode=eval_mode, 
-                                                                test_mode=test_mode, eval_actions=eval_act, avail_act=avail_act)
+        act, actLogProbs, distEntropy, probs = logit2act(logits, eval_mode=eval_mode, greedy=test_mode, eprsn=eprsn,
+                                                                eval_actions=eval_act, avail_act=avail_act)
 
         def re_scale(t):
-            SAFE_LIMIT = 11
+            SAFE_LIMIT = 8
             r = 1. /2. * SAFE_LIMIT
             return (torch.tanh_(t/r) + 1.) * r
 

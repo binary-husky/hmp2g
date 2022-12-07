@@ -80,7 +80,7 @@ class PPO():
                     if TrajPoolSampler.MaxSampleNum[-1] < 0: TrajPoolSampler.MaxSampleNum.pop(-1)
                     assert TrajPoolSampler.MaxSampleNum[-1] > 0
                     TrajPoolSampler.MaxSampleNum[-1] = -1
-                    print亮红('显存不足！ 回溯上次的样本量')
+                    print亮红('Insufficient gpu memory, using previous sample size !')
                 else:
                     assert False
             torch.cuda.empty_cache()

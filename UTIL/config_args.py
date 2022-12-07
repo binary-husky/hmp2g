@@ -1,7 +1,8 @@
 import argparse, os, time, func_timeout
 from ast import Global
-from shutil import copyfile, copytree, ignore_patterns
+from shutil import copyfile, copytree, ignore_patterns, rmtree
 from .colorful import *
+from .data_struct import remove_prefix, remove_suffix
 
 '''
     This a chained var class, it deal with hyper-parameters that are bound together, 
@@ -12,6 +13,16 @@ class ChainVar(object):
     def __init__(self, chain_func, chained_with):
         self.chain_func = chain_func
         self.chained_with = chained_with
+
+# ChainVar relationship must end with '_cv' or '_CV'
+def is_chained_key(key):
+    if key.endswith('_cv'):
+        return True, remove_suffix(key, '_cv')
+    elif key.endswith('_CV'):
+        return True, remove_suffix(key, '_CV')
+    else:
+        return False, key
+
 
 
 '''
@@ -33,6 +44,8 @@ def prepare_args(vb=True):
     if vb: print亮绿('reading configuration at', args.cfg)
     # inject configuration into place
     with open(args.cfg, encoding='utf8') as f: json_data = json.load(f)
+    # check and process tmp alg folder
+    if vb: prepare_alg_tmp_folder(json_data)
     # inject configuration into place
     load_config_via_json(json_data, vb)
     # read the new global configuration
@@ -87,15 +100,15 @@ def override_config_file(cfg_group, new_cfg, vb):
         arg_summary(default_configs, new_cfg, altered_cv)
         print绿(''.join(['-']*len(str_pro)),'\n\n\n')
     if 'TEAM_NAMES' in new_cfg:
-        return [item.split('->')[0] for item in new_cfg['TEAM_NAMES']]
+        return [item.split('->')[0] for item in new_cfg['TEAM_NAMES'] if not item.startswith('TEMP')]
     return None
 
 def secure_chained_vars(default_cfg, new_cfg, vb):
     default_cfg_dict = default_cfg.__dict__
     altered_cv = []
     for key in default_cfg_dict:
-        if not key.endswith('_cv'): continue
-        o_key = key.replace('_cv','')
+        is_chain, o_key = is_chained_key(key)
+        if not is_chain: continue
         if o_key in new_cfg: continue
         assert hasattr(default_cfg, o_key), ('twin var does not have original')
         # get twin
@@ -131,35 +144,44 @@ def random_seed_warning(json_data):
         time.sleep(5)
 
 def prepare_tmp_folder():
-    def is_file_empty(file_path):
-        with open(file_path, 'r') as f: 
-            file_content = f.read()
-        if file_content == '' or file_content == '\n': 
-            return True
-        else:
-            return False
-        
     def init_dir(dir):
         if not os.path.exists(dir):  os.makedirs(dir)
-
-    import glob
     local_temp_folder = './TEMP'
     global_temp_folder = os.path.expanduser('~/HmapTemp')
     init_dir(local_temp_folder)
     init_dir(global_temp_folder+'/GpuLock')
     init_dir(global_temp_folder+'/PortFinder')
 
-    _tmp_files_to_investigate = glob.glob(global_temp_folder+'/PortFinder/*.txt' )
-    
-    for tmp in _tmp_files_to_investigate:
-        if not is_file_empty(tmp):
-            print亮红('Warning, find temp file which is not empty: %s !'%tmp)
-            time.sleep(5)
-
-    _tmp_files_to_investigate = glob.glob(global_temp_folder+'/GpuLock/*.register'    )
-    for tmp in _tmp_files_to_investigate:
-        from .gpu_share import check_lock_file
-        check_lock_file(tmp)
+def prepare_alg_tmp_folder(json_data):
+    try:
+        # scan mission conf
+        mission_key = [k for k in json_data.keys() if k.startswith('MISSION')][0]
+        # obtain algorithm assignment
+        TEAM_NAMES = json_data[mission_key]['TEAM_NAMES']
+        for tname in TEAM_NAMES:
+            if not tname.startswith('TEMP'): continue
+            # obtain the path of algorithm to be mirrored
+            path = tname.split('->')[0].replace('.','/')
+            # trace path parent to algorithm folder.
+            trace_success = False
+            for _ in range(5):
+                parent = os.path.relpath(path+'/..')
+                if os.path.basename(parent) == 'ALGORITHM': 
+                    src_path = os.path.relpath(path, start=os.path.relpath(parent+'/..'))
+                    trace_success = True
+                    break
+                path = parent
+            # transmit temp algorithm
+            if trace_success:
+                rmtree(path, ignore_errors=True)
+                # src_path = remove_prefix(path, 'TEMP/')
+                print亮绿(f'[config] Copying mirror algorithm from {src_path} to {path}')
+                copytree(src_path, path)
+                time.sleep(2)
+    except:
+        print亮红('[config] Errors occurs when executing prepare_alg_tmp_folder')
+        time.sleep(5)
+        return
 
 def register_machine_info(logdir):
     import socket, json, subprocess, uuid
@@ -220,7 +242,8 @@ def askChoice():
 def arg_summary(config_class, modify_dict = {}, altered_cv = []):
     for key in config_class.__dict__: 
         if '__' in key: continue
-        if key.endswith('_cv'): continue
+        is_chain, _ = is_chained_key(key)
+        if is_chain: continue
         if (not key in modify_dict) or (modify_dict[key] is None): 
             if key not in altered_cv: 
                 print绿(key.center(25), '-->', str(getattr(config_class,key)))
@@ -289,7 +312,9 @@ def make_json(conf_list):
         local_conf = {}
         config_class = conf['class']
         for key in config_class.__dict__: 
-            if '__' in key or '_cv' in key: continue
+            if '__' in key: continue
+            is_chain, _ = is_chained_key(key)
+            if is_chain: continue
             item_to_be_serialize = getattr(config_class, key)
             try:
                 json.dumps(item_to_be_serialize)

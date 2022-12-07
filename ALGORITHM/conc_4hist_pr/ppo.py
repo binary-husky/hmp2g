@@ -219,7 +219,7 @@ class PPO():
                     # -> [ 10, 20, 30]
                     TrajPoolSampler.MaxSampleNum[-1] = -1
                     # -> [ 10, 20, -1], try 20
-                    print亮红('显存不足！ 回溯上次的样本量')
+                    print亮红('Insufficient gpu memory, using previous sample size !')
                 else:
                     self.n_div += 1
                     print亮红('显存不足！ 切分样本, 当前n_div: %d'%self.n_div)

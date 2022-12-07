@@ -64,9 +64,8 @@ class PymarlFoundation():
             "--force", 
             "--config=%s"%AlgorithmConfig.pymarl2_alg_select, 
             "--env-config=HMP_compat",
-            "with",
-            "pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
-            "env_args.env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
+            "--pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
+            "--env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
         
         from UTIL.network import UnixTcpServerP2P
         unix_path = 'TEMP/Sockets/unix/%s'%self.remote_uuid
@@ -198,7 +197,7 @@ class PymarlFoundation():
 
     # @basic_io_call
     def get_episode_limit(self):
-        return int(self.ScenarioConfig.MaxEpisodeStep*1.5) # AlgorithmConfig.episode_limit
+        return int(self.ScenarioConfig.MaxEpisodeStep) # AlgorithmConfig.episode_limit
 
     # @basic_io_call
     def get_total_actions(self):
@@ -326,9 +325,9 @@ class PymarlFoundationOld():
             "--force", 
             "--config=%s"%AlgorithmConfig.pymarl2_alg_select, 
             "--env-config=HMP_compat",
-            "with",
-            "pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
-            "env_args.env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
+            "--pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
+            "--env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
+
         
         atexit.register(lambda: self.__del__()) 
         time.sleep(5)
@@ -428,7 +427,7 @@ class PymarlFoundationOld():
 
     # @basic_io_call
     def get_episode_limit(self):
-        return int(self.ScenarioConfig.MaxEpisodeStep*1.5) # AlgorithmConfig.episode_limit
+        return int(self.ScenarioConfig.MaxEpisodeStep) # AlgorithmConfig.episode_limit
 
     # @basic_io_call
     def get_total_actions(self):

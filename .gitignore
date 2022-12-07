@@ -58,8 +58,7 @@ xx_profile_n_agents2.py
 xx_profile_n_agents3.py
 xx_profile_n_agents4.py
 UTIL/keys.py
-private*.jsonc
-private*.py
+private*
 fqx*.jsonc
 my_*.jsonc
 result.prof
@@ -67,15 +66,6 @@ ignore
 bvrAI.log
 ZHECKPOINT/*
 
-# !THIRDPARTY
-# THIRDPARTY/*
-# !THIRDPARTY/__init__.py
-# !THIRDPARTY/pymarl2
-# THIRDPARTY/pymarl2/*
-# !THIRDPARTY/pymarl2/__init__.py
-# !THIRDPARTY/mappo
-# THIRDPARTY/mappo/*
-# !THIRDPARTY/mappo/__init__.py
 THIRDPARTY/pymarl2/test
 
 !ZHECKPOINT/test-50+50
@@ -139,6 +129,7 @@ ZHECKPOINT/uhmap_hete10vs10/logger
 !ZHECKPOINT/uhmap_hete10vs10/model_trained.pt
 ZHECKPOINT/uhmap_hete10vs10/experiment.jsonc
 
+
 cmd_io.txt
 rec.jpg
 detail_reward.jpg
@@ -165,3 +156,6 @@ qplex-pad.jsonc
 raw_exp.jsonc
 info.json
 UTIL/mem_watcher.py
+
+
+ALGORITHM/mirror*

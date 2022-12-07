@@ -3,7 +3,7 @@ from config import GlobalConfig
 import numpy as np
 from numpy.core.numeric import indices
 from .foundation import AlgorithmConfig
-from ..commom.traj import TRAJ_BASE
+from ALGORITHM.commom.traj import TRAJ_BASE
 import copy
 from UTIL.colorful import *
 from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_softmax, scatter_with_nan
@@ -95,7 +95,7 @@ class trajectory(TRAJ_BASE):
             elif i+1 == self.time_pointer:
                 threat[:] += (~dead_mask[i]).astype(np.int)
 
-        SAFE_LIMIT = 11
+        SAFE_LIMIT = 8
         threat = np.clip(threat, -1, SAFE_LIMIT)
         setattr(self, 'threat', np.expand_dims(threat, -1))
 
