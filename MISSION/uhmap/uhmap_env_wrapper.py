@@ -1,4 +1,4 @@
-import json, os, subprocess, time, stat, platform
+import json, os, subprocess, time, stat, platform, importlib
 import numpy as np
 from UTIL.colorful import print蓝, print靛, print亮红
 from UTIL.network import TcpClientP2PWithCompress, find_free_port_no_repeat, get_host_ip
@@ -12,36 +12,19 @@ from .agent import Agent
 def make_uhmap_env(env_id, rank):
     if ScenarioConfig.SubTaskSelection == 'UhmapEnv':
         return UhmapEnv(rank)
-    elif ScenarioConfig.SubTaskSelection == 'UhmapBreakingBad':
-        from .SubTasks.UhmapBreakingBad import UhmapBreakingBad
-        return UhmapBreakingBad(rank)
-    elif ScenarioConfig.SubTaskSelection == 'UhmapLargeScale':
-        from .SubTasks.UhmapLargeScale import UhmapLargeScale
-        return UhmapLargeScale(rank)
-    elif ScenarioConfig.SubTaskSelection == 'UhmapJustAnIsland':
-        from .SubTasks.UhmapJustAnIsland import UhmapJustAnIsland
-        return UhmapJustAnIsland(rank)
-    elif ScenarioConfig.SubTaskSelection == 'UhmapPreyPredator':
-        from .SubTasks.UhmapPreyPredator import UhmapPreyPredator
-        return UhmapPreyPredator(rank)
     else:
-        raise "unknown subtask, define it here!"
+        ST = ScenarioConfig.SubTaskSelection
+        assert os.path.exists(f'./MISSION/uhmap/SubTasks/{ST}.py'), "Unknown subtask!"
+        ST_CLASS = getattr(importlib.import_module(f'.SubTasks.{ST}', package='MISSION.uhmap'), ST)
+        return ST_CLASS(rank)
 
 def get_subtask_conf(subtask):
-    if subtask == 'UhmapBreakingBad':
-        from .SubTasks.UhmapBreakingBadConf import SubTaskConfig
-        return SubTaskConfig
-    elif subtask == 'UhmapLargeScale':
-        from .SubTasks.UhmapLargeScaleConf import SubTaskConfig
-        return SubTaskConfig
-    elif subtask == 'UhmapJustAnIsland':
-        from .SubTasks.UhmapJustAnIslandConf import SubTaskConfig
-        return SubTaskConfig
-    elif subtask == 'UhmapPreyPredator':
-        from .SubTasks.UhmapPreyPredatorConf import SubTaskConfig
-        return SubTaskConfig
-    else:
-        raise "unknown subtask, define it here!"
+    ST = subtask
+    assert os.path.exists(f'./MISSION/uhmap/SubTasks/{ST}Conf.py'), "Configuration not found!"
+    ST_CONF_CLASS = getattr(importlib.import_module(f'.SubTasks.{ST}Conf', package='MISSION.uhmap'), 'SubTaskConfig')
+    return ST_CONF_CLASS
+
+
 
 
 def usual_id_arrangment(N_AGENT_EACH_TEAM):

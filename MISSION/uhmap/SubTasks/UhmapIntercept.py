@@ -5,13 +5,10 @@ from ...common.base_env import RawObsArray
 from ..actionset_v3 import digitsToStrAction
 from ..agent import Agent
 from ..uhmap_env_wrapper import UhmapEnv, ScenarioConfig
-from .UhmapPreyPredatorConf import SubTaskConfig
+from .UhmapInterceptConf import SubTaskConfig
 from .cython_func import tear_num_arr
 
-
-
-
-class UhmapPreyPredator(UhmapEnv):
+class UhmapIntercept(UhmapEnv):
     def __init__(self, rank) -> None:
         super().__init__(rank)
         self.observation_space = self.make_obs(get_shape=True)
@@ -151,7 +148,7 @@ class UhmapPreyPredator(UhmapEnv):
                 PreyRank = -1
                 PreyReward = 0
                 EndReason = event_parsed['EndReason']
-                # According to MISSION\uhmap\SubTasks\UhmapPreyPredatorConf.py, team 0 is prey team, team 1 is predator team
+                # According to MISSION\uhmap\SubTasks\UhmapInterceptConf.py, team 0 is prey team, team 1 is predator team
                 if EndReason == "AllPreyCaught" or EndReason == "Team_0_AllDead":
                     PredatorWin = True; PredatorRank = 0; PredatorReward = 1
                     PreyWin = False; PreyRank = 1; PreyReward = -1
@@ -422,42 +419,105 @@ class UhmapPreyPredator(UhmapEnv):
 
 
 
-    def init_ground(self, agent_info, pos_ro):
-        N_COL = 4
-        agent_class = agent_info['type']
+    def init_landmark(self, agent_info, pos_ro):
         team = agent_info['team']
-        n_team_agent = 50
         tid = agent_info['tid']
         uid = agent_info['uid']
-        x = 0 + 800*(tid - n_team_agent//2) //N_COL
-        y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
-        x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-        z = 500 # 500 is slightly above the ground
-        yaw = 90 if team==0 else -90
-        assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
+        agent_class = agent_info['type']
+        x = 0
+        y = tid * 1000
+        z = 500
         agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
-                'DebugAgent': False,
-                # max drive/fly speed
-                'MaxMoveSpeed':  720          if agent_class == 'RLA_CAR_Laser' else 600,
-                # also influence object mass, please change it with causion!
-                'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
-                # team belonging
-                'AgentTeam': team,
-                # choose ue class to init
-                'ClassName': agent_class,
+            'DebugAgent': False,
+            # max drive/fly speed
+            'MaxMoveSpeed':  0,
+            # also influence object mass, please change it with causion!
+            'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+            # team belonging
+            'AgentTeam': team,
+            # choose ue class to init
+            'ClassName': agent_class,
+            # debugging
+            'RSVD1': '',
+            # the rank of agent inside the team
+            'IndexInTeam': tid, 
+            # the unique identity of this agent in simulation system
+            'UID': uid, 
+            # show color
+            'Color':'(R=0,G=1,B=0,A=1)',
+            # initial location
+            'InitLocation': { 'x': x,  'y': y, 'z': z, },
+            # initial facing direction et.al.
+            'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
+        }),
+        return agent_property
 
-                # debugging
-                'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750',
-                # the rank of agent inside the team
-                'IndexInTeam': tid, 
-                # the unique identity of this agent in simulation system
-                'UID': uid, 
-                # show color
-                'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
-                # initial location
-                'InitLocation': { 'x': x,  'y': y, 'z': z, },
-                # initial facing direction et.al.
-                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
+    def init_defender(self, agent_info, pos_ro):
+        team = agent_info['team']
+        tid = agent_info['tid']
+        uid = agent_info['uid']
+        agent_class = agent_info['type']
+        x = 100
+        y = tid * 1000
+        z = 500
+        agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
+        agent_property.update({
+            'DebugAgent': False,
+            # max drive/fly speed
+            'MaxMoveSpeed':  500,
+            # also influence object mass, please change it with causion!
+            'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+            # team belonging
+            'AgentTeam': team,
+            # choose ue class to init
+            'ClassName': agent_class,
+            # debugging
+            'RSVD1': '',
+            # the rank of agent inside the team
+            'IndexInTeam': tid, 
+            # the unique identity of this agent in simulation system
+            'UID': uid, 
+            # show color
+            'Color':'(R=0,G=1,B=0,A=1)',
+            # initial location
+            'InitLocation': { 'x': x,  'y': y, 'z': z, },
+            # initial facing direction et.al.
+            'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
+        }),
+        return agent_property
+
+
+    def init_attacker(self, agent_info, pos_ro):
+        team = agent_info['team']
+        tid = agent_info['tid']
+        uid = agent_info['uid']
+        agent_class = agent_info['type']
+        x = 4000
+        y = np.random.rand() * 1000
+        z = 500
+        agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
+        agent_property.update({
+            'DebugAgent': False,
+            # max drive/fly speed
+            'MaxMoveSpeed':  1000,
+            # also influence object mass, please change it with causion!
+            'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+            # team belonging
+            'AgentTeam': team,
+            # choose ue class to init
+            'ClassName': agent_class,
+            # debugging
+            'RSVD1': '',
+            # the rank of agent inside the team
+            'IndexInTeam': tid, 
+            # the unique identity of this agent in simulation system
+            'UID': uid, 
+            # show color
+            'Color':'(R=0,G=1,B=0,A=1)',
+            # initial location
+            'InitLocation': { 'x': x,  'y': y, 'z': z, },
+            # initial facing direction et.al.
+            'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
         }),
         return agent_property

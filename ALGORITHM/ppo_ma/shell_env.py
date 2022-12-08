@@ -13,14 +13,14 @@ class ShellEnvConfig:
 class ActionConvertPredatorPrey():
     def __init__(self, SELF_TEAM_ASSUME, OPP_TEAM_ASSUME, OPP_NUM_ASSUME) -> None:
         self.dictionary_args = [
-            'ActionSet2::PatrolMoving;X=1.0 Y=0.0 Z=0.0',
-            'ActionSet2::PatrolMoving;X=1.0 Y=1.0 Z=0.0',
-            'ActionSet2::PatrolMoving;X=0.0 Y=1.0 Z=0.0',
-            'ActionSet2::PatrolMoving;X=-1.0 Y=1.0 Z=0.0',
-            'ActionSet2::PatrolMoving;X=-1.0 Y=0.0 Z=0.0',
-            'ActionSet2::PatrolMoving;X=-1.0 Y=-1.0 Z=0.0',
-            'ActionSet2::PatrolMoving;X=0.0 Y=-1.0 Z=0.0',
-            'ActionSet2::PatrolMoving;X=1.0 Y=-1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=1.0 Y=0.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=1.0 Y=1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=0.0 Y=1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=-1.0 Y=1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=-1.0 Y=0.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=-1.0 Y=-1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=0.0 Y=-1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=1.0 Y=-1.0 Z=0.0',
         ] 
 
     def convert_act_arr(self, type, a):
@@ -123,10 +123,10 @@ class ShellEnvWrapper(object):
         if hasattr(ScenarioConfig, 'AvailActProvided'):
             self.AvailActProvided = ScenarioConfig.AvailActProvided 
 
-        if GlobalConfig.ScenarioConfig.SubTaskSelection == 'UhmapPreyPredator':
-            ActionToDiscreteConverter = ActionConvertPredatorPrey
-        else:
+        if GlobalConfig.ScenarioConfig.SubTaskSelection == 'UhmapLargeScale':
             ActionToDiscreteConverter = ActionConvertLegacy
+        else:
+            ActionToDiscreteConverter = ActionConvertPredatorPrey
 
         self.action_converter = ActionToDiscreteConverter(
                 SELF_TEAM_ASSUME=team, 
