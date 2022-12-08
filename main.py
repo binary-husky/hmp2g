@@ -16,7 +16,7 @@
         auto pip deployer                         -->   pip_find_missing.py
         efficient parallel execting               -->   shm_pool.pyx
         auto gpu selection                        -->   auto_gpu.py
-        matlab logging/plotting bridge            -->   mcom.py & mcom_rec.py
+        hmap logging/plotting bridge            -->   mcom.py & mcom_rec.py
         experiment batch executor                 -->   mprofile.py
 """
 import os, atexit, platform

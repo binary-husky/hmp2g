@@ -17,9 +17,9 @@ class Runner(object):
     def __init__(self, process_pool):
         self.process_pool = process_pool
         self.envs = make_parallel_envs(process_pool)          # parallel environments start
-        self.mcv = self.get_a_logger(cfg.note)                # MATLAB silent logging bridge active
-        if cfg.mt_parallel: from multi_team_parallel import MMPlatform
-        else: from multi_team import MMPlatform
+        self.mcv = self.get_a_logger(cfg.note)                # multiagent silent logging bridge active
+        if cfg.mt_parallel: from multi_team_parallel import MMPlatform  # parallel the decision process
+        else:               from multi_team          import MMPlatform
         self.platform_controller = MMPlatform(self.mcv, self.envs)  # block infomation access between teams
         self.info_runner = {}                                       # dict of realtime obs, reward, reward, info et.al.
         self.n_agent  =  sum(cfg.ScenarioConfig.N_AGENT_EACH_TEAM)
@@ -225,6 +225,7 @@ class Runner(object):
         self.interested_agents_uid = cfg.interested_agent_uid
         self.interested_team = cfg.interested_team
         self.top_rewards = None
+        self.test_top_rewards = None
         return
     def _checkout_interested_agents(self, info_runner, testing=False):
         # (1). record mean reward
@@ -244,13 +245,16 @@ class Runner(object):
             self.mcv.rec(mean_reward_each_team[team], f'{prefix} reward of=team-{team}')
 
         # (2).reflesh historical top reward
-        if self.top_rewards is None: 
-            self.top_rewards = mean_reward_each_team
-
+        if not testing: 
+            if self.top_rewards is None: self.top_rewards = mean_reward_each_team
+            top_rewards_list_pointer = self.top_rewards
+        else:
+            if self.test_top_rewards is None: self.test_top_rewards = mean_reward_each_team
+            top_rewards_list_pointer = self.test_top_rewards
         for team in range(self.n_team):
-            if mean_reward_each_team[team] > self.top_rewards[team]:
-                self.top_rewards[team] = mean_reward_each_team[team]
-            self.mcv.rec(self.top_rewards[team], f'{prefix} top reward of=team-{team}')
+            if mean_reward_each_team[team] > top_rewards_list_pointer[team]:
+                top_rewards_list_pointer[team] = mean_reward_each_team[team]
+            self.mcv.rec(top_rewards_list_pointer[team], f'{prefix} top reward of=team-{team}')
 
         # (3).record winning rate (single-team) or record winning rate (multi-team)
         # for team in range(self.n_team):
@@ -279,9 +283,6 @@ class Runner(object):
             print_info.append(' | team-%d: win rate: %.3f, recent reward %.3f'%(team, win_rate_each_team[team], mean_reward_each_team[team]))
         print靛(''.join(print_info))
             
-            # print靛('\r[task runner]: (%s) finished episode %d, frame %d. | team-%d: recent reward %.3f, best reward %.3f'
-            #     % (self.note, self.current_n_episode, self.current_n_frame, 
-            #     self.interested_team, mean_reward_each_team[self.interested_team], self.top_rewards[self.interested_team]))
         return
 
 

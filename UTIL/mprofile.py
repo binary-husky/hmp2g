@@ -120,7 +120,7 @@ base_conf = {
 }
 
 
-assert '_' not in run_group, ('下划线在matlab中的显示效果不好')
+assert '_' not in run_group, ('下划线的显示效果不好')
 exp_log_dir = log_dir+'exp_log'
 if not os.path.exists('PROFILE/%s'%exp_log_dir):
     os.makedirs('PROFILE/%s'%exp_log_dir)

@@ -326,13 +326,13 @@ class Net(nn.Module):
         from config import GlobalConfig as cfg
         from UTIL.tensor_ops import _2tensor, _2cpu2numpy
 
-        if cfg.matlab_logger is None:
+        if cfg.hmap_logger is None:
             from VISUALIZE.mcom import mcom
             mcv = mcom(path='%s/v2d_logger/'%cfg.logdir,
                         digit=16, rapid_flush=True, draw_mode='Native')
             mcv.v2d_init()
-            cfg.matlab_logger = mcv
-        mcv = cfg.matlab_logger
+            cfg.hmap_logger = mcv
+        mcv = cfg.hmap_logger
         mcv.v2d_clear()
         def reverse_binary(binary, bit=8):
             assert bit==8
