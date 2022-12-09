@@ -73,39 +73,7 @@ class DivTree(nn.Module): # merge by MLP version
                 use_which_net = self.div_tree[self.current_level, i]
                 res.append(self.nets[use_which_net](x0[..., i, :]))
             x2 = torch.stack(res, -2)
-            # x22 = self.nets[0](x1)
-            
             return x2, None
-
-    # def forward_try_parallel(self, x0):  # x0: shape = (?,...,?, n_agent, core_dim)
-    #     x1 = self.shared_net(x0)
-    #     stream = []
-    #     res = []
-    #     for i in range(self.n_agent):
-    #         stream.append(torch.cuda.Stream())
-        
-    #     torch.cuda.synchronize()
-    #     for i in range(self.n_agent):
-    #         use_which_net = self.div_tree[self.current_level, i]
-    #         with torch.cuda.stream(stream[i]):
-    #             res.append(self.nets[use_which_net](x1[..., i, :]))
-    #             print(res[i])
-
-    #     # s1 = torch.cuda.Stream()
-    #     # s2 = torch.cuda.Stream()
-    #     # # Wait for the above tensors to initialise.
-    #     # torch.cuda.synchronize()
-    #     # with torch.cuda.stream(s1):
-    #     #     C = torch.mm(A, A)
-    #     # with torch.cuda.stream(s2):
-    #     #     D = torch.mm(B, B)
-    #     # Wait for C and D to be computed.
-    #     torch.cuda.synchronize()
-    #     # Do stuff with C and D.
-
-    #     x2 = torch.stack(res, -2)
-
-    #     return x2
 
 
 
