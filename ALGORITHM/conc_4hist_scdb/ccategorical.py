@@ -81,15 +81,31 @@ def random_process_with_clamp3(probs, yita, yita_min_prob, rsn_flag):
         return torch.where(hit_e, act_max, act_samp)
 
 
+
+def random_process_simple(probs, rsn_flag):
+    with torch.no_grad():
+        # act with max prob
+        max_place = probs.argmax(-1, keepdims=True)
+        # reshape
+        assert max_place.shape[-1] == 1
+        act_max = max_place.squeeze(-1)
+        # sample
+        dist = Categorical(probs=probs)
+        act_samp = dist.sample()
+        # assert act_samp.shape[-1] != 1
+        hit_e = _2tensor(rsn_flag)
+        # switch
+        return torch.where(hit_e, act_max, act_samp)
+
 class CCategorical():
     def __init__(self, planner):
         self.planner = planner
-        
         pass
 
     def sample(self, dist, eprsn):
         probs = dist.probs.clone()
-        return random_process_with_clamp3(probs, self.planner.yita, self.planner.yita_min_prob, eprsn)
+        # return random_process_with_clamp3(probs, self.planner.yita, self.planner.yita_min_prob, eprsn)
+        return random_process_simple(probs, eprsn)
 
     def register_rsn(self, rsn_flag):
         self.rsn_flag = rsn_flag

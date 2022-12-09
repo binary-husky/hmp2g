@@ -26,7 +26,8 @@ def weights_init(m):
         'SimpleMLP':None,'Extraction_Module':None,'SelfAttention_Module':None,
         'ReLU':None,'Softmax':None,'DynamicNormFix':None,'EXTRACT':None,
         'LinearFinal':lambda m:init_Linear(m, final_layer=True),
-        'Linear':init_Linear, 'ResLinear':None, 'LeakyReLU':None,'SimpleAttention':None
+        'Linear':init_Linear, 'ResLinear':None, 'LeakyReLU':None,'SimpleAttention':None,
+        'DivTree':None,
     }
 
     classname = m.__class__.__name__
@@ -150,6 +151,7 @@ class Net(nn.Module):
                 rawob_dim,
                 state_dim,
                 n_action,
+                n_agent,
                 stage_planner,
                 ):
         super().__init__()
@@ -164,6 +166,7 @@ class Net(nn.Module):
         self.stage_planner = stage_planner
         self.ccategorical = CCategorical(stage_planner)
         self.use_policy_resonance = AlgorithmConfig.use_policy_resonance
+        self.use_policy_div = AlgorithmConfig.use_policy_div
         h_dim = AlgorithmConfig.net_hdim
         state_dim = state_dim
 
@@ -205,15 +208,21 @@ class Net(nn.Module):
             Linear(h_dim, 1)
         )
 
-
         # part
         self.check_n = self.n_focus_on*2
-        self.AT_get_logit_db = nn.Sequential(  
-            nn.Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),
-            nn.Linear(h_dim, h_dim//2), nn.ReLU(inplace=True),
-            LinearFinal(h_dim//2, self.n_action))
+        if self.use_policy_div:
+            self.AT_get_logit_db = nn.Sequential(
+                nn.Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),
+                nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
+            )
+            from .div_tree import DivTree
+            self.AT_div_tree = DivTree(h_dim=h_dim, n_action=self.n_action, n_agent=n_agent, stage_planner=stage_planner)
+        else:
+            self.AT_get_logit_db = nn.Sequential(  
+                nn.Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),
+                nn.Linear(h_dim, h_dim//2), nn.ReLU(inplace=True),
+                LinearFinal(h_dim//2, self.n_action))
             
-
         self.is_recurrent = False
         self.apply(weights_init)
         return
@@ -289,12 +298,17 @@ class Net(nn.Module):
 
         # fuse forward path
         v_C_fuse = torch.cat((vf_C, vh_C), dim=-1)  # (vs + vs + check_n + check_n)
-        logits = self.AT_get_logit_db(v_C_fuse) # diverge here
+        if self.use_policy_div:
+            pre_logits = self.AT_get_logit_db(v_C_fuse)
+            logits = self.AT_div_tree(pre_logits)   # ($thread, $agent, $coredim)
+        else:
+            logits = self.AT_get_logit_db(v_C_fuse)
 
         # motivation encoding fusion
         n_agent = vh_M.shape[-2]
         state_cp = repeat_at(state, -2, n_agent)
         v_M_fuse = torch.cat((vf_M, vh_M, state_cp), dim=-1)
+
         # motivation objectives
         value = self.CT_get_value(v_M_fuse)
         threat = self.CT_get_threat(v_M_fuse)

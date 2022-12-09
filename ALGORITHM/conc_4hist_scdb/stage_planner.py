@@ -24,6 +24,7 @@ class StagePlanner:
         self.update_cnt = 0
         self.mcv = mcv
         self.trainer = None
+        self.div_tree = None
         if PolicyRsnConfig.yita_shift_method == 'feedback':
             from .scheduler import FeedBackPolicyResonance
             self.feedback_controller = FeedBackPolicyResonance(mcv)
@@ -51,11 +52,6 @@ class StagePlanner:
         return PolicyRsnConfig.yita_min_prob
     
     def can_exec_trainning(self):
-        # if self.wait_norm_stable_cnt > 0:
-        #     print亮绿('waiting initial normalization stable, skip training!')
-        #     self.wait_norm_stable_cnt -= 1
-        #     return False
-        # else:
         return True
 
     def update_plan(self):
@@ -66,6 +62,9 @@ class StagePlanner:
             elif not self.resonance_active:
                 self.when_pr_inactive()
         return
+
+    def hook_div_tree(self, div_tree):
+        self.div_tree = div_tree
 
     def update_test_winrate(self, win_rate):
         self.feedback_controller.step(win_rate)
@@ -86,15 +85,16 @@ class StagePlanner:
         # log
         pr = 1 if self.resonance_active else 0
         self.mcv.rec(pr, 'resonance')
-        self.mcv.rec(self.yita, 'self.yita')
-
+        self.mcv.rec(self.yita, 'yita')
+        if self.div_tree is not None: 
+            self.mcv.rec(self.div_tree.current_level, 'div_tree_level')
     def when_pr_active(self):
         assert self.resonance_active
         self._update_yita()
         # log
         pr = 1 if self.resonance_active else 0
         self.mcv.rec(pr, 'resonance')
-        self.mcv.rec(self.yita, 'self.yita')
+        self.mcv.rec(self.yita, 'yita')
 
     def _update_yita(self):
         '''
@@ -103,19 +103,15 @@ class StagePlanner:
         if PolicyRsnConfig.yita_shift_method == '-cos':
             self.yita = PolicyRsnConfig.yita_max
             t = -math.cos(2*math.pi/PolicyRsnConfig.yita_shift_cycle * self.update_cnt) * PolicyRsnConfig.yita_max
-            if t<=0:
-                self.yita = 0
-            else:
-                self.yita = t
+            if t<=0: self.yita = 0
+            else: self.yita = t
             print亮绿('yita update:', self.yita)
 
         elif PolicyRsnConfig.yita_shift_method == '-sin':
             self.yita = PolicyRsnConfig.yita_max
             t = -math.sin(2*math.pi/PolicyRsnConfig.yita_shift_cycle * self.update_cnt) * PolicyRsnConfig.yita_max
-            if t<=0:
-                self.yita = 0
-            else:
-                self.yita = t
+            if t<=0: self.yita = 0
+            else: self.yita = t
             print亮绿('yita update:', self.yita)
 
         elif PolicyRsnConfig.yita_shift_method == 'slow-inc':
@@ -130,3 +126,8 @@ class StagePlanner:
             
         else:
             assert False
+
+        if self.yita > 0.25 and self.div_tree is not None:
+            if not self.div_tree.at_max_level():
+                self.div_tree.set_to_max_level()
+

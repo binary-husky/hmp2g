@@ -54,6 +54,8 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
+    use_policy_div = False
+
 class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         self.n_thread = n_thread
@@ -81,7 +83,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             rawob_dim = rawob_dim + self.n_agent
         if AlgorithmConfig.shell_obs_add_previous_act:
             rawob_dim = rawob_dim + n_actions
-        self.policy = Net(rawob_dim=rawob_dim, state_dim=self.state_dim, n_action=n_actions, stage_planner=self.stage_planner)
+        self.policy = Net(rawob_dim=rawob_dim, state_dim=self.state_dim, n_action=n_actions, n_agent=n_agent, stage_planner=self.stage_planner)
         self.policy = self.policy.to(self.device)
 
         # initialize optimizer and trajectory (batch) manager
