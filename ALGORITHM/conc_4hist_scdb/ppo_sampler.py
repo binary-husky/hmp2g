@@ -23,8 +23,8 @@ class TrajPoolSampler():
         self.container = {}
         self.warned = False
         assert flag=='train'
-        req_dict =        ['obs', 'state', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
-        req_dict_rename = ['obs', 'state', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
+        req_dict =        ['obs', 'state', 'eprsn', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
+        req_dict_rename = ['obs', 'state', 'eprsn', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
         if cfg.ScenarioConfig.AvailActProvided:
             req_dict.append('avail_act')
             req_dict_rename.append('avail_act')

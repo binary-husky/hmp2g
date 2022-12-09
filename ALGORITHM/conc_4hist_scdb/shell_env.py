@@ -70,8 +70,6 @@ class ShellEnvWrapper(object):
         his_pool_obs[RST] = 0
         state = np.array([info['state'] for info in State_Recall['Latest-Team-Info']])
 
-
-
         obs_feed = obs[~P]
         state_feed = state[~P]
         his_pool_obs_feed = his_pool_obs[~P]

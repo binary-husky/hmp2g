@@ -171,19 +171,21 @@ class PPO():
 
     def establish_pytorch_graph(self, flag, sample, n):
         obs = _2tensor(sample['obs'])
-        state = _2tensor(sample['state'])
+        state = _2tensor(sample['state']) if 'state' in sample else None
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
         real_value = _2tensor(sample['return'])
         real_threat = _2tensor(sample['threat'])
         avail_act = _2tensor(sample['avail_act']) if 'avail_act' in sample else None
+        eprsn = _2tensor(sample['eprsn']) if 'eprsn' in sample else None
 
         batchsize = advantage.shape[0]#; print亮紫(batchsize)
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
-        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, state=state, eval_actions=action, test_mode=False, avail_act=avail_act)
+        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
+            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn)
         entropy_loss = entropy.mean()
 
 
@@ -213,7 +215,7 @@ class PPO():
         if 'motivation value' in others:
             value_loss += 0.5 * F.mse_loss(real_value, others['motivation value'])
 
-        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef # + probs_loss*20
+        AT_net_loss = policy_loss - entropy_loss*self.entropy_coef # + probs_loss*20
         CT_net_loss = value_loss * 1.0 + threat_loss * 0.1 # + friend_threat_loss*0.01
         # AE_new_loss = ae_loss * 1.0
 

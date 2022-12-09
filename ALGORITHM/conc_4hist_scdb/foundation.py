@@ -55,6 +55,8 @@ class AlgorithmConfig:
     fall_back_to_small_net = False
 
     use_policy_div = False
+    
+    distribution_precision = 7
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -67,12 +69,12 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         n_actions = GlobalConfig.ScenarioConfig.n_actions
         # self.StagePlanner
         from .stage_planner import StagePlanner
-        self.stage_planner = StagePlanner(mcv=mcv)
+        self.stage_planner = StagePlanner(n_agent=self.n_agent, mcv=mcv)
 
         from .shell_env import ShellEnvWrapper
         self.shell_env = ShellEnvWrapper(
             n_agent, n_thread, space, mcv, self, AlgorithmConfig, self.ScenarioConfig)
-            
+ 
         from .net import Net
         self.device = GlobalConfig.device
         if self.ScenarioConfig.EntityOriented:
@@ -115,7 +117,6 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         # Skip currupt data integraty check after this patience is exhausted
         self.patience = 1000
 
-
     def action_making(self, StateRecall, test_mode):
         assert StateRecall['obs'] is not None, ('Make sure obs is ok')
 
@@ -123,18 +124,19 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         assert len(obs) == sum(threads_active_flag), ('Make sure the right batch of obs!')
         avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
         state = StateRecall['state'] if 'state' in StateRecall else None
-        eprsn = repeat_at(StateRecall['eprsn'], -1, self.n_agent) if 'eprsn' in StateRecall else None
+        eprsn = StateRecall['eprsn'] if 'eprsn' in StateRecall else None
 
         with torch.no_grad():
-            action, value, action_log_prob = self.policy.act(
+            action, BLA_value_all_level, action_log_prob = self.policy.act(
                 obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
             "_SKIP_":        ~threads_active_flag,
-            "value":         value,
+            "BLA_value_all_level":      BLA_value_all_level,
             "actionLogProb": action_log_prob,
             "obs":           obs,
+            "eprsn":         eprsn,
             "state":         state,
             "action":        action,
         }

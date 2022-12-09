@@ -12,7 +12,7 @@ class trajectory(TRAJ_BASE):
 
     def __init__(self, traj_limit, env_id):
         super().__init__(traj_limit, env_id)
-        self.reference_track_name = 'value'
+        self.reference_track_name = 'obs'
 
     def early_finalize(self):
         assert not self.readonly_lock   # unfinished traj
@@ -100,7 +100,7 @@ class trajectory(TRAJ_BASE):
         setattr(self, 'threat', np.expand_dims(threat, -1))
 
         # ! Use GAE to calculate return
-        self.gae_finalize_return(reward_key='reward', value_key='value', new_return_name='return')
+        self.gae_finalize_return(reward_key='reward', value_key='BLA_value_all_level', new_return_name='return')
         return
 
     def gae_finalize_return(self, reward_key, value_key, new_return_name):
@@ -109,7 +109,9 @@ class trajectory(TRAJ_BASE):
         tau = AlgorithmConfig.tau
         # ------- -------------- -------
         rewards = getattr(self, reward_key)
-        value = getattr(self, value_key)
+        BLA_value_all_level = getattr(self, value_key)
+        value = BLA_value_all_level[:, :3, :].mean(-2)
+        # how to merge BLA_value_all_level ?
         length = rewards.shape[0]
         assert rewards.shape[0]==value.shape[0]
         # if dimension not aligned
@@ -117,7 +119,7 @@ class trajectory(TRAJ_BASE):
         # initalize two more tracks
         setattr(self, new_return_name, np.zeros_like(value))
         self.key_dict.append(new_return_name)
-
+        # ------- -------------- -------
         returns = getattr(self, new_return_name)
         boot_strap = 0 if not self.need_reward_bootstrap else self.boot_strap_value['bootstrap_'+value_key]
 

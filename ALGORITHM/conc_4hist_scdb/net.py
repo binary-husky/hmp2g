@@ -167,6 +167,7 @@ class Net(nn.Module):
         self.ccategorical = CCategorical(stage_planner)
         self.use_policy_resonance = AlgorithmConfig.use_policy_resonance
         self.use_policy_div = AlgorithmConfig.use_policy_div
+        self.distribution_precision = AlgorithmConfig.distribution_precision
         h_dim = AlgorithmConfig.net_hdim
         state_dim = state_dim
 
@@ -197,11 +198,12 @@ class Net(nn.Module):
                             skip_connect=self.skip_connect, 
                             skip_connect_dim=rawob_dim, 
                             adopt_selfattn=self.actor_attn_mod)
- 
+
+
         tmp_dim = h_dim if not self.dual_conc else h_dim*2
         self.CT_get_value = nn.Sequential(
             Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
-            Linear(h_dim, 1)
+            Linear(h_dim, self.distribution_precision)
         )
         self.CT_get_threat = nn.Sequential(
             Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
@@ -252,7 +254,7 @@ class Net(nn.Module):
     @staticmethod
     def _get_act_log_probs(distribution, action):
         return distribution.log_prob(action.squeeze(-1)).unsqueeze(-1)
-        
+
     @Args2tensor_Return2numpy
     def act(self, *args, **kargs):
         act = self._act if self.dual_conc else self._act_singlec
@@ -307,10 +309,12 @@ class Net(nn.Module):
         # motivation encoding fusion
         n_agent = vh_M.shape[-2]
         state_cp = repeat_at(state, -2, n_agent)
+
+        # eprsn_cp = repeat_at(eprsn.sum(-1, keepdim=True)/n_agent, -2, n_agent)
         v_M_fuse = torch.cat((vf_M, vh_M, state_cp), dim=-1)
 
         # motivation objectives
-        value = self.CT_get_value(v_M_fuse)
+        BAL_value_all_level = self.CT_get_value(v_M_fuse)   # BAL
         threat = self.CT_get_threat(v_M_fuse)
 
         # choose action selector
@@ -325,6 +329,20 @@ class Net(nn.Module):
             return (torch.tanh_(t/r) + 1.) * r
 
         others['threat'] = re_scale(threat)
-        if not eval_mode: return act, value, actLogProbs
+        value = self.select_value_level(BAL_value_all_level, eprsn, n_agent)
+
+        # in this mode, value is used for advantage calculation
+        if not eval_mode: return act, BAL_value_all_level, actLogProbs
+        # in this mode, value is used for critic regression
         else:             return value, actLogProbs, distEntropy, probs, others
+
+    def select_value_level(self, BAL_value_all_level, eprsn, n_agent):
+        distribution_level = torch.ceil(eprsn.sum(-1, keepdim=True) * self.distribution_precision / n_agent).long()
+        BLA_value_all_level = BAL_value_all_level.transpose(-1, -2)
+        return gather_righthand(BLA_value_all_level, distribution_level).squeeze(-2)  # value_all_level[ratio_ceil]
+
+
+
+
+
 
