@@ -90,6 +90,7 @@ class PPO():
         self.extral_train_loop = ppo_config.extral_train_loop
         self.turn_off_threat_est = ppo_config.turn_off_threat_est
         self.experimental_rmDeadSample = ppo_config.experimental_rmDeadSample
+        self.gpu_ensure_safe = ppo_config.gpu_ensure_safe
         self.all_parameter = list(policy_and_critic.named_parameters())
         self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AT_' in p_name]
         self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'CT_' in p_name]
@@ -131,7 +132,7 @@ class PPO():
         else:
             gpu_party = ppo_config.gpu_party_override
 
-        self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=gpu_party)
+        self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=gpu_party, gpu_ensure_safe=self.gpu_ensure_safe)
 
         self.experimental_useApex = ppo_config.experimental_useApex
         if self.experimental_useApex:

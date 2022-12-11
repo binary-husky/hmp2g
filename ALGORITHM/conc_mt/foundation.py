@@ -43,6 +43,7 @@ class AlgorithmConfig:  # configuration, open to jsonc modification
 
     device_override = "no-override"
     gpu_party_override = "no-override"
+    gpu_ensure_safe = False
 
 def override_cuda_settings(AlgorithmConfig):
     # change Local cuda settings according to AlgorithmConfig

@@ -364,7 +364,44 @@ class UnixTcpServerP2P(StreamingPackageSep):
         return
 
 
+class UnixTcpServerMultiClient(StreamingPackageSep):
+    def __init__(self, unix_path, obj='bytes') -> None:
+        super().__init__()
+        try: os.makedirs(os.path.dirname(unix_path))
+        except: pass
+        self.unix_path = unix_path
+        self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.server.bind(self.unix_path)
+        self.server.listen()
+        self.most_recent_client = None
+        self.use_pickle = (obj=='pickle')
+        self.convert_str = (obj=='str')
+        self.on_receive_data = lambda data: data
+        atexit.register(self.__del__)
 
+    def serve_clients(self, most_recent_client):
+        while True:
+            data, most_recent_client = self.lower_recv(most_recent_client)
+            if self.convert_str: data = data.decode('utf8')
+            if self.use_pickle: data = pickle.loads(data)
+            reply = self.on_receive_data(data)
+            if self.use_pickle: reply = pickle.dumps(reply)
+            if self.convert_str: reply = bytes(reply, encoding='utf8')
+            self.lower_send(reply, most_recent_client)
+            if data == 'offline': break
+
+    def be_online(self):
+        while True:
+            most_recent_client, _ = self.server.accept()
+            t = threading.Thread(target=self.serve_clients, args=(most_recent_client, ))
+            t.daemon = True
+            t.start()
+
+    def __del__(self):
+        self.server.close()
+        try: os.unlink(self.unix_path)
+        except: pass
+        return
 
 class UnixTcpClientP2P(StreamingPackageSep):
     def __init__(self, target_unix_path, self_unix_path=None, obj='bytes') -> None:

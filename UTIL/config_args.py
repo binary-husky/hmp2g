@@ -164,7 +164,8 @@ def prepare_alg_tmp_folder(json_data):
             path = tname.split('->')[0].replace('.','/')
             # trace path parent to algorithm folder.
             trace_success = False
-            for _ in range(5):
+            max_depth = 5
+            for _ in range(max_depth):
                 parent = os.path.relpath(path+'/..')
                 if os.path.basename(parent) == 'ALGORITHM': 
                     src_path = os.path.relpath(path, start=os.path.relpath(parent+'/..'))
@@ -177,7 +178,10 @@ def prepare_alg_tmp_folder(json_data):
                 # src_path = remove_prefix(path, 'TEMP/')
                 print亮绿(f'[config] Copying mirror algorithm from {src_path} to {path}')
                 copytree(src_path, path)
-                time.sleep(2)
+                # make these temp files read only
+                import glob
+                from stat import S_IREAD, S_IRGRP, S_IROTH
+                for f in glob.glob(path+'/**/*.py', recursive=True): os.chmod(f, S_IREAD|S_IRGRP|S_IROTH)
     except:
         print亮红('[config] Errors occurs when executing prepare_alg_tmp_folder')
         time.sleep(5)

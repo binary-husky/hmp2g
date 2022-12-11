@@ -1,7 +1,7 @@
 import platform, os, torch, uuid, time, psutil, json, random
+from UTIL.network import UnixTcpClientP2P, UnixTcpServerP2P
 from atexit import register
 from .file_lock import FileLock
-
 def pid_exist(pid_str):
     pid = int(pid_str)
     return psutil.pid_exists(pid)
@@ -24,17 +24,60 @@ def write_json(fp, buf):
         json.dump(buf, fp=f)
     return
 
+def create_eater(unix_path):
+    from .gpu_eater import GPU_Eater
+    proc = GPU_Eater(unix_path)
+    proc.daemon = True
+    proc.start()
+
+
+
+class GpuHolder():
+    def __init__(self, device) -> None:
+        # try to communicate with gpu holder
+        unix_path = os.path.expanduser(f'~/HmapTemp/GpuLock/GpuEater_{device}')
+        try:
+            self.client = UnixTcpClientP2P(unix_path, obj='str')
+            success = self.client.send_and_wait_reply('link')
+            print('already have a GpuHolder online')
+        except:
+            assert False
+            print('creating GpuHolder')
+            create_eater(unix_path)
+            time.sleep(3)
+            print('creating Finished')
+            self.client = UnixTcpClientP2P(unix_path, obj='str')
+            success = self.client.send_and_wait_reply('link')
+        assert success == 'success'
+
+    def __del__(self):
+        if self.client is not None:
+            self.client.send_and_wait_reply('offline')
+            self.client.__del__()
+
+    def need_gpu(self):
+        ok = self.client.send_and_wait_reply('need_gpu')
+        assert ok == 'ok'
+    
+    def giveup_gpu(self):
+        ok = self.client.send_and_wait_reply('giveup_gpu')
+        assert ok == 'ok'
+
 
 class GpuShareUnit():
     flesh = True
-    def __init__(self, which_gpu, lock_path=None, manual_gpu_ctl=True, gpu_party=''):
+    def __init__(self, which_gpu, lock_path=None, manual_gpu_ctl=True, gpu_party='', gpu_ensure_safe=False):
         self.device = which_gpu
         self.manual_gpu_ctl = True
         self.lock_path=lock_path
         self.gpu_party = gpu_party
         self.gpu_lock = None
+        self.ensure_gpu_safe = gpu_ensure_safe
         self.pid_str = str(os.getpid())
         self.n_gpu_process_online = 1
+        if self.ensure_gpu_safe:
+            assert 'party0' in self.gpu_party; assert 'cuda' in self.gpu_party
+            self.gpu_eater = GpuHolder(device=self.gpu_party)
         if gpu_party == 'off':
             self.manual_gpu_ctl = False
         # the default file lock path
@@ -78,6 +121,7 @@ class GpuShareUnit():
             fp = self.lock_path+'/gpu_lock_%s_%s'%(self.device, self.gpu_party)
             self.gpu_lock = FileLock(fp+'.lock')
             self.gpu_lock.__enter__()
+            if self.ensure_gpu_safe: self.gpu_eater.need_gpu()
             print('Get GPU, currently shared with %d process!'%self.n_gpu_process_online)
         return
 
@@ -85,6 +129,7 @@ class GpuShareUnit():
         if self.manual_gpu_ctl:
             # if self.n_gpu_process_online > 1: 
             torch.cuda.empty_cache()
+            if self.ensure_gpu_safe: self.gpu_eater.giveup_gpu()
             self.gpu_lock.__exit__(None,None,None)
             # else:
                 # print('GPU not shared')
@@ -127,3 +172,6 @@ class GpuShareUnit():
 
         # write back if needed
         write_json(self.register_file, all_pids)
+
+
+
