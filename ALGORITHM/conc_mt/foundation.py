@@ -42,14 +42,17 @@ class AlgorithmConfig:  # configuration, open to jsonc modification
     experimental_useApex = False
 
     device_override = "no-override"
+    gpu_fraction_override = 1.0
     gpu_party_override = "no-override"
     gpu_ensure_safe = False
 
 def override_cuda_settings(AlgorithmConfig):
     # change Local cuda settings according to AlgorithmConfig
     if AlgorithmConfig.device_override != "no-override":
+        assert GlobalConfig.device == 'cpu', "please set GlobalConfig.device=cpu"
         # reflesh the cuda setting inherited from main.py
         GlobalConfig.device = AlgorithmConfig.device_override
+        GlobalConfig.gpu_fraction = AlgorithmConfig.gpu_fraction_override
         from main import pytorch_gpu_init; pytorch_gpu_init(GlobalConfig)
         # reflesh the cached cuda setting in tensor_ops
         from UTIL.tensor_ops import cuda_cfg; cuda_cfg.read_cfg()

@@ -9,7 +9,7 @@
     Note: 
         SHARE_BUF_SIZE: shared memory size, 10MB per process
 """
-import time, pickle, platform, setproctitle, numpy, copy
+import time, pickle, platform, setproctitle, numpy, copy, traceback
 from multiprocessing import Process, RawValue, Semaphore
 from multiprocessing import shared_memory
 from .hmp_daemon import kill_process_and_its_children
@@ -17,6 +17,14 @@ from ctypes import c_bool, c_uint32
 from sys import stdout
 SHARE_BUF_SIZE = 10485760 # 10 MB for parameter buffer
 REGULAR_BUF_SIZE = 500000 # The non-numpy content max buffer size
+
+TRAFFIC_LIGHT_ERROR = 2
+TRAFFIC_LIGHT_CHILD_BUSY = 1
+TRAFFIC_LIGHT_CHILD_FREE = 0
+
+# define Python user-defined exceptions
+class ChildExitException(Exception):
+    pass
 
 def print_red(*kw,**kargs):
     print("\033[1;31m",*kw,"\033[0m",**kargs)
@@ -101,17 +109,7 @@ def reverse_deepin(obj, shm):
 
 # optimize share mem IO for numpy ndarray
 def reverse_opti_numpy_object(obj, shm):
-    # try:
-    #     if 'obs-echo' in obj[0][2]['info'][0]:
-    #         print('db')
-    # except:
-    #     pass
     reverse_deepin(obj, shm)
-    # try:
-    #     if 'obs-echo' in obj[0][2]['info'][0]:
-    #         print('db')
-    # except:
-    #     pass
 
     return obj
 
@@ -184,8 +182,8 @@ class SuperProc(Process):
 
     # inf loop, controlled / blocked by semaphore
     def run(self):
-        import numpy
-        numpy.random.seed(self.local_seed)
+        # reset numpy seed
+        import numpy; numpy.random.seed(self.local_seed)
         # set top process title
         setproctitle.setproctitle('HmapShmPoolWorker_%d'%self.index)
         try:
@@ -193,32 +191,38 @@ class SuperProc(Process):
                 recv_args = self._recv_squence() # block and wait incoming req
                 if not isinstance(recv_args, list): # not list object, switch to helper channel
                     if recv_args == 0: 
-                        self._set_done() # must be put between _recv_squence()
+                        self._set_done()
                         self.add_targets(self._recv_squence())
                         self._set_done()
-                    elif recv_args == -1: # termination signal
-                        self._set_done() # ('superProc exiting')
-                        break # terminate
-                    else: # exception
-                        assert False
+                    elif recv_args == -1:
+                        self._set_done() # termination signal
+                        break
+                    else:
+                        assert False, "unknown command"
                     continue
-                # if list, execute target                
-                result = self.execute_target(recv_args)
-                # return the results (self._set_done() is called inside)
-                self._send_squence(result)
+                else:
+                    # if list, execute target
+                    result = self.execute_target(recv_args)
+                    # return the results (self._set_done() is called inside)
+                    self._send_squence(result)
 
         except KeyboardInterrupt:
-            # ('child KeyboardInterrupt: close unlink')
+            # 'child KeyboardInterrupt: close unlink'
+            self._demand_exit()
             self.__del__()
-
-        # ('child end: close unlink')
+        except:
+            print_red(traceback.format_exc(), flush=True)
+            self._demand_exit()
         self.__del__()
 
+    def _demand_exit(self):
+        self.shared_memory_traffic_light.value = TRAFFIC_LIGHT_ERROR  # CORE! the job is done, waiting for next one
+        self.sem_pull.release()
 
     # block and wait incoming req 
     def _recv_squence(self): 
         self.sem_push.acquire()
-        assert self.shared_memory_traffic_light.value == True
+        assert self.shared_memory_traffic_light.value == TRAFFIC_LIGHT_CHILD_BUSY
         bufLen = self.shared_memory_io_buffer_len_indicator.value
         recv_args = pickle.loads(self.shared_memory_io_buffer[:bufLen])
         recv_args = reverse_opti_numpy_object(recv_args, shm=self.shared_memory_io_buffer)
@@ -226,7 +230,7 @@ class SuperProc(Process):
 
     # return results
     def _send_squence(self, send_obj):
-        assert self.shared_memory_traffic_light.value == True
+        assert self.shared_memory_traffic_light.value == TRAFFIC_LIGHT_CHILD_BUSY
         # second prepare parameter
         send_obj, _ = opti_numpy_object(send_obj, shm=self.shared_memory_io_buffer)
         picked_obj = pickle.dumps(send_obj, protocol=pickle.HIGHEST_PROTOCOL)
@@ -235,14 +239,13 @@ class SuperProc(Process):
         self.shared_memory_io_buffer_len_indicator.value = lenOfObj
         self.shared_memory_io_buffer[:lenOfObj] = picked_obj
         # then light up the work flag, turn off the processed flag
-        self.shared_memory_traffic_light.value = False  # CORE! the job is done, waiting for next one
+        self.shared_memory_traffic_light.value = TRAFFIC_LIGHT_CHILD_FREE  # CORE! the job is done, waiting for next one
         self.sem_pull.release()
 
     # set traffic IO flag
     def _set_done(self):
-        self.shared_memory_traffic_light.value = False  # CORE! the job is done, waiting for next one
+        self.shared_memory_traffic_light.value = TRAFFIC_LIGHT_CHILD_FREE  # CORE! the job is done, waiting for next one
         self.sem_pull.release()
-
 
 
 
@@ -262,7 +265,7 @@ class SmartPool(object):
         setproctitle.setproctitle('HmapRootProcess')
         self.shared_memory_io_buffer_handle = [shared_memory.SharedMemory(create=True, size=SHARE_BUF_SIZE) for _ in range(proc_num)]
         self.shared_memory_io_buffer_len_indicator = [RawValue(c_uint32, 0) for _ in range(proc_num)]
-        self.shared_memory_traffic_light = [RawValue(c_bool, False) for _ in range(proc_num)] # time to work flag
+        self.shared_memory_traffic_light = [RawValue(c_uint32, False) for _ in range(proc_num)] # time to work flag
         self.last_time_response_handled = [True for _ in range(proc_num)] # time to work flag
         self.semaphore_push = [Semaphore(value=0) for _ in range(proc_num)] # time to work flag
         self.semaphore_pull = Semaphore(value=0) # time to work flag
@@ -317,7 +320,7 @@ class SmartPool(object):
                 self._send_squence(send_obj=tuple_list_to_be_send, target_proc=j, ensure_safe=ensure_safe)
                 self.semaphore_push[j].release()
 
-        else: # if index_list is  None:
+        else: # if index_list is None:
             for j in range(self.proc_num):
                 tuple_list_to_be_send = []
                 for i in range(self.task_fold):
@@ -341,7 +344,7 @@ class SmartPool(object):
         self.last_time_response_handled[target_proc] = False  # then light up the work flag, turn off the processed flag
         if ensure_safe and shm_pointer != REGULAR_BUF_SIZE:
             send_obj = reverse_opti_numpy_object(send_obj, shm=self.shared_memory_io_buffer[target_proc])
-        self.shared_memory_traffic_light[target_proc].value = True  
+        self.shared_memory_traffic_light[target_proc].value = TRAFFIC_LIGHT_CHILD_BUSY  
 
     # low-level recv
     def _recv_squence_all(self):
@@ -354,7 +357,8 @@ class SmartPool(object):
             n_acq += 1
             for target_proc, not_r in enumerate(not_ready):
                 if not not_r: continue  # finish already
-                if self.shared_memory_traffic_light[target_proc].value: continue  # not ready
+                if self.shared_memory_traffic_light[target_proc].value == TRAFFIC_LIGHT_CHILD_BUSY: continue  # not ready
+                if self.shared_memory_traffic_light[target_proc].value == TRAFFIC_LIGHT_ERROR: raise ChildExitException
                 bufLen = self.shared_memory_io_buffer_len_indicator[target_proc].value
                 recv_obj = pickle.loads(self.shared_memory_io_buffer[target_proc][:bufLen])
                 recv_obj = reverse_opti_numpy_object(recv_obj, shm=self.shared_memory_io_buffer[target_proc])
@@ -375,6 +379,7 @@ class SmartPool(object):
     # low-level wait
     def _wait_done(self, target_proc):   # used only in add_target
         self.semaphore_pull.acquire()
+        if self.shared_memory_traffic_light[target_proc].value == TRAFFIC_LIGHT_ERROR: raise ChildExitException
         self.last_time_response_handled[target_proc] = True
 
     # let all workers know about incomming req
@@ -413,9 +418,7 @@ class SmartPool(object):
         # print_red('[shm_pool]: kill_process_and_its_children(proc)')
         for proc in self.proc_pool: 
             try: kill_process_and_its_children(proc)
-            except Exception as e: print_red('[shm_pool]: error occur when kill_process_and_its_children:\n', e)
-            
-
+            except Exception as e: pass # print_red('[shm_pool]: error occur when kill_process_and_its_children:\n', e)
 
         print_green('[shm_pool]: __del__ finish')
         self.terminated = True
