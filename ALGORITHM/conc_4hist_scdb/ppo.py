@@ -12,35 +12,6 @@ from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
 from .ppo_sampler import TrajPoolSampler
 
-def est_check(x, y):
-    import random
-    y = y.flatten()
-    x = x.flatten()
-    size = y.shape[0]
-    index = list(range(size))
-    random.shuffle(index)
-    index = index[:500]
-    xsub = y[index]
-    new_index = ~torch.isnan(xsub)
-    
-    final = []
-    t = xsub.max()
-    for i in range(15):
-        if new_index.any():
-            t = xsub[torch.where(new_index)[0][0]]
-            final.append(index[torch.where(new_index)[0][0]])
-            new_index = new_index & (xsub!=t)
-        else:
-            break
-    
-    x_ = x[final]
-    y_ = y[final]
-    s = torch.argsort(y_)
-    y_ = y_[s]
-    x_ = x_[s]
-    print(x_.detach().cpu().numpy())
-    print(y_.detach().cpu().numpy())
-    return
 
 class PPO():
     def __init__(self, policy_and_critic, ppo_config, mcv=None):
@@ -109,8 +80,7 @@ class PPO():
 
                     print亮红('Insufficient gpu memory, using previous sample size !')
                 else:
-                    self.n_div += 1
-                    print亮红('显存不足！ 切分样本, 当前n_div: %d'%self.n_div)
+                    raise Exception
             torch.cuda.empty_cache()
 
     def train_on_traj_(self, traj_pool, task):
@@ -192,14 +162,6 @@ class PPO():
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
 
-        # probs_loss (should be turn off now)
-        n_actions = probs.shape[-1]
-        if self.add_prob_loss: assert n_actions <= 15  # 
-        penalty_prob_line = (1/n_actions)*0.12
-        probs_loss = (penalty_prob_line - torch.clamp(probs, min=0, max=penalty_prob_line)).mean()
-        if not self.add_prob_loss:
-            probs_loss = torch.zeros_like(probs_loss)
-
         # dual clip ppo core
         E = newPi_actionLogProb - oldPi_actionLogProb
         E_clip = torch.zeros_like(E)
@@ -213,7 +175,7 @@ class PPO():
         if 'motivation value' in others:
             value_loss += 0.5 * F.mse_loss(real_value, others['motivation value'])
 
-        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef # + probs_loss*20
+        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef
         CT_net_loss = value_loss * 1.0 + threat_loss * 0.1 # + friend_threat_loss*0.01
         # AE_new_loss = ae_loss * 1.0
 
@@ -235,9 +197,7 @@ class PPO():
             'AT_net_loss':              AT_net_loss,
             # 'AE_new_loss':              AE_new_loss,
         }
-        # print('ae_loss',ae_loss)
 
 
         return loss_final, others
-
 

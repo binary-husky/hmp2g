@@ -74,8 +74,6 @@ class ScenarioConfig(object):
     MCOM_DEBUG = False
     Terrain_DEBUG = False
     half_death_reward = True
-    REWARD_DEBUG = False
-    REWARD_DEBUG_Value = 1
 
     n_actions = 7
 

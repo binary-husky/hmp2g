@@ -1,46 +1,72 @@
 {
     "config.py->GlobalConfig": {
-        "note": "sc-MMM2-conc-fix-obsNaN",               // experiment note, also means the log saving directory
-        // "train_time_testing": "False",                      // do not manage train time testing, pymarl env manage the testing itself
-        "env_name":"sc2",                                   // starcraft 2
-        "env_path":"MISSION.starcraft.sc2_env_wrapper",    // starcraft 2
-        // "interested_agent_num":100,                         // only for reward logging, **not needed because sc2 use uniform team reward
-        "draw_mode": "Img",                                 // plot curlves as image
-        "num_threads": "32",                                 // number of parallel envs
-        "report_reward_interval": "32",                      // report the reward averaging x episodes
-        "test_interval": "512",                             // begin a test run every x episodes, test run is managed by pymarl side
-        "test_epoch": "128",                                 // begin a test run every x episodes, test run is managed by pymarl side
-        "device": "cuda:0",
-        "max_n_episode": 1500000,
-        "fold": "1",                                        // each linux process handle x parallel envs
-        "backup_files":[
-            "ALGORITHM/conc_4hist_scdb"
+        "note": "Run1_T1Epoch24_T2Epoch12_tryfraction",   // 实验存储路径
+        "env_name": "dca_multiteam",  // 环境（任务名称）
+        "env_path": "MISSION.dca_multiteam", 
+        "draw_mode": "Img",
+        "num_threads": 64,    // 环境并行数量
+        "report_reward_interval": "64",
+        "test_interval": "128",
+        "test_epoch": "256",
+        "mt_parallel": "True",
+        "interested_agent_num": 22,
+        "device": "cpu", // 使用哪张显卡
+        "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
+        "n_parallel_frame": 50000000.0,
+        "max_n_episode": 1000000.0,
+        "seed": 22334, // 随机数种子
+        "mt_act_order": "new_method",
+        "backup_files": [
+            "ALGORITHM/conc_mt",
+            "MISSION/dca_multiteam"
         ]
     },
-
-    "MISSION.starcraft.sc2_env_wrapper.py->ScenarioConfig": {
-        "map_": "MMM2",
-        "sc_version": "2.4.6",
+    "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
+        "N_TEAM": 2,
+        "N_AGENT_EACH_TEAM": [50, 50],
+        "introduce_terrain": "True",
+        "terrain_parameters": [0.15, 0.2],
+        "size": "5",
+        "random_jam_prob": 0.05,
+        "MaxEpisodeStep": "150",     // 时间限制， 胜利条件：尽量摧毁、存活
+        "render": "False",       // "True" 和 true 等效，高效渲染，只有0号线程环境会渲染
+        "RewardAsUnity": true,
+        "half_death_reward": "True",
         "TEAM_NAMES": [
-            "ALGORITHM.conc_4hist_scdb.foundation->ReinforceAlgorithmFoundation"
+            "ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
+            // two/multiple teams must not share the same name, move one of them to TEMP directory (automatic)
+            "TEMP.TEAM2.ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
         ]
     },
-
-    "ALGORITHM.conc_4hist_scdb.foundation.py->AlgorithmConfig": {
-        "train_traj_needed": "64",
-        "n_focus_on": 1,
+    "ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
+        "device_override": "cuda:6", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda6_party0", // 是否允许多进程共享显存
+        "gpu_fraction_override": 0.5,
+        "train_traj_needed": 64,
+        "n_focus_on": 3,
         "actor_attn_mod": "False",
-        "shell_obs_add_id": "True",
-        "shell_obs_add_previous_act": "True",
-        "gamma_in_reward_forwarding": "True",
-        "n_entity_placeholder": 4,
-        "lr": 0.0003,
-        "ppo_epoch": 16,
-        "load_checkpoint": "False",
-        "use_policy_div": "False",
-        "use_policy_resonance": "False"
+        "lr": 0.0001,
+        "ppo_epoch": 24,
+        // "gamma_in_reward_forwarding": "True",
+        // "gamma_in_reward_forwarding_value": 0.95,
+        "gamma": 0.99,
+        // "ignore_test_mode": true,
+        "load_checkpoint": false
     },
-
-
+    "TEMP.TEAM2.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
+        "device_override": "cuda:7", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda7_party0", // 是否允许多进程共享显存
+        "gpu_fraction_override": 0.5,
+        "train_traj_needed": 64,
+        "n_focus_on": 3,
+        "actor_attn_mod": "False",
+        "lr": 0.0001,
+        "ppo_epoch": 12,
+        // "gamma_in_reward_forwarding": "True",
+        // "gamma_in_reward_forwarding_value": 0.95,
+        "gamma": 0.99,
+        // "ignore_test_mode": true,
+        "load_checkpoint": false
+    },
 
 }

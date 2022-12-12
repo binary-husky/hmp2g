@@ -85,7 +85,6 @@ class ShellEnvWrapper(object):
             avail_act = np.array([info['avail-act'] for info in np.array(State_Recall['Latest-Team-Info'][~P], dtype=object)])
             I_State_Recall.update({'avail_act':avail_act})
 
-
         act_active, internal_recall = self.rl_functional.interact_with_env_genuine(I_State_Recall)
 
         act[~P] = act_active

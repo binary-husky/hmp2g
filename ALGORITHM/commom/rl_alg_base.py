@@ -1,5 +1,5 @@
 import time
-from UTIL.tensor_ops import __hash__
+from UTIL.tensor_ops import __hash__, repeat_at
 from UTIL.colorful import *
 from .alg_base import AlgorithmBase
 
@@ -25,6 +25,33 @@ class RLAlgorithmBase(AlgorithmBase):
     def process_framedata(self, traj_framedata):
         raise NotImplementedError
 
+    # Rollout Processor 准备提交Rollout，以下划线开头和结尾的键值需要对齐(self.n_thread, ...)
+    # note that keys starting with _ must have shape (self.n_thread, ...), details see fn:mask_paused_env()
+    def process_framedata(self, traj_framedata):
+        ''' 
+            hook is called when reward and next moment observation is ready,
+            now feed them into trajectory manager.
+            Rollout Processor | 准备提交Rollout, 以下划线开头和结尾的键值需要对齐(self.n_thread, ...)
+            note that keys starting with _ must have shape (self.n_thread, ...), details see fn:mask_paused_env()
+        '''
+        # strip info, since it is not array
+        items_to_pop = ['info', 'Latest-Obs']
+        for k in items_to_pop:
+            if k in traj_framedata:
+                traj_framedata.pop(k)
+        # the agent-wise reward is supposed to be the same, so averge them
+        if self.ScenarioConfig.RewardAsUnity:
+            traj_framedata['reward'] = repeat_at(traj_framedata['reward'], insert_dim=-1, n_times=self.n_agent)
+        # change the name of done to be recognised (by trajectory manager)
+        traj_framedata['_DONE_'] = traj_framedata.pop('done')
+        traj_framedata['_TOBS_'] = traj_framedata.pop(
+            'Terminal-Obs-Echo') if 'Terminal-Obs-Echo' in traj_framedata else None
+        # mask out pause thread
+        traj_framedata = self.mask_paused_env(traj_framedata)
+        # put the frag into memory
+        self.batch_traj_manager.feed_traj(traj_framedata)
+
+
     def check_reward_type(self, AlgorithmConfig):
         if self.ScenarioConfig.RewardAsUnity != AlgorithmConfig.TakeRewardAsUnity:
             assert self.ScenarioConfig.RewardAsUnity
@@ -35,6 +62,16 @@ class RLAlgorithmBase(AlgorithmBase):
                 'If you continue, team reward will be duplicated to serve as individual rewards, wait 3s to proceed...')
             time.sleep(3)
 
+    def mask_paused_env(self, frag):
+        running = ~frag['_SKIP_']
+        if running.all():
+            return frag
+        for key in frag:
+            if not key.startswith('_') and hasattr(frag[key], '__len__') and len(frag[key]) == self.n_thread:
+                frag[key] = frag[key][running]
+        return frag
+
+
     '''
         Get event from hmp task runner, called when each test rotinue is complete.
     '''
@@ -43,6 +80,8 @@ class RLAlgorithmBase(AlgorithmBase):
             update_cnt=self.traj_manager.update_cnt,
             info=str(kargs)
         )
+
+
 
 
     ''' 

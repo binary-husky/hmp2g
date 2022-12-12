@@ -3,8 +3,15 @@ import numpy as np
 from UTIL.colorful import *
 from .net import Net
 from config import GlobalConfig
-from UTIL.tensor_ops import __hash__, pad_vec_array, copy_clone, my_view
-class AlgorithmConfig:  # configuration, open to jsonc modification
+from UTIL.tensor_ops import __hash__, repeat_at
+from ALGORITHM.commom.rl_alg_base import RLAlgorithmBase
+class AlgorithmConfig:
+    '''
+        AlgorithmConfig: This config class will be 'injected' with new settings from json.
+        (E.g., override configs with ```python main.py --cfg example.jsonc```)
+        (please see UTIL.config_args to find out how this advanced trick works out.)
+    '''
+    # configuration, open to jsonc modification
     gamma = 0.99
     tau = 0.95
     train_traj_needed = 512
@@ -29,6 +36,14 @@ class AlgorithmConfig:  # configuration, open to jsonc modification
     clip_param = 0.2
     lr = 1e-4
     balance = 0.5
+
+    # sometimes the episode length gets longer,
+    # resulting in more samples and causing GPU OOM,
+    # prevent this by fixing the number of samples to initial
+    # by randomly sampling and droping
+    prevent_batchsize_oom = True
+    gamma_in_reward_forwarding = False
+    gamma_in_reward_forwarding_value = 0.99
 
     # extral
     extral_train_loop = False
@@ -59,7 +74,7 @@ def override_cuda_settings(AlgorithmConfig):
     if AlgorithmConfig.device_override != "no-override":
         GlobalConfig.gpu_party = AlgorithmConfig.gpu_party_override
 
-class ReinforceAlgorithmFoundation(object):
+class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         override_cuda_settings(AlgorithmConfig)
         self.n_thread = n_thread
@@ -67,12 +82,12 @@ class ReinforceAlgorithmFoundation(object):
         self.act_space = space['act_space']
         self.obs_space = space['obs_space']
         self.team = team
-        ScenarioConfig = GlobalConfig.ScenarioConfig
+        self.ScenarioConfig = GlobalConfig.ScenarioConfig
         n_actions = GlobalConfig.ScenarioConfig.n_actions
         alg_config = AlgorithmConfig
         from .shell_env import ShellEnvWrapper
         self.shell_env = ShellEnvWrapper(n_agent, n_thread, space, mcv, self, 
-                                        alg_config, ScenarioConfig)
+                                        alg_config, self.ScenarioConfig)
         if 'm-cuda' in GlobalConfig.device:
             assert False, ('not support anymore')
             gpu_id = json.loads(GlobalConfig.device.split('->')[-1])
@@ -83,7 +98,7 @@ class ReinforceAlgorithmFoundation(object):
             cuda_n = 'cpu' if 'cpu' in device else GlobalConfig.device
         self.device = device
 
-        self.policy = Net(rawob_dim=ScenarioConfig.obs_vec_length,
+        self.policy = Net(rawob_dim=self.ScenarioConfig.obs_vec_length,
                           n_action = n_actions, 
                           use_normalization=alg_config.use_normalization,
                           n_focus_on = AlgorithmConfig.n_focus_on, 
@@ -93,15 +108,20 @@ class ReinforceAlgorithmFoundation(object):
 
         self.AvgRewardAgentWise = alg_config.TakeRewardAsUnity
         from .ppo import PPO
-        self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv, team=self.team)
+        self.trainer = PPO(self.policy, cfg=AlgorithmConfig, mcv=mcv, team=self.team)
         from .trajectory import BatchTrajManager
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread,
-                                                   traj_limit=int(ScenarioConfig.MaxEpisodeStep), 
+                                                   traj_limit=int(self.ScenarioConfig.MaxEpisodeStep), 
                                                    trainer_hook=self.trainer.train_on_traj)
+                # confirm that reward method is correct
+        self.check_reward_type(AlgorithmConfig)
+
+        # load checkpoints
         self.load_checkpoint = AlgorithmConfig.load_checkpoint
         logdir = GlobalConfig.logdir
-        if not os.path.exists('%s/history_cpt/'%logdir):
-            os.makedirs('%s/history_cpt/'%logdir)
+        # makedirs if not exists
+        if not os.path.exists(f'{logdir}/history_cpt/'):
+            os.makedirs(f'{logdir}/history_cpt/')
         if self.load_checkpoint:
             manual_dir = AlgorithmConfig.load_specific_checkpoint
             ckpt_dir = '%s/model.pt'%logdir if manual_dir=='' else '%s/%s'%(logdir, manual_dir)
@@ -110,27 +130,29 @@ class ReinforceAlgorithmFoundation(object):
                 self.policy.load_state_dict(torch.load(ckpt_dir))
             else:
                 self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n))
-        self.__incomplete_frag__ = None
-        self.patience = 500 # skip currupt data detection after patience exhausted
+        # data integraty check
+        self._unfi_frag_ = None
+        # Skip currupt data integraty check after this patience is exhausted
+        self.patience = 1000
 
     # _____________________Redirection____________________
     # this is a redirect to shell_env.interact_with_env
     # self.interact_with_env(from here) --> shell_env.interact_with_env --> self.interact_with_env_genuine
-    def interact_with_env(self, State_Recall):
-        return self.shell_env.interact_with_env(State_Recall)
+    def interact_with_env(self, StateRecall):
+        return self.shell_env.interact_with_env(StateRecall)
 
-    def interact_with_env_genuine(self, State_Recall):
-        test_mode = State_Recall['Test-Flag']
+    def interact_with_env_genuine(self, StateRecall):
+        test_mode = StateRecall['Test-Flag']
         if not test_mode: self.train()
-        return self.action_making(State_Recall, test_mode) # state_recall dictionary will preserve states for next action making
+        return self.action_making(StateRecall, test_mode) # StateRecall dictionary will preserve states for next action making
 
 
-    def action_making(self, State_Recall, test_mode):
-        assert State_Recall['obs'] is not None, ('make sure obs is oks')
+    def action_making(self, StateRecall, test_mode):
+        assert StateRecall['obs'] is not None, ('make sure obs is oks')
 
-        obs, threads_active_flag = State_Recall['obs'], State_Recall['threads_active_flag']
+        obs, threads_active_flag = StateRecall['obs'], StateRecall['threads_active_flag']
         assert len(obs) == sum(threads_active_flag), ('make sure we have the right batch of obs')
-        avail_act = State_Recall['avail_act'] if 'avail_act' in State_Recall else None
+        avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
         # make decision
         with torch.no_grad():
             action, value, action_log_prob = self.policy.act(obs, test_mode=test_mode, avail_act=avail_act)
@@ -145,64 +167,11 @@ class ReinforceAlgorithmFoundation(object):
             'action':        action,
         }
         if avail_act: traj_frag.update({'avail_act':  avail_act})
-        wait_reward_hook = self.commit_frag_hook(traj_frag, require_hook = True) \
-            if not test_mode else self.__dummy_hook
-
-        
-        '''   <1>  we will deal with rollout later after the reward is ready, 
-                        now we leave a hook to be callback    '''
-        State_Recall['_hook_'] = wait_reward_hook
-        return action.copy(), State_Recall
+        if not test_mode: StateRecall['_hook_'] = self.commit_traj_frag(traj_frag, req_hook = True)
+        else: StateRecall['_hook_'] = None
 
 
-
-
-
-
-
-    # function to be called when reward is received. 获取奖励后的回调函数
-    def commit_frag_hook(self, f1, require_hook = True):
-        assert self.__incomplete_frag__ is None
-        self.__incomplete_frag__ = f1
-        self.__check_data_hash() # this is important!
-        if require_hook: return lambda f2: self.rollout_frag_hook(f2) # leave hook
-        return
-
-
-    # Rollout Processor 准备提交Rollout，以下划线开头和结尾的键值需要对齐(self.n_thread, ...)
-    # note that keys starting with _ must have shape (self.n_thread, ...), details see fn:mask_paused_env()
-    def rollout_frag_hook(self, f2):
-        '''   <2>  hook is called, reward and next moment observation is ready,
-                        now feed them into trajectory manager    '''
-        # do data curruption check at beginning, this is important!
-        self.__check_data_curruption()
-        # strip info, since it is not array
-        items_to_pop = ['info', 'Latest-Obs']
-        strip_dict = {}
-        for k in items_to_pop:
-            if k in f2: 
-                strip_dict[k] = f2.pop(k)
-        # the agent-wise reward is supposed to be the same, so averge them
-        if self.AvgRewardAgentWise: 
-            f2['reward'] = np.mean(f2['reward'], axis=-1, keepdims=True)
-        # change the name of done to be recognised (by trajectory manager)
-        f2['_DONE_'] = f2.pop('done')
-        f2['_TOBS_'] = f2.pop('Terminal-Obs-Echo') if 'Terminal-Obs-Echo' in f2 else None
-        # integrate frag part1 and part2
-        self.__incomplete_frag__.update(f2)
-        self.__completed_frag = self.mask_paused_env(self.__incomplete_frag__)
-        # put the fragment into memory
-        self.batch_traj_manager.feed_traj(self.__completed_frag)
-        self.__incomplete_frag__ = None
-
-    def mask_paused_env(self, fragment):
-        running = ~fragment['_SKIP_']
-        if running.all():
-            return fragment
-        for key in fragment:
-            if not key.startswith('_') and hasattr(fragment[key], '__len__') and len(fragment[key]) == self.n_thread:
-                fragment[key] = fragment[key][running]
-        return fragment
+        return action.copy(), StateRecall
 
     def train(self):
         if self.batch_traj_manager.can_exec_training():  # time to start a training routine
@@ -211,16 +180,11 @@ class ReinforceAlgorithmFoundation(object):
             update_cnt = self.batch_traj_manager.train_and_clear_traj_pool()
             toc = time.time()
             print('训练用时:',toc-tic)
-            self.__save_model(update_cnt)
+            self.save_model(update_cnt)
 
 
 
-
-
-    def __dummy_hook(self, f2): 
-        return
-
-    def __save_model(self, update_cnt):
+    def save_model(self, update_cnt):
         logdir = GlobalConfig.logdir
         flag = '%s/save_now'%logdir
         if os.path.exists(flag) or update_cnt%50==0:
@@ -237,31 +201,8 @@ class ReinforceAlgorithmFoundation(object):
             print绿('保存模型完成')
 
 
-    # debugging functions
-    def __check_data_hash(self):
-        if self.patience > 0: 
-            self.hash_debug = {}
-            # for debugging, to detect write protection error
-            for key in self.__incomplete_frag__:
-                item = self.__incomplete_frag__[key]
-                if isinstance(item, dict):
-                    self.hash_debug[key]={}
-                    for subkey in item:
-                        subitem = item[subkey]
-                        self.hash_debug[key][subkey] = __hash__(subitem)
-                else:
-                    self.hash_debug[key] = __hash__(item)
 
-    def __check_data_curruption(self):
-        if self.patience > 0: 
-            assert self.__incomplete_frag__ is not None
-            assert self.hash_debug is not None
-            for key in self.__incomplete_frag__:
-                item = self.__incomplete_frag__[key]
-                if isinstance(item, dict):
-                    for subkey in item:
-                        subitem = item[subkey]
-                        assert self.hash_debug[key][subkey] == __hash__(subitem), ('Currupted data! 发现腐败数据!')
-                else:
-                    assert self.hash_debug[key] == __hash__(item), ('Currupted data! 发现腐败数据!')
-            self.patience -= 1
+
+
+
+
