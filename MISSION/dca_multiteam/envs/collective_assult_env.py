@@ -76,6 +76,20 @@ class collective_assultEnvV1(gym.Env):
             agent.hit = False
             agent.wasHit = False
 
+    def sparse_reward(self):
+        
+        reward_each_team = []
+        for team, uid_list in enumerate(self.AGENT_ID_EACH_TEAM):
+            team_agents = [self.world.agents[i] for i in uid_list]
+            hit_list_cnt = sum([a.hit for a in team_agents])
+            be_hit_list_cnt = sum([a.wasHit for a in team_agents])
+            reward_team = hit_list_cnt*0.01
+            reward_team -= be_hit_list_cnt*0.01
+            reward_each_team.append(reward_team)
+            assert len(reward_each_team) == team+1
+
+        return reward_each_team
+
     def reward(self, agent):
         main_reward = 0
         if agent.alive or agent.justDied:
@@ -85,7 +99,6 @@ class collective_assultEnvV1(gym.Env):
                 main_reward = -1 if not self.half_death_reward else -0.5
         return main_reward
 
-        
     raw_obs_size = -1
     class raw_obs_array(object):
         def __init__(self):

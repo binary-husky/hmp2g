@@ -49,7 +49,7 @@ class AlgorithmConfig:  # configuration, open to jsonc modification
 def override_cuda_settings(AlgorithmConfig):
     # change Local cuda settings according to AlgorithmConfig
     if AlgorithmConfig.device_override != "no-override":
-        assert GlobalConfig.device == 'cpu', "please set GlobalConfig.device=cpu"
+        assert GlobalConfig.device == 'cpu', "please set GlobalConfig.device=cpu if you want to use different GPUs for different teams"
         # reflesh the cuda setting inherited from main.py
         GlobalConfig.device = AlgorithmConfig.device_override
         GlobalConfig.gpu_fraction = AlgorithmConfig.gpu_fraction_override
