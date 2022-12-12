@@ -25,9 +25,12 @@ class StagePlanner:
         self.mcv = mcv
         self.trainer = None
         self.div_tree = None
+        
         if PolicyRsnConfig.yita_shift_method == 'feedback':
             from .scheduler import FeedBackPolicyResonance
             self.feedback_controller = FeedBackPolicyResonance(mcv)
+        else:
+            self.feedback_controller = None
         # if AlgorithmConfig.wait_norm_stable:
         #     self.wait_norm_stable_cnt = 2
         # else:
@@ -67,7 +70,8 @@ class StagePlanner:
         self.div_tree = div_tree
 
     def update_test_winrate(self, win_rate):
-        self.feedback_controller.step(win_rate)
+        if self.feedback_controller is not None:
+            self.feedback_controller.step(win_rate)
     
     def activate_pr(self):
         self.resonance_active = True
