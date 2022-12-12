@@ -9,7 +9,7 @@ from UTIL.colorful import *
 from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_softmax, scatter_with_nan
 
 class trajectory(TRAJ_BASE):
-    dead_mask_check = True
+    dead_mask_check = True  # confirm mask ok
     def __init__(self, traj_limit, env_id):
         super().__init__(traj_limit, env_id)
         self.reference_track_name = 'value'
