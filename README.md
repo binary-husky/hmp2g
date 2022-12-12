@@ -27,6 +27,8 @@ Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/
 Note: render client is not included in the docker image. For visualization,
 refer to https://github.com/binary-husky/uhmap-visual-tool git resp.
 
+To build your own unreal multiagent environment, please refer to resp ```https://github.com/binary-husky/unreal-hmp```.
+
 ``` sh
 git pull && python main.py -c ZHECKPOINT/uhmap_hete10vs10/render_result.jsonc
 ```
