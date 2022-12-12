@@ -124,17 +124,6 @@ class ShellEnvWrapper(object):
         self.action_converter.confirm_parameters_are_correct(team, self.n_agent, len(opp_type_list))
         self.patience = 2000
         self.epsiode_cnt = 0
-        
-    @staticmethod
-    def get_binary_array(n, n_bits, dtype=np.float32):
-        arr = np.zeros(n_bits, dtype=dtype)
-        pointer = 0
-        while True:
-            arr[pointer] = int(n%2==1)
-            n = n >> 1
-            pointer += 1
-            if n == 0: break
-        return arr
 
     def cold_start_warmup(self, StateRecall):
         self.agent_uid = GlobalConfig.ScenarioConfig.AGENT_ID_EACH_TEAM[self.team]

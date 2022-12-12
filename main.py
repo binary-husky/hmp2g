@@ -16,7 +16,7 @@
         auto pip deployer                         -->   pip_find_missing.py
         efficient parallel execting               -->   shm_pool.pyx
         auto gpu selection                        -->   auto_gpu.py
-        matlab logging/plotting bridge            -->   mcom.py & mcom_rec.py
+        hmap logging/plotting bridge            -->   mcom.py & mcom_rec.py
         experiment batch executor                 -->   mprofile.py
 """
 import os, atexit, platform
@@ -36,10 +36,9 @@ def pytorch_gpu_init(cfg):
     seed = cfg.seed; device = cfg.device
     torch.manual_seed(seed)
     torch.set_printoptions(precision=4, sci_mode=False)
-    # e.g. device='cpu
+    # e.g. device='cpu'
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     if not 'cuda' in device: return
-    if 'm-cuda' in device: assert False # m-gpu is not functional yet
     if device == 'cuda': gpu_index = sel_gpu().auto_choice()
     else: # e.g. device='cuda:0'
         gpu_index = int(device.split(':')[-1])

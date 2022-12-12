@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor
-from ..commom.norm import DynamicNorm
+from ALGORITHM.commom.norm import DynamicNorm
 
 
 
