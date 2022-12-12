@@ -42,9 +42,8 @@ class AlgorithmConfig:
     net_hdim = 32
     # extral
     extral_train_loop = False
-    actor_attn_mod = False
     load_specific_checkpoint = ''
-    dual_conc = True
+    use_conc_net = True
     use_my_attn = True
     use_policy_resonance = False
 
@@ -54,7 +53,6 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
-    use_policy_div = False
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -69,11 +67,14 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         from .stage_planner import StagePlanner
         self.stage_planner = StagePlanner(mcv=mcv)
 
-        from .shell_env import ShellEnvWrapper
+        if AlgorithmConfig.use_conc_net: from .shell_env import ShellEnvWrapper
+        else: from .shell_env_without_conc import ShellEnvWrapper
         self.shell_env = ShellEnvWrapper(
             n_agent, n_thread, space, mcv, self, AlgorithmConfig, self.ScenarioConfig)
             
-        from .net import Net
+        if AlgorithmConfig.use_conc_net: from .net import Net
+        else: from .net_small import Net
+        
         self.device = GlobalConfig.device
         if self.ScenarioConfig.EntityOriented:
             rawob_dim = self.ScenarioConfig.obs_vec_length
@@ -180,10 +181,8 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def save_model(self, update_cnt, info=None):
         '''
             save model now!
-            save if triggered when:
-            1. Update_cnt = 50, 100, ...
-            2. Given info, indicating a hmp command
-            3. A flag file is detected, indicating a save command from human
+            save if triggered when: on_notify() is called
+            
         '''
         if not os.path.exists(f'{GlobalConfig.logdir}/history_cpt/'): 
             os.makedirs(f'{GlobalConfig.logdir}/history_cpt/')

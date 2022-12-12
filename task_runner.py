@@ -161,9 +161,9 @@ class Runner(object):
                 # If the test run reach its end, record the reward and win-rate:
                 if (self.test_info_runner['Thread-Episode-Cnt']>=num_runs).all():
                     # get the reward average
-                    self._checkout_interested_agents(self.test_info_runner, testing=True)
+                    t_win_rates, t_rewards = self._checkout_interested_agents(self.test_info_runner, testing=True)
                     self.platform_controller.before_terminate(self.test_info_runner)
-                    self.platform_controller.notify_teams(message='test done')
+                    self.platform_controller.notify_teams('test done', win_rate=t_win_rates, mean_reward=t_rewards)
                     # close all
                     if self.test_env_sleepy: self.test_envs.sleep()
                     return
@@ -173,7 +173,7 @@ class Runner(object):
             self.test_info_runner = {}  # dict of realtime obs, reward, reward, info et.al.
             self.test_info_runner['ENV-PAUSE'] = np.array([False for _ in range(self.n_thread)])
             self.test_info_runner['Test-Flag'] = True
-            self.test_info_runner['win'] = []
+            self.test_info_runner['Recent-Win'] = []
             self.test_info_runner['Recent-Reward-Sum'] = []
             self.test_info_runner['Recent-Team-Ranking'] = []
             test_obs_info = self.test_envs.reset() # assume only the first time reset is manual
@@ -208,7 +208,7 @@ class Runner(object):
                 self.test_info_runner['Thread-Episode-Cnt'][i] += 1
                 term_info = self.test_info_runner['Latest-Team-Info'][i]
                 win = 1 if 'win' in term_info and term_info['win']==True else 0
-                self.test_info_runner['win'].append(win)
+                self.test_info_runner['Recent-Win'].append(win)
                 if 'team_ranking' in term_info: 
                     self.test_info_runner['Recent-Team-Ranking'].append(term_info['team_ranking'])
                 if self.align_episode: self.test_info_runner['ENV-PAUSE'][i] = True
@@ -267,8 +267,8 @@ class Runner(object):
                 win_rate_each_team[team] = win_rate
                 self.mcv.rec(win_rate, f'{prefix} top-rank ratio of=team-{team}')
         else:
-            team = 0
-            win_rate_each_team[team] = win_rate
+            team = 0; assert self.n_team == 1, "There is only one team"
+            win_rate_each_team[team] = np.array(info_runner['Recent-Win']).mean()
             win_rate = np.array(info_runner['Recent-Win']).mean()
             self.mcv.rec(win_rate, f'{prefix} win rate of=team-{team}')
 
@@ -283,7 +283,7 @@ class Runner(object):
             print_info.append(' | team-%d: win rate: %.3f, recent reward %.3f'%(team, win_rate_each_team[team], mean_reward_each_team[team]))
         print靛(''.join(print_info))
             
-        return
+        return win_rate_each_team, mean_reward_each_team
 
 
     # -- below is nothing of importance --
