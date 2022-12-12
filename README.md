@@ -89,6 +89,10 @@ also refer to the last part of [setup_docker](./ZDOCS/setup_docker.md) for pip r
 # Introducing the Structure of HMP
 ## HMP's General Framework Structure
 
+<div align="center">
+<img src="VISUALIZE/md_imgs/simple_framework.jpg" width="500" >
+</div>
+
 ## HMP's Config System (How to experiment)
 HMP aims to optimize the parameter control experience as a framework for researchers. 
 One configuration file is all that is needed for the config insertion.
