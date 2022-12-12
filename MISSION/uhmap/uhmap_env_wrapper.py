@@ -182,9 +182,20 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             assert ScenarioConfig.TimeDilation <= 128, "* TimeDilation <= 128 *"
             assert binary_friendly(1/ScenarioConfig.FrameRate), "* A Butterfly Effect problem *"
             assert binary_friendly(ScenarioConfig.TimeDilation/256), "* A Butterfly Effect problem *"
-            real_step_time = np.floor(ScenarioConfig.StepGameTime/ScenarioConfig.TimeDilation*ScenarioConfig.FrameRate)*ScenarioConfig.TimeDilation/ScenarioConfig.FrameRate
-            # print亮红('Alert, the real Step Game Time will be:', real_step_time) 
-            # deal with linux env
+            # real_step_time = 
+            #   np.floor(ScenarioConfig.StepGameTime/ScenarioConfig.TimeDilation*ScenarioConfig.FrameRate) 
+            #   * ScenarioConfig.TimeDilation / ScenarioConfig.FrameRate
+
+            required_binary_path = ScenarioConfig.UhmapServerExe if not self.render else ScenarioConfig.UhmapRenderExe
+            if not os.path.exists(required_binary_path):
+                if self.rank == 0:
+                    from .auto_download import download_client_binary
+                    download_client_binary(desired_path=required_binary_path, desired_version=ScenarioConfig.UhmapVersion, is_render_client=self.render)
+                else:
+                    while True:
+                        time.sleep(60)
+                        if os.path.exists(required_binary_path): break
+
             if platform.system()=="Linux":
                 # expand '~' path
                 ScenarioConfig.UhmapServerExe = os.path.expanduser(ScenarioConfig.UhmapServerExe)
