@@ -25,11 +25,8 @@ def download_from_shared_server(key = 'cat'):
         print(f'download timeout | 下载失败, 您可能需要翻墙才能下载资源。另外如果您想手动下载的话: {uhmap_url}')
     return file
 
-def download_client_binary(desired_path, desired_version, is_render_client):
-    import platform
-    plat = "Windows"
-    if platform.system()=="Linux": plat = "Linux"
-    key = f"Uhmap_{plat}_Build_Version{desired_version}"
+def download_client_binary_on_platform(desired_path, desired_version, is_render_client, platform):
+    key = f"Uhmap_{platform}_Build_Version{desired_version}"
     print('downloading', key)
     download_from_shared_server(key = key)
     print('download and extract complete, moving files')
@@ -39,4 +36,11 @@ def download_client_binary(desired_path, desired_version, is_render_client):
     assert os.path.exists(desired_path), "unexpected path error!"
     return
 
+
+def download_client_binary(desired_path, desired_version, is_render_client):
+    import platform
+    plat = "Windows"
+    if platform.system()=="Linux": plat = "Linux"
+    download_client_binary_on_platform(desired_path, desired_version, is_render_client, platform=plat)
+    return
 

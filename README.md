@@ -24,14 +24,19 @@ Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/
 <div align="center">
 <img src="ZDOCS/examples/uhmap/uhmp_demo.gif" width="300" >
 </div>
-Note: render client is not included in the docker image. For visualization,
-refer to https://github.com/binary-husky/uhmap-visual-tool git resp.
 
-To build your own unreal multiagent environment, please refer to resp ```https://github.com/binary-husky/unreal-hmp```.
 
 ``` sh
 git pull && python main.py -c ZHECKPOINT/uhmap_hete10vs10/render_result.jsonc
 ```
+To visualize:
+- (Option 1) Run trained model on Windows, switch ```"render": false``` option to ```true```.
+- (Option 2) Link to a headless simulation remotely. Download Windows client [UHMP.exe](./ZDOCS/use_unreal_hmap.md), run it with ```./UHMP.exe -OpenLevel=Ip:Port``` (Port is random, see program terminal output).
+
+
+Redirection to another MARL project: Building high efficient multiagent environment with Unreal Engine! Please refer to resp ```https://github.com/binary-husky/unreal-hmp```.
+
+
 
 ## Web Demo of DCA (AAAI Paper Version)
 
