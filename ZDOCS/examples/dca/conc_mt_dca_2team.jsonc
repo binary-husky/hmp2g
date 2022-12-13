@@ -10,8 +10,7 @@
         "test_epoch": "256",
         "mt_parallel": "True",
         "interested_agent_num": 22,
-        "device": "cuda:3", // 使用哪张显卡
-        "gpu_party": "cuda3_party0", // 是否允许多进程共享显存，这里不需要
+        "device": "cpu", // 使用哪张显卡
         "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
         "n_parallel_frame": 50000000.0,
         "max_n_episode": 1000000.0,
@@ -43,7 +42,6 @@
         "gpu_party_override": "cuda0_party1", // 是否允许多进程共享显存
         "train_traj_needed": 64,
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0001,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
@@ -57,7 +55,6 @@
         "gpu_party_override": "cuda1_party1", // 是否允许多进程共享显存
         "train_traj_needed": 64,
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0005,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",

@@ -33,7 +33,6 @@
     "ALGORITHM.conc_4hist_scdb.foundation.py->AlgorithmConfig": {
         "train_traj_needed": "128",
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0001,
         "ppo_epoch": 24,
         "load_checkpoint": "False"

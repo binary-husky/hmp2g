@@ -20,7 +20,7 @@ print(test_subjects)
 n_run = len(test_subjects)
 target_server = [
     {
-        "addr": "172.18.116.161:2266",
+        "addr": "localhost:2266",
         "usr": "hmp",
         "pwd": "hmp"
     },
