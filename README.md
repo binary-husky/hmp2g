@@ -1,4 +1,14 @@
-Author: Fu Qingxu, CASIA
+Contact us: 
+- Qingxu Fu, CASIA, fuqingxu@ia.ac.cn，QQ505030475
+- Shijie Wang, CASIA,
+- Min Chen, CASIA,
+- Tianyi Hu, CASIA, hutianyi2021@ia.ac.cn
+- Yifan Xu, CASIA, xuyifan2021@ia.ac.cn
+- Organization：
+- - Institute of Automation, Chinese Academy of Sciences
+- - School of Artificial Intelligence, University of Chinese Academy of Sciences
+- - Yiteam Swarm Intelligent Research Group
+
 
 # Introduction
 The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
