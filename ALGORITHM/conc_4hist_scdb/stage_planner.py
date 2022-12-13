@@ -25,11 +25,12 @@ class StagePlanner:
         self.mcv = mcv
         self.trainer = None
         self.n_agent = n_agent
-        self.div_tree = None
         self.current_distribution_level = None
         if PolicyRsnConfig.yita_shift_method == 'feedback':
             from .scheduler import FeedBackPolicyResonance
             self.feedback_controller = FeedBackPolicyResonance(mcv)
+        else:
+            self.feedback_controller = None
         # if AlgorithmConfig.wait_norm_stable:
         #     self.wait_norm_stable_cnt = 2
         # else:
@@ -85,11 +86,9 @@ class StagePlanner:
                 self.when_pr_inactive()
         return
 
-    def hook_div_tree(self, div_tree):
-        self.div_tree = div_tree
-
     def update_test_winrate(self, win_rate):
-        self.feedback_controller.step(win_rate)
+        if self.feedback_controller is not None:
+            self.feedback_controller.step(win_rate)
     
     def activate_pr(self):
         self.resonance_active = True
@@ -108,8 +107,6 @@ class StagePlanner:
         pr = 1 if self.resonance_active else 0
         self.mcv.rec(pr, 'resonance')
         self.mcv.rec(self.yita, 'yita')
-        if self.div_tree is not None: 
-            self.mcv.rec(self.div_tree.current_level, 'div_tree_level')
     def when_pr_active(self):
         assert self.resonance_active
         self._update_yita()
@@ -148,8 +145,4 @@ class StagePlanner:
             
         else:
             assert False
-
-        if self.yita > 0.25 and self.div_tree is not None:
-            if not self.div_tree.at_max_level():
-                self.div_tree.set_to_max_level()
 

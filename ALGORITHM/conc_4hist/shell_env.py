@@ -22,17 +22,6 @@ class ShellEnvWrapper(object):
         self.load_checkpoint = alg_config.load_checkpoint
         self.cold_start = True
 
-    @staticmethod
-    def get_binary_array(n, n_bits, dtype=np.float32):
-        arr = np.zeros(n_bits, dtype=dtype)
-        pointer = 0
-        while True:
-            arr[pointer] = int(n%2==1)
-            n = n >> 1
-            pointer += 1
-            if n == 0: break
-        return arr
-
     def interact_with_env(self, State_Recall):
         act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
         # read internal coop graph info

@@ -3,12 +3,38 @@ from config import GlobalConfig
 from UTIL.colorful import *
 from UTIL.tensor_ops import my_view, __hash__, repeat_at, gather_righthand
 from MISSION.uhmap.actset_lookup import encode_action_as_digits
+from MISSION.uhmap.actionset_v3 import strActionToDigits, ActDigitLen
 from .foundation import AlgorithmConfig
 from .cython_func import roll_hisory
 
 class ShellEnvConfig:
     add_avail_act = False
 
+class ActionConvertPredatorPrey():
+    def __init__(self, SELF_TEAM_ASSUME, OPP_TEAM_ASSUME, OPP_NUM_ASSUME) -> None:
+        self.dictionary_args = [
+            'ActionSet4::MoveToDirection;X=1.0 Y=0.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=1.0 Y=1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=0.0 Y=1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=-1.0 Y=1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=-1.0 Y=0.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=-1.0 Y=-1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=0.0 Y=-1.0 Z=0.0',
+            'ActionSet4::MoveToDirection;X=1.0 Y=-1.0 Z=0.0',
+        ] 
+
+    def convert_act_arr(self, type, a):
+        return strActionToDigits(self.dictionary_args[a])
+
+    def get_tp_avail_act(self, type):
+        DISABLE = 0
+        ENABLE = 1
+        n_act = len(self.dictionary_args)
+        ret = np.zeros(n_act) + ENABLE
+        return ret
+
+    def confirm_parameters_are_correct(self, team, agent_num, opp_agent_num):
+        pass
 
 class ActionConvertLegacy():
     def __init__(self, SELF_TEAM_ASSUME, OPP_TEAM_ASSUME, OPP_NUM_ASSUME) -> None:
@@ -96,24 +122,20 @@ class ShellEnvWrapper(object):
         self.AvailActProvided = False
         if hasattr(ScenarioConfig, 'AvailActProvided'):
             self.AvailActProvided = ScenarioConfig.AvailActProvided 
-        self.action_converter = ActionConvertLegacy(
+
+        if GlobalConfig.ScenarioConfig.SubTaskSelection in ['UhmapLargeScale', 'UhmapHuge', 'UhmapBreakingBad']:
+            ActionToDiscreteConverter = ActionConvertLegacy
+        else:
+            ActionToDiscreteConverter = ActionConvertPredatorPrey
+
+        self.action_converter = ActionToDiscreteConverter(
                 SELF_TEAM_ASSUME=team, 
                 OPP_TEAM_ASSUME=(1-team), 
                 OPP_NUM_ASSUME=GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM[1-team]
         )
+        
         # check parameters
         self.patience = 2000
-        
-    @staticmethod
-    def get_binary_array(n, n_bits, dtype=np.float32):
-        arr = np.zeros(n_bits, dtype=dtype)
-        pointer = 0
-        while True:
-            arr[pointer] = int(n%2==1)
-            n = n >> 1
-            pointer += 1
-            if n == 0: break
-        return arr
 
     def interact_with_env(self, StateRecall):
         if not hasattr(self, 'agent_type'):

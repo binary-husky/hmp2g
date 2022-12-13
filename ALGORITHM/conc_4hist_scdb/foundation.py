@@ -1,4 +1,4 @@
-import os, time, torch, traceback, shutil
+import os, time, torch, shutil
 import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
@@ -42,9 +42,8 @@ class AlgorithmConfig:
     net_hdim = 32
     # extral
     extral_train_loop = False
-    actor_attn_mod = False
     load_specific_checkpoint = ''
-    dual_conc = True
+    use_conc_net = True
     use_my_attn = True
     use_policy_resonance = False
 
@@ -54,9 +53,6 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
-    use_policy_div = False
-    
-    distribution_precision = 7
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -71,11 +67,14 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         from .stage_planner import StagePlanner
         self.stage_planner = StagePlanner(n_agent=self.n_agent, mcv=mcv)
 
-        from .shell_env import ShellEnvWrapper
+        if AlgorithmConfig.use_conc_net: from .shell_env import ShellEnvWrapper
+        else: from .shell_env_without_conc import ShellEnvWrapper
         self.shell_env = ShellEnvWrapper(
             n_agent, n_thread, space, mcv, self, AlgorithmConfig, self.ScenarioConfig)
- 
-        from .net import Net
+            
+        if AlgorithmConfig.use_conc_net: from .net import Net
+        else: from .net_small import Net
+        
         self.device = GlobalConfig.device
         if self.ScenarioConfig.EntityOriented:
             rawob_dim = self.ScenarioConfig.obs_vec_length
@@ -98,16 +97,15 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         # confirm that reward method is correct
         self.check_reward_type(AlgorithmConfig)
 
-
         # load checkpoints
         self.load_checkpoint = AlgorithmConfig.load_checkpoint
         logdir = GlobalConfig.logdir
         # makedirs if not exists
-        if not os.path.exists('%s/history_cpt/' % logdir):
-            os.makedirs('%s/history_cpt/' % logdir)
+        if not os.path.exists(f'{logdir}/history_cpt/'):
+            os.makedirs(f'{logdir}/history_cpt/')
         if self.load_checkpoint:
             manual_dir = AlgorithmConfig.load_specific_checkpoint
-            ckpt_dir = '%s/model.pt' % logdir if manual_dir == '' else '%s/%s' % (logdir, manual_dir)
+            ckpt_dir = f'{logdir}/model.pt' if manual_dir == '' else f'{logdir}/{manual_dir}'
             cuda_n = 'cpu' if 'cpu' in self.device else self.device
             self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n))
             print黄('loaded checkpoint:', ckpt_dir)
@@ -162,15 +160,17 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         if not StateRecall['Test-Flag']: self.train()  # when needed, train!
         return self.action_making(StateRecall, StateRecall['Test-Flag'])
 
-    '''
-        Get event from hmp task runner, save model now!
-    '''
+
     def train(self):
         if self.batch_traj_manager.can_exec_training():
             # time to start a training routine
             self.batch_traj_manager.train_and_clear_traj_pool()
             self.stage_planner.update_plan()
 
+
+    '''
+        Get event from hmp task runner, save model now!
+    '''
     def on_notify(self, message, **kargs):
         self.stage_planner.update_test_winrate(kargs['win_rate'])
         self.save_model(
@@ -181,10 +181,8 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def save_model(self, update_cnt, info=None):
         '''
             save model now!
-            save if triggered when:
-            1. Update_cnt = 50, 100, ...
-            2. Given info, indicating a hmp command
-            3. A flag file is detected, indicating a save command from human
+            save if triggered when: on_notify() is called
+            
         '''
         if not os.path.exists(f'{GlobalConfig.logdir}/history_cpt/'): 
             os.makedirs(f'{GlobalConfig.logdir}/history_cpt/')
@@ -201,38 +199,4 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
 
         print绿('save_model fin')
 
-
-
-    def process_framedata(self, traj_framedata):
-        ''' 
-            hook is called when reward and next moment observation is ready,
-            now feed them into trajectory manager.
-            Rollout Processor | 准备提交Rollout, 以下划线开头和结尾的键值需要对齐(self.n_thread, ...)
-            note that keys starting with _ must have shape (self.n_thread, ...), details see fn:mask_paused_env()
-        '''
-        # strip info, since it is not array
-        items_to_pop = ['info', 'Latest-Obs']
-        for k in items_to_pop:
-            if k in traj_framedata:
-                traj_framedata.pop(k)
-        # the agent-wise reward is supposed to be the same, so averge them
-        if self.ScenarioConfig.RewardAsUnity:
-            traj_framedata['reward'] = repeat_at(traj_framedata['reward'], insert_dim=-1, n_times=self.n_agent)
-        # change the name of done to be recognised (by trajectory manager)
-        traj_framedata['_DONE_'] = traj_framedata.pop('done')
-        traj_framedata['_TOBS_'] = traj_framedata.pop(
-            'Terminal-Obs-Echo') if 'Terminal-Obs-Echo' in traj_framedata else None
-        # mask out pause thread
-        traj_framedata = self.mask_paused_env(traj_framedata)
-        # put the frag into memory
-        self.batch_traj_manager.feed_traj(traj_framedata)
-
-    def mask_paused_env(self, frag):
-        running = ~frag['_SKIP_']
-        if running.all():
-            return frag
-        for key in frag:
-            if not key.startswith('_') and hasattr(frag[key], '__len__') and len(frag[key]) == self.n_thread:
-                frag[key] = frag[key][running]
-        return frag
 

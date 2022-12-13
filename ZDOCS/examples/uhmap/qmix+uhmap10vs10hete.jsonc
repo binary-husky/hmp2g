@@ -19,20 +19,19 @@
         ]
     },
     "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
-        "n_team1agent": 10,
-        "n_team2agent": 10,
+        "N_AGENT_EACH_TEAM": [10, 10], // update N_AGENT_EACH_TEAM
         "MaxEpisodeStep": 125,
         "StepGameTime": 0.5,
         "StateProvided": false,
         "render": false,
         "UElink2editor": false,
-        "AutoPortOverride": true,
         "HeteAgents": true,
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapLargeScale",
-        "UhmapRenderExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer_Ver1.0/UHMPServer.sh",
-        "TimeDilation": 64,
+        "UhmapVersion": "3.2",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
+        "TimeDilation": 64, // simulation time speed up, larger is faster
         "TEAM_NAMES": [
             "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",
             "ALGORITHM.script_ai.uhmap_ls->DummyAlgorithmLinedAttack"

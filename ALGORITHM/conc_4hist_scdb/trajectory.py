@@ -3,13 +3,13 @@ from config import GlobalConfig
 import numpy as np
 from numpy.core.numeric import indices
 from .foundation import AlgorithmConfig
-from ..commom.traj import TRAJ_BASE
+from ALGORITHM.commom.traj import TRAJ_BASE
 import copy
 from UTIL.colorful import *
 from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_softmax, scatter_with_nan
 
 class trajectory(TRAJ_BASE):
-
+    dead_mask_check = True  # confirm mask ok
     def __init__(self, traj_limit, env_id):
         super().__init__(traj_limit, env_id)
         self.reference_track_name = 'obs'
@@ -60,14 +60,14 @@ class trajectory(TRAJ_BASE):
             gamma = AlgorithmConfig.gamma_in_reward_forwarding_value 
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
-                self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
-                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)  # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
 
         else:
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
-                self.reward[i-1] += np.where(dead_mask[i], self.reward[i], 0)      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
-                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i-1] += np.where(dead_mask[i], self.reward[i], 0)        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
         return
 
 
@@ -80,11 +80,11 @@ class trajectory(TRAJ_BASE):
         # deadmask
         tmp = np.isnan(my_view(self.obs, [0,0,-1]))
         dead_mask = tmp.all(-1)
-        # if (True): # check if the mask is correct
-        #     dead_mask_self = np.isnan(my_view(self.obs, [0,0,-1])[:,:,0])
-        #     assert (dead_mask==dead_mask_self).all()
-        # dead_mask2 = tmp.any(-1)
-        # assert (dead_mask==dead_mask2).all()
+        if trajectory.dead_mask_check:
+            trajectory.dead_mask_check = False
+            if not dead_mask.any(): 
+                assert False, "Are you sure agents cannot die? If so, delete this check."
+
         self.reward_push_forward(dead_mask) # push terminal reward forward 38 42 54
         threat = np.zeros(shape=dead_mask.shape) - 1
         assert dead_mask.shape[0] == self.time_pointer

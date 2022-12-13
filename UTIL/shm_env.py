@@ -31,7 +31,8 @@ class EnvWithRay(object):
 
     def __del__(self):
         # print亮红('[shm_env.py] exec EnvWithRay exit')
-        del self.env
+        if hasattr(self,'env'): 
+            del self.env
 
     def step(self, act):
         if np.isnan(act).any(): 

@@ -8,7 +8,7 @@ from config import GlobalConfig
 StandardPlotFig = 1
 ComparePlotFig = 2
 class rec_family(object):
-    def __init__(self, colorC=None, draw_mode='Native', image_path=None, figsize=(12, 6), rec_exclude=[], **kwargs):
+    def __init__(self, colorC=None, draw_mode='Native', image_path=None, figsize=None, smooth_level=None, rec_exclude=[], **kwargs):
         # the list of vars' name (with order), string
         self.name_list = []
         # the list of vars' value sequence (with order), float
@@ -27,9 +27,8 @@ class rec_family(object):
         # recent time
         self.current_time = None
         self.time_index = None
-
-        self.smooth_line = False
-        self.figsize = figsize
+        self.smooth_level = smooth_level
+        self.figsize_given = figsize
         self.colorC = 'k' if colorC is None else colorC
         self.Working_path = 'Testing-beta'
         self.image_num = -1
@@ -54,6 +53,7 @@ class rec_family(object):
             import matplotlib.pyplot as plt
             self.plt = plt
             self.img_to_write = '%s/rec.jpg'%logdir
+            self.img_to_write2 = '%s/rec.jpeg'%logdir
             if image_path is not None:
                 self.img_to_write = image_path
                 self.img_to_write2 = image_path+'.jpg'
@@ -129,13 +129,23 @@ class rec_family(object):
         for i in range(len(line_arr) - len(time_arr)):
             time_arr.append(self.current_time - i - 1)
     
-    # This function is ugly because it is translated from MATLAB
+    def get_figure_size(self, image_num):
+        if self.figsize_given is None:
+            expand_ratio = max((image_num - 10)/4, 1)
+            return (12*expand_ratio, 6*expand_ratio)
+        else:
+            return self.figsize_given
+            
     def rec_show(self):
         # the number of total subplots | 一共有多少条曲线
         image_num = len(self.line_list)
-        
+        # 是否启动高级曲线绘制
+        draw_advance_fig = False
+        for name in self.name_list:
+            if 'of=' in name: draw_advance_fig = True
+
         if self.working_figure_handle is None:
-            self.working_figure_handle = self.plt.figure(StandardPlotFig, figsize=self.figsize, dpi=100)
+            self.working_figure_handle = self.plt.figure(StandardPlotFig, figsize=self.get_figure_size(image_num), dpi=100)
             if self.draw_mode == 'Native': 
                 self.working_figure_handle.canvas.set_window_title(self.Working_path)
                 self.plt.show()
@@ -164,28 +174,21 @@ class rec_family(object):
             # 需要刷新布局，所有已经绘制的图作废
             self.subplots = {}
             self.working_figure_handle.clf()
-            for q,handle in enumerate(self.line_plot_handle): 
-                self.line_plot_handle[q] = None
+            for q, handle in enumerate(self.line_plot_handle): self.line_plot_handle[q] = None
+            # 需要刷新布局，所有已经绘制的图作废
+            if draw_advance_fig: 
+                self.subplots2 = {}
+                if self.working_figure_handle2 is not None: self.working_figure_handle2.clf()
+                for q, handle in enumerate(self.line_plot_handle2): self.line_plot_handle2[q] = None
 
         self.image_num = image_num
         self.plot_classic(image_num, rows, time_explicit, time_var_met, self.time_index, cols)
             
-        # plt.draw()
-        # ##################################################
-        # ##################################################
-        
-
-        # #画重叠曲线，如果有的话
-        draw_advance_fig = False
-        for name in self.name_list:
-            if 'of=' in name: draw_advance_fig = True
-
         # draw advanced figure, current disabled
         if draw_advance_fig:
             self.plot_advanced()
 
         # now end, output images
-        self.plt.tight_layout()
         if self.draw_mode == 'Web':
             content = self.mpld3.fig_to_html(self.working_figure_handle)
             with open(self.html_to_write, 'w+') as f:
@@ -196,18 +199,23 @@ class rec_family(object):
             return
         elif self.draw_mode == 'Img':
             if self.working_figure_handle is not None: 
+                self.working_figure_handle.tight_layout()
                 self.working_figure_handle.savefig(self.img_to_write)
             if self.working_figure_handle2 is not None: 
+                self.working_figure_handle2.tight_layout()
                 self.working_figure_handle2.savefig(self.img_to_write2)
+
+    def smooth(self, data, sm_lv=1):
+        if sm_lv > 1:
+            y = np.ones(sm_lv)*1.0/sm_lv
+            d = np.convolve(y, data, 'same')#"same")
+        else:
+            d = data
+        return np.array(d)
 
     def plot_advanced(self):
         #画重叠曲线，如果有的话
-        if self.working_figure_handle2 is None:
-            self.working_figure_handle2 = self.plt.figure(ComparePlotFig, figsize=self.figsize, dpi=100)
-            if self.draw_mode == 'Native': 
-                self.working_figure_handle2.canvas.set_window_title('Working-Comp')
-                self.plt.show()
-        
+
         group_name = []
         group_member = []
         time_explicit = ('time' in self.name_list)
@@ -238,6 +246,12 @@ class rec_family(object):
             rows = 4 #大与12张图，则放4行
         
         cols = int(np.ceil(image_num_multi/rows))#根据行数求列数
+
+        if self.working_figure_handle2 is None:
+            self.working_figure_handle2 = self.plt.figure(ComparePlotFig, figsize=self.get_figure_size(num_group), dpi=100)
+            if self.draw_mode == 'Native': 
+                self.working_figure_handle2.canvas.set_window_title('Working-Comp')
+                self.plt.show()
         
         for i in range(num_group):
 
@@ -251,60 +265,53 @@ class rec_family(object):
 
             tar_true_name=group_name[i]
             num_member = len(group_member[i])
-            
+
+            _xdata_min_ = np.inf
+            _xdata_max_ = -np.inf
+            _ydata_min_ = np.inf
+            _ydata_max_ = -np.inf
+
             for j in range(num_member):
                 index = group_member[i][j]
+
+                _ydata_ = np.array(self.line_list[index], dtype=np.double)
+                if self.smooth_level is not None:
+                    _ydata_ = self.smooth(_ydata_, sm_lv=self.smooth_level)
+                # 如果有时间数据，把x轴绑定时间
                 if time_explicit:
-                    # _xdata_ = np.array(self.line_list[time_index], dtype=np.double)
                     _xdata_ = np.array(self.time_list[index], dtype=np.double)
+                else:
+                    _xdata_ = np.arange(len(self.line_list[index]), dtype=np.double)
+
+                limx1 = _xdata_.min() 
+                if limx1 < _xdata_min_: _xdata_min_ = limx1
+                limx2 = _xdata_.max()
+                if limx2 > _xdata_max_: _xdata_max_ = limx2
+                limy1 = _ydata_.min()
+                if limy1 < _ydata_min_: _ydata_min_ = limy1
+                limy2 = _ydata_.max()
+                if limy2 > _ydata_max_: _ydata_max_ = limy2
 
                 name_tmp = self.name_list[index]
                 name_tmp = name_tmp.replace('=',' ')
-                if self.smooth_line:
-                    target = smooth(self.line_list[index],20) 
-                else:
-                    target = self.line_list[index]
                 if (self.line_plot_handle2[index] is None):
+                    # 第一次绘制
                     if time_explicit:
-                        self.line_plot_handle2[index], =  target_subplot.plot(_xdata_, self.line_list[index],lw=1,label=name_tmp)
+                        self.line_plot_handle2[index], =  target_subplot.plot(_xdata_, _ydata_, lw=1,label=name_tmp)
                     else:
-                        self.line_plot_handle2[index], =  target_subplot.plot(self.line_list[index], lw=1, label=name_tmp)
-
+                        self.line_plot_handle2[index], =  target_subplot.plot(_ydata_, lw=1, label=name_tmp)
                 else:
-                    if time_explicit:
-                        self.line_plot_handle2[index].set_data((_xdata_, self.line_list[index]))
-                    else:
-                        xdata = np.arange(len(self.line_list[index]), dtype=np.double)
-                        ydata = np.array(self.line_list[index], dtype=np.double)
-                        self.line_plot_handle2[index].set_data((xdata,ydata))
+                    # 非第一次，则只需要更新数据即可
+                    self.line_plot_handle2[index].set_data((_xdata_, _ydata_))
 
             #标题
             target_subplot.set_title(tar_true_name)
             target_subplot.set_xlabel('time')
             target_subplot.set_ylabel(tar_true_name)
-            target_subplot.relim()
+            self.change_target_figure_lim(target_subplot, _xdata_min_, _xdata_max_, _ydata_min_, _ydata_max_)
+            target_subplot.grid(visible=True)
+            target_subplot.legend(loc='best')
 
-            limx1 = target_subplot.dataLim.xmin
-            limx2 = target_subplot.dataLim.xmax
-            limy1 = target_subplot.dataLim.ymin
-            limy2 = target_subplot.dataLim.ymax
-            # limx1,limy1,limx2,limy2 = target_subplot.dataLim
-            if limx1 != limx2 and limy1!=limy2:
-                meany = limy1/2 + limy2/2
-                limy1 = (limy1 - meany)*1.2+meany
-                limy2 = (limy2 - meany)*1.2+meany
-                target_subplot.set_ylim(limy1,limy2)
-                meanx = limx1/2 + limx2/2
-                limx1 = (limx1 - meanx)*1.05+meanx
-                limx2 = (limx2 - meanx)*1.05+meanx
-                target_subplot.set_xlim(limx1,limx2)
-                target_subplot.grid(visible=True)
-                target_subplot.legend(loc='best')
-            elif limx1 != limx2:
-                meanx = limx1/2 + limx2/2
-                limx1 = (limx1 - meanx)*1.1+meanx
-                limx2 = (limx2 - meanx)*1.1+meanx
-                target_subplot.set_xlim(limx1,limx2)
 
     def plot_classic(self, image_num, rows, time_explicit, time_var_met, time_index, cols):
         for index in range(image_num):
@@ -322,24 +329,23 @@ class rec_family(object):
                 target_subplot = self.working_figure_handle.add_subplot(rows,cols,subplot_index)
                 self.subplots[subplot_name] = target_subplot
 
-            _xdata_ = np.arange(len(self.line_list[index]), dtype=np.double)
             _ydata_ = np.array(self.line_list[index], dtype=np.double)
+            # 如果有时间数据，把x轴绑定时间
             if time_explicit:
-                # _xdata_ = np.array(self.line_list[time_index], dtype=np.double)
                 _xdata_ = np.array(self.time_list[index], dtype=np.double)
-            if (self.line_plot_handle[index] is None):# || ~isvalid(self.line_plot_handle[index])):
+            else:
+                _xdata_ = np.arange(len(self.line_list[index]), dtype=np.double)
+
+            if (self.line_plot_handle[index] is None):
+                # 第一次绘制
                 if time_explicit:
-                    self.line_plot_handle[index], =  target_subplot.plot(_xdata_, self.line_list[index],lw=1,c=self.colorC)
+                    self.line_plot_handle[index], =  target_subplot.plot(_xdata_, _ydata_, lw=1,c=self.colorC)
                 else:
-                    self.line_plot_handle[index], =  target_subplot.plot(self.line_list[index], lw=1, c=self.colorC)
+                    self.line_plot_handle[index], =  target_subplot.plot(_ydata_, lw=1, c=self.colorC)
                         
             else:
-                if time_explicit:
-                    self.line_plot_handle[index].set_data((_xdata_, self.line_list[index]))
-                else:
-                    xdata = np.arange(len(self.line_list[index]), dtype=np.double)
-                    ydata = np.array(self.line_list[index], dtype=np.double)
-                    self.line_plot_handle[index].set_data((xdata,ydata))
+                # 后续绘制，更新数据
+                self.line_plot_handle[index].set_data((_xdata_, _ydata_))
 
             if 'of=' in self.name_list[index]:
                 #把等号替换成空格
@@ -355,30 +361,28 @@ class rec_family(object):
                 target_subplot.set_ylabel(self.name_list[index])
                 target_subplot.grid(visible=True)
 
-            limx1 = _xdata_.min() #target_subplot.dataLim.xmin
-            limx2 = _xdata_.max() #target_subplot.dataLim.xmax
-            limy1 = _ydata_.min() #min(self.line_list[index])
-            limy2 = _ydata_.max() #max(self.line_list[index])
+            _xdata_min_ = _xdata_.min() #target_subplot.dataLim.xmin
+            _xdata_max_ = _xdata_.max() #target_subplot.dataLim.xmax
+            _ydata_min_ = _ydata_.min() #min(self.line_list[index])
+            _ydata_max_ = _ydata_.max() #max(self.line_list[index])
 
             if self.enable_percentile_clamp and len(_ydata_)>220 and self.vis_95percent:
                 limy1 = np.percentile(_ydata_, 3, interpolation='midpoint') # 3%
                 limy2 = np.percentile(_ydata_, 97, interpolation='midpoint') # 97%
 
-            if limx1 != limx2 and limy1!=limy2:
-                    # limx1,limy1,limx2,limy2 = target_subplot.dataLim
-                meany = limy1/2 + limy2/2
-                limy1 = (limy1 - meany)*1.2+meany
-                limy2 = (limy2 - meany)*1.2+meany
-                target_subplot.set_ylim(limy1,limy2)
+            self.change_target_figure_lim(target_subplot, _xdata_min_, _xdata_max_, _ydata_min_, _ydata_max_)
 
-                meanx = limx1/2 + limx2/2
-                limx1 = (limx1 - meanx)*1.1+meanx
-                limx2 = (limx2 - meanx)*1.1+meanx
-                target_subplot.set_xlim(limx1,limx2)
-            elif limx1 != limx2:
-                meanx = limx1/2 + limx2/2
-                limx1 = (limx1 - meanx)*1.1+meanx
-                limx2 = (limx2 - meanx)*1.1+meanx
-                target_subplot.set_xlim(limx1,limx2)
+    def change_target_figure_lim(self, target_subplot, limx1, limx2, limy1, limy2):
+        if limy1!=limy2:
+            meany = limy1/2 + limy2/2
+            limy1 = (limy1 - meany)*1.2+meany
+            limy2 = (limy2 - meany)*1.2+meany
+            target_subplot.set_ylim(limy1,limy2)
+
+        if limx1 != limx2:
+            meanx = limx1/2 + limx2/2
+            limx1 = (limx1 - meanx)*1.1+meanx
+            limx2 = (limx2 - meanx)*1.1+meanx
+            target_subplot.set_xlim(limx1,limx2)
 
 

@@ -127,7 +127,7 @@ fuqingxu/hmp:latest
 ```
 <img src="../ZHECKPOINT/test-50+50/butterfly.webp" width="200" >
 
-# requirement.txt
+# requirement.txt (install on Windows)
 If possible, please use docker to Avoid following
 pip package management.
 This requirement list is provided only as 
@@ -142,26 +142,25 @@ pytorch
 lz4
 gym             # (the latest version will do)
 flask
+redis
 numpy
-scipy
 numba
+flock
+scipy
+sacred
 cython
+psutil
+pygame
+sklearn
+filelock
 waitress
 colorama
 func_timeout
+onedrivedownloader
 setproctitle
 commentjson
 matplotlib
-psutil
-paramiko        # (for multi-server experiments)
 ipykernel       # (optional, for openning jupyter notebook)
-
-# 
-# pip install lz4 gym flask numpy scipy numba cython waitress colorama func_timeout setproctitle commentjson matplotlib psutil paramiko ipykernel
-
+paramiko        # (for multi-server experiments)
 ```
-
-<!-- ```
-git clone git@gitee.com:hh505030475/hmp-2g.git
-``` -->
 

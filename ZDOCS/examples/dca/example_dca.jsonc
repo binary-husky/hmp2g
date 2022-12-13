@@ -42,7 +42,6 @@
     "ALGORITHM.conc_4hist.foundation.py->AlgorithmConfig": {
         "train_traj_needed": "64",
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0005,
         "ppo_epoch": 24,
         "gamma_in_reward_forwarding": "True",

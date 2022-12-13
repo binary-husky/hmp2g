@@ -52,6 +52,8 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
     activate_logger = True                              # activate data plotting (Tensorboard is not used because I do not like it)
     data_logger = 'auto load, do not change this var!'  # activate data plotting (Tensorboard is not used because I do not like it)
     resume_mod = False                                  # resume unfinished
+    mt_act_order = 'old_method'                         # resume unfinished
+    mt_parallel = False                         # resume unfinished
 
     seed = np.random.randint(0, 100000)                 # seed for numpy and pytorch
 
@@ -97,7 +99,7 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
 
 
     backup_files = []                                   # a list of files that needs to be backed up at each run
-    matlab_logger = None                                # this is just a global logger, although we do not use matlab anymore...
+    hmap_logger = None                                  # this is just a global logger
     heartbeat_on = True                                 # some fancy commandline visual effect to show that envirenment is running
     
     cfg_ready = False                                   # DO NOT change! automatically set to True when Json configuration is all locked-and-loaded

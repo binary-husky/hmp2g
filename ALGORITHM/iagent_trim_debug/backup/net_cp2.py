@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn.modules.linear import Linear
-from ..commom.attention import MultiHeadAttention
-from ..commom.norm import DynamicNorm
-from ..commom.mlp import LinearFinal, SimpleMLP
+from ALGORITHM.commom.attention import MultiHeadAttention
+from ALGORITHM.commom.norm import DynamicNorm
+from ALGORITHM.commom.mlp import LinearFinal, SimpleMLP
 from UTIL.colorful import print亮紫
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, repeat_at
 
@@ -102,18 +102,8 @@ class Pnet(nn.Module):
         # value = self.CT_get_value(agent_enc_ct)
         ct_phi = self.CT_encode(obs) 
         value = self.CT_getvalue(ct_phi)
-        
 
         return logits, value, None
-
-    @staticmethod
-    def get_binary_array(n_int, n_bits=8, dtype=torch.float32):
-        arr = torch.zeros(size=(*n_int.shape, n_bits), dtype=dtype, device=n_int.device)
-        for i in range(8):
-            arr[:, i] = (n_int%2==1).int()
-            n_int = n_int / 2
-            n_int = n_int.int()
-        return arr
 
     def logit2act(self, logits_agent_cluster, eval_mode, test_mode, eval_actions=None):
         act_dist = Categorical(logits = logits_agent_cluster)

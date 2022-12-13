@@ -14,8 +14,10 @@ class UhmapBreakingBad(UhmapEnv):
     def __init__(self, rank) -> None:
         super().__init__(rank)
         self.observation_space = self.make_obs(get_shape=True)
+        self.SubTaskConfig = SubTaskConfig
         assert os.path.basename(inspect.getfile(SubTaskConfig)) == type(self).__name__+'Conf.py', \
                 ('make sure you have imported the correct SubTaskConfig class')
+                
     def reset(self):
         super().reset()
         
@@ -33,7 +35,8 @@ class UhmapBreakingBad(UhmapEnv):
         ####################### spawn all ###########################
         AgentSettingArray = []
         agent_uid_cnt = 0
-        for i in range(ScenarioConfig.n_team1agent-1):  # For attacking, drones on the ground
+        # "N_AGENT_EACH_TEAM": [10, 10], // update N_AGENT_EACH_TEAM
+        for i in range(ScenarioConfig.N_AGENT_EACH_TEAM[0]-1):  # For attacking, drones on the ground
             x = 3254.0
             y = 3891.0 + i *100
             z = 500 
@@ -73,8 +76,8 @@ class UhmapBreakingBad(UhmapEnv):
         })
         AgentSettingArray.append(agent_property); agent_uid_cnt += 1
 
-
-        for i in range(ScenarioConfig.n_team2agent):
+        # "N_AGENT_EACH_TEAM": [10, 10], // update N_AGENT_EACH_TEAM
+        for i in range(ScenarioConfig.N_AGENT_EACH_TEAM[1]):
             x = 0 + 500*(i+1)  *  (-1)**(i+1)
             y = 0
             z = 500
@@ -98,7 +101,6 @@ class UhmapBreakingBad(UhmapEnv):
         resp = self.client.send_and_wait_reply(json.dumps({
             'valid': True,
             'DataCmd': 'reset',
-            'NumAgents' : ScenarioConfig.n_team1agent,
             'AgentSettingArray': AgentSettingArray,  # refer to struct.cpp, FAgentProperty
             'TimeStepMax': ScenarioConfig.MaxEpisodeStep,
             'TimeStep' : 0,

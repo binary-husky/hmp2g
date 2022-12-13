@@ -104,13 +104,13 @@ class main_formation(object):
     def show_points(self, arr):
         import time
         from config import GlobalConfig as cfg
-        if cfg.matlab_logger is None:
+        if cfg.hmap_logger is None:
             from VISUALIZE.mcom import mcom
             mcv = mcom(path='%s/v2d_logger/'%cfg.logdir,
                         digit=16, rapid_flush=True, draw_mode='Native')
             mcv.v2d_init()
-            cfg.matlab_logger = mcv
-        mcv = cfg.matlab_logger
+            cfg.hmap_logger = mcv
+        mcv = cfg.hmap_logger
         mcv.v2d_clear()
         arr = arr.squeeze(); assert len(arr.shape)==2; assert arr.shape[1]==2
         n_points = len(arr)
@@ -128,13 +128,13 @@ class main_formation(object):
         from config import GlobalConfig as cfg
         from UTIL.tensor_ops import _2tensor, _2cpu2numpy
 
-        if cfg.matlab_logger is None:
+        if cfg.hmap_logger is None:
             from VISUALIZE.mcom import mcom
             mcv = mcom(path='%s/v2d_logger/'%cfg.logdir,
                         digit=16, rapid_flush=True, draw_mode='Native')
             mcv.v2d_init()
-            cfg.matlab_logger = mcv
-        mcv = cfg.matlab_logger
+            cfg.hmap_logger = mcv
+        mcv = cfg.hmap_logger
         mcv.v2d_clear()
 
 

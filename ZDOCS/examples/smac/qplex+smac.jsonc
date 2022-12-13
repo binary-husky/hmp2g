@@ -35,7 +35,7 @@
 
     "ALGORITHM.pymarl2_compat.pymarl2_compat.py->AlgorithmConfig": {
         "load_checkpoint": "False",
-        "pymarl2_alg_select": "qplex",
+        "pymarl2_alg_select": "qplex",  // vdn
         "pymarl2_runner_select": "parallel",
         "pymarl_config_injection":{
             "config.py->GlobalConfig": {
