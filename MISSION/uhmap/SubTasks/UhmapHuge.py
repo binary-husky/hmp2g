@@ -270,109 +270,109 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
 
 
 
-def init_ground(agent_info, pos_ro):
-    N_COL = 4
-    agent_class = agent_info['type']
-    team = agent_info['team']
-    n_team_agent = 50
-    tid = agent_info['tid']
-    uid = agent_info['uid']
-    x = 0 + 800*(tid - n_team_agent//2) //N_COL
-    y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
-    x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-    z = 500 # 500 is slightly above the ground
-    yaw = 90 if team==0 else -90
-    assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
-    agent_property = copy.deepcopy(AgentPropertyDefaults)
-    agent_property.update({
-            'DebugAgent': False,
-            # max drive/fly speed
-            'MaxMoveSpeed':  720          if agent_class == 'RLA_CAR_Laser' else 600,
-            # also influence object mass, please change it with causion!
-            'AgentScale'  : { 'x': 0.5,  'y': 0.5, 'z': 0.5, },
-            # probability of escaping dmg 闪避
-            "DodgeProb": 0.0,
-            # ms explode dmg
-            "ExplodeDmg": 20,           
-            # team belonging
-            'AgentTeam': team,
-            # choose ue class to init
-            'ClassName': agent_class,
-            # Weapon CD
-            'WeaponCD': 1,
-            # open fire range
-            "PerceptionRange":  2000       if agent_class == 'RLA_CAR_Laser' else 2500,
-            "GuardRange":       1400       if agent_class == 'RLA_CAR_Laser' else 1700,
-            "FireRange":        750        if agent_class == 'RLA_CAR_Laser' else 1400,
-            # debugging
-            'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750' if agent_class == 'RLA_CAR_Laser' else '-Ring1=2500 -Ring2=1700 -Ring3=1400',
-            # regular
-            'RSVD2': '-InitAct=ActionSet2::Idle;AsFarAsPossible',
-            # agent hp
-            'AgentHp':np.random.randint(low=95,high=105) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=145,high=155),
-            # the rank of agent inside the team
-            'IndexInTeam': tid, 
-            # the unique identity of this agent in simulation system
-            'UID': uid, 
-            # show color
-            'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
-            # initial location
-            'InitLocation': { 'x': x,  'y': y, 'z': z, },
-            # initial facing direction et.al.
-            'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
-    }),
-    return agent_property
+    def init_ground(self, agent_info, pos_ro):
+        N_COL = 4
+        agent_class = agent_info['type']
+        team = agent_info['team']
+        n_team_agent = 50
+        tid = agent_info['tid']
+        uid = agent_info['uid']
+        x = 0 + 800*(tid - n_team_agent//2) //N_COL
+        y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
+        x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
+        z = 500 # 500 is slightly above the ground
+        yaw = 90 if team==0 else -90
+        assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
+        agent_property = copy.deepcopy(AgentPropertyDefaults)
+        agent_property.update({
+                'DebugAgent': False,
+                # max drive/fly speed
+                'MaxMoveSpeed':  720          if agent_class == 'RLA_CAR_Laser' else 600,
+                # also influence object mass, please change it with causion!
+                'AgentScale'  : { 'x': 0.5,  'y': 0.5, 'z': 0.5, },
+                # probability of escaping dmg 闪避
+                "DodgeProb": 0.0,
+                # ms explode dmg
+                "ExplodeDmg": 20,           
+                # team belonging
+                'AgentTeam': team,
+                # choose ue class to init
+                'ClassName': agent_class,
+                # Weapon CD
+                'WeaponCD': 1,
+                # open fire range
+                "PerceptionRange":  2000       if agent_class == 'RLA_CAR_Laser' else 2500,
+                "GuardRange":       1400       if agent_class == 'RLA_CAR_Laser' else 1700,
+                "FireRange":        750        if agent_class == 'RLA_CAR_Laser' else 1400,
+                # debugging
+                'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750' if agent_class == 'RLA_CAR_Laser' else '-Ring1=2500 -Ring2=1700 -Ring3=1400',
+                # regular
+                'RSVD2': '-InitAct=ActionSet2::Idle;AsFarAsPossible',
+                # agent hp
+                'AgentHp':np.random.randint(low=95,high=105) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=145,high=155),
+                # the rank of agent inside the team
+                'IndexInTeam': tid, 
+                # the unique identity of this agent in simulation system
+                'UID': uid, 
+                # show color
+                'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
+                # initial location
+                'InitLocation': { 'x': x,  'y': y, 'z': z, },
+                # initial facing direction et.al.
+                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
+        }),
+        return agent_property
 
-def init_air(agent_info, pos_ro):
-    N_COL = 4
-    agent_class = agent_info['type']
-    team = agent_info['team']
-    n_team_agent = 50
-    tid = agent_info['tid']
-    uid = agent_info['uid']
-    
-    x = 0 + 800*(tid - n_team_agent//2) //N_COL
-    y = 2000 * (-1)**(team+1)
-    x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-    z = 1000
-    yaw = 90 if team==0 else -90
-    assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
-    agent_property = copy.deepcopy(AgentPropertyDefaults)
-    agent_property.update({
-            'DebugAgent': False,
-            # max drive/fly speed
-            'MaxMoveSpeed':  900,
-            # also influence object mass, please change it with causion!
-            'AgentScale'  : { 'x': 0.5,  'y': 0.5, 'z': 0.5, },
-            # probability of escaping dmg 闪避
-            "DodgeProb": 0.0,
-            # ms explode dmg
-            "ExplodeDmg": 10,           
-            # team belonging
-            'AgentTeam': team,
-            # choose ue class to init
-            'ClassName': agent_class,
-            # Weapon CD
-            'WeaponCD': 3,
-            # open fire range
-            "PerceptionRange":  2500,
-            "GuardRange":       1800,
-            "FireRange":        1700,
-            # debugging
-            'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700',
-            # regular
-            'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
-            # agent hp
-            'AgentHp':50,
-            # the rank of agent inside the team
-            'IndexInTeam': tid, 
-            # the unique identity of this agent in simulation system
-            'UID': uid, 
-            # show color
-            'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
-            # initial location
-            'InitLocation': { 'x': x,  'y': y, 'z': z, },
-            # initial facing direction et.al.
-            'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
-    }),
-    return agent_property
+    def init_air(self, agent_info, pos_ro):
+        N_COL = 4
+        agent_class = agent_info['type']
+        team = agent_info['team']
+        n_team_agent = 50
+        tid = agent_info['tid']
+        uid = agent_info['uid']
+        
+        x = 0 + 800*(tid - n_team_agent//2) //N_COL
+        y = 2000 * (-1)**(team+1)
+        x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
+        z = 1000
+        yaw = 90 if team==0 else -90
+        assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
+        agent_property = copy.deepcopy(AgentPropertyDefaults)
+        agent_property.update({
+                'DebugAgent': False,
+                # max drive/fly speed
+                'MaxMoveSpeed':  900,
+                # also influence object mass, please change it with causion!
+                'AgentScale'  : { 'x': 0.5,  'y': 0.5, 'z': 0.5, },
+                # probability of escaping dmg 闪避
+                "DodgeProb": 0.0,
+                # ms explode dmg
+                "ExplodeDmg": 10,           
+                # team belonging
+                'AgentTeam': team,
+                # choose ue class to init
+                'ClassName': agent_class,
+                # Weapon CD
+                'WeaponCD': 3,
+                # open fire range
+                "PerceptionRange":  2500,
+                "GuardRange":       1800,
+                "FireRange":        1700,
+                # debugging
+                'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700',
+                # regular
+                'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
+                # agent hp
+                'AgentHp':50,
+                # the rank of agent inside the team
+                'IndexInTeam': tid, 
+                # the unique identity of this agent in simulation system
+                'UID': uid, 
+                # show color
+                'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
+                # initial location
+                'InitLocation': { 'x': x,  'y': y, 'z': z, },
+                # initial facing direction et.al.
+                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
+        }),
+        return agent_property

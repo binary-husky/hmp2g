@@ -47,3 +47,4 @@ class SubTaskConfig():
 
     obs_vec_length = 23
     obs_n_entity = 10
+    ActionFormat = 'ASCII'

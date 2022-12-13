@@ -1,7 +1,7 @@
 import numpy as np
 import importlib, copy
 from UTIL.data_struct import UniqueList
-from UTIL.shm_pool_db import SmartPool
+from UTIL.shm_pool import SmartPool
 
 class alg_parallel_wrapper(object):
     def __init__(self, t_name, n_agent, n_thread, space, mcv, team) -> None:

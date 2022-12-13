@@ -123,7 +123,7 @@ class ShellEnvWrapper(object):
         if hasattr(ScenarioConfig, 'AvailActProvided'):
             self.AvailActProvided = ScenarioConfig.AvailActProvided 
 
-        if GlobalConfig.ScenarioConfig.SubTaskSelection == 'UhmapLargeScale':
+        if GlobalConfig.ScenarioConfig.SubTaskSelection in ['UhmapLargeScale', 'UhmapHuge', 'UhmapBreakingBad']:
             ActionToDiscreteConverter = ActionConvertLegacy
         else:
             ActionToDiscreteConverter = ActionConvertPredatorPrey

@@ -393,10 +393,10 @@ class SmartPool(object):
 
     # exit and clean up carefully
     def __del__(self):
-        print('[shm_pool]: executing superpool del')
+        print_green('[shm_pool]: executing superpool del')
         # traceback.print_exc()
         if hasattr(self, 'terminated'): 
-            print_red('[shm_pool]: already terminated, skipping ~')
+            print_green('[shm_pool]: already terminated, bye')
             return
 
         try:

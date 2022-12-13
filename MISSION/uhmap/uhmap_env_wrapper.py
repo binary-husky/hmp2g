@@ -149,6 +149,8 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
         self.n_agents = sum(ScenarioConfig.N_AGENT_EACH_TEAM)
         assert self.n_agents == len(ScenarioConfig.SubTaskConfig.agent_list), 'agent number defination error'
         self.n_teams = ScenarioConfig.N_TEAM
+        self.sim_thread = None
+        self.client = None
         # self.observation_space = ?
         # self.action_space = ?
         if ScenarioConfig.StateProvided:
@@ -218,6 +220,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                 assert 'NoEditor' in simulation_exe
 
             if platform.system()=="Linux":
+                if self.render: assert False, "You really want to render on Linux? If so, remove this line."
                 if simulation_exe.endswith('.exe'): 
                     simulation_exe = simulation_exe.replace('/Windows', '/Linux')
                     simulation_exe = simulation_exe.replace('.exe','.sh')
@@ -316,7 +319,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
 
 
     def terminate_simulation(self):
-        if hasattr(self, 'sim_thread') and self.sim_thread is not None:
+        if (self.sim_thread is not None) and (self.client is not None):
             # self.sim_thread.terminate()
             # send terminate command to unreal side
             self.client.send_dgram_to_target(json.dumps({
@@ -328,6 +331,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             }))
             self.client.close()
             self.sim_thread = None
+            self.client = None
 
 
     # override reset function
