@@ -5,22 +5,113 @@ from ...common.base_env import RawObsArray
 from ..actionset_v3 import digitsToStrAction
 from ..agent import Agent
 from ..uhmap_env_wrapper import UhmapEnv, ScenarioConfig
-from .UhmapJustAnIslandConf import SubTaskConfig
-from .SubtaskCommonFn import UhmapCommonFn
 from .cython_func import tear_num_arr
+from ..actset_lookup import digit2act_dictionary, AgentPropertyDefaults
+from ..actset_lookup import decode_action_as_string, decode_action_as_string
 
 
 
-class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
-    def __init__(self, rank) -> None:
-        super().__init__(rank)
-        self.observation_space = self.make_obs(get_shape=True)
-        self.SubTaskConfig = SubTaskConfig
-        inspect.getfile(SubTaskConfig)
-        assert os.path.basename(inspect.getfile(SubTaskConfig)) == type(self).__name__+'Conf.py', \
-                ('make sure you have imported the correct SubTaskConfig class')
+class UhmapCommonFn(UhmapEnv):
+
+    def reset(self):
+        """
+            Reset function, it delivers reset command to unreal engine to spawn all agents
+            环境复位,每个episode的开始会执行一次此函数中会初始化所有智能体
+        """
+        super().reset()
+        self.t = 0
+        pos_ro = np.random.rand()*2*np.pi
+        # spawn agents
+        AgentSettingArray = []
+
+        # count the number of agent in each team
+        n_team_agent = {}
+        for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
+            team = agent_info['team']
+            if team not in n_team_agent: n_team_agent[team] = 0
+            self.SubTaskConfig.agent_list[i]['uid'] = i
+            self.SubTaskConfig.agent_list[i]['tid'] = n_team_agent[team]
+            n_team_agent[team] += 1
+
+        # push agent init info one by one
+        for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
+            team = agent_info['team']
+            agent_info['n_team_agent'] = n_team_agent[team]
+            init_fn = getattr(self, agent_info['init_fn_name'])
+            AgentSettingArray.append(init_fn(agent_info, pos_ro))
+
+        self.agents  = [Agent(team=a['team'], team_id=a['tid'], uid=a['uid']) for a in self.SubTaskConfig.agent_list]
+        
+        # refer to struct.cpp, FParsedDataInput
+        resp = self.client.send_and_wait_reply(json.dumps({
+            'valid': True,
+            'DataCmd': 'reset',
+            'NumAgents' : len(self.SubTaskConfig.agent_list),
+            'AgentSettingArray': AgentSettingArray,  # refer to struct.cpp, FAgentProperty
+            'TimeStepMax': ScenarioConfig.MaxEpisodeStep,
+            'TimeStep' : 0,
+            'Actions': None,
+        }))
+        resp = json.loads(resp)
+        # make sure the map (level in UE) is correct
+        # assert resp['dataGlobal']['levelName'] == 'UhmapLargeScale'
+
+        assert len(resp['dataArr']) == len(AgentSettingArray)
+        return self.parse_response_ob_info(resp)
 
 
+    def step(self, act):
+        """
+            step 函数,act中包含了所有agent的决策
+        """
+        assert len(act) == self.n_agents
+
+        # translate actions to the format recognized by unreal engine
+        if self.SubTaskConfig.ActionFormat == 'Single-Digit':
+            act_send = [digit2act_dictionary[a] for a in act]
+        elif self.SubTaskConfig.ActionFormat == 'Multi-Digit':
+            act_send = [decode_action_as_string(a) for a in act]
+        elif self.SubTaskConfig.ActionFormat == 'ASCII':            
+            act_send = [digitsToStrAction(a) for a in act]
+        else:
+            act_send = [digitsToStrAction(a) for a in act]
+
+        # simulation engine IO
+        resp = json.loads(self.client.send_and_wait_reply(json.dumps({
+            'valid': True,
+            'DataCmd': 'step',
+            'TimeStep': self.t,
+            'Actions': None,
+            'StringActions': act_send,
+        })))
+
+        # get obs for RL, info for script AI
+        ob, info = self.parse_response_ob_info(resp)
+
+        # generate reward, get the episode ending infomation
+        RewardForAllTeams, WinningResult = self.gen_reward_and_win(resp)
+        if WinningResult is not None: 
+            info.update(WinningResult)
+            assert resp['dataGlobal']['episodeDone']
+            done = True
+        else:
+            done = False
+
+        if resp['dataGlobal']['timeCnt'] >= ScenarioConfig.MaxEpisodeStep:
+            assert done
+
+        return (ob, RewardForAllTeams, done, info)  # choose this if RewardAsUnity
+
+    def parse_event(self, event):
+        """
+            解析环境返回的一些关键事件,
+            如智能体阵亡,某队伍胜利等等。
+            关键事件需要在ue中进行定义.
+            该设计极大地简化了python端奖励的设计流程,
+            减小了python端的运算量。
+        """
+        if not hasattr(self, 'pattern'): self.pattern = re.compile(r'<([^<>]*)>([^<>]*)')
+        return {k:v for k,v  in re.findall(self.pattern, event)}
 
     def extract_key_gameobj(self, resp):
         """
@@ -41,20 +132,101 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
         WinningResult = None
         for event in events: 
             event_parsed = self.parse_event(event)
+            # if event_parsed['Event'] == 'Destroyed':
+            #     team = self.find_agent_by_uid(event_parsed['UID']).team
+            #     reward[team]    -= 0.05    # this team
+            #     reward[1-team]  += 0.10    # opp team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
+                WaterdropWin = False
+                WaterdropRank = False
+                WaterdropReward = 0
+                ShipWin = -1
+                ShipRank = -1
+                ShipReward = 0
                 EndReason = event_parsed['EndReason']
-                # WinTeam = int(event_parsed['WinTeam'])
-                WinningResult = {
-                    # 每个队伍的排名,可以指定例如[1, 0, 2],代表一队第2名,二队第1名,三队第3名
-                    # 如果没有任何队伍取得胜利,可以指定例如[-1, -1, -1]
-                    # 如果有两只队伍成绩并列,可以指定例如[0, 2, 0, 2], 代表一队三队并列第1名,二队四队并列第3名
-                    "team_ranking": [-1, ],   
-                    "end_reason": EndReason
-                }
-                assert len(WinningResult["team_ranking"]) == ScenarioConfig.N_TEAM
+                # According to MISSION\uhmap\SubTasks\UhmapWaterdropConf.py, team 0 is Ship team, team 1 is Waterdrop team
+                if EndReason == "ShipNumLessThanTheshold" or EndReason == "Team_0_AllDead":
+                    WaterdropWin = True; WaterdropRank = 0; WaterdropReward = 1
+                    ShipWin = False; ShipRank = 1; ShipReward = -1
+                elif EndReason == "TimeMaxCntReached" or EndReason == "Team_1_AllDead":
+                    WaterdropWin = False; WaterdropRank = 1; WaterdropReward = -1
+                    ShipWin = True; ShipRank = 0; ShipReward = 1
+                else:
+                    print('unexpected end reaon:', EndReason)
+                    
+                WinningResult = {"team_ranking": [ShipRank, WaterdropRank], "end_reason": EndReason}
+
+                reward = [ShipReward, WaterdropReward]
         # print(reward)
         return reward, WinningResult
+
+    def step_skip(self):
+        """
+            跳过一次决策,无用的函数
+        """
+        return self.client.send_and_wait_reply(json.dumps({
+            'valid': True,
+            'DataCmd': 'skip_frame',
+        }))
+
+    def find_agent_by_uid(self, uid):
+        """
+            用uid查找智能体(带缓存加速机制)
+        """
+        if not hasattr(self, 'uid_to_agent_dict'):
+            self.uid_to_agent_dict = {}
+            self.uid_to_agent_dict.update({agent.uid:agent for agent in self.agents}) 
+            if isinstance(uid, str):
+                self.uid_to_agent_dict.update({str(agent.uid):agent for agent in self.agents}) 
+        return self.uid_to_agent_dict[uid]
+
+
+
+    def parse_response_ob_info(self, resp):
+        """
+            粗解析智能体的观测,例如把死智能体的位置替换为inf(无穷远),
+            将智能体的agentLocation从字典形式转变为更简洁的(x,y,z)tuple形式
+        """
+        assert resp['valid']
+        resp['dataGlobal']['distanceMat'] = np.array(resp['dataGlobal']['distanceMat']['flat_arr']).reshape(self.n_agents,self.n_agents)
+        
+        if len(resp['dataGlobal']['events'])>0:
+            tmp = [kv.split('>') for kv in resp['dataGlobal']['events'][0].split('<') if kv]
+            info_parse = {t[0]:t[1] for t in tmp}
+
+        info_dict = resp
+        for info in info_dict['dataArr']: 
+            alive = info['agentAlive']
+
+            if alive:
+                agentLocation = info.pop('agentLocation')
+                agentRotation = info.pop('agentRotation')
+                agentVelocity = info.pop('agentVelocity')
+                agentScale = info.pop('agentScale')
+                info['agentLocationArr'] = (agentLocation['x'], agentLocation['y'], agentLocation['z'])
+                info['agentVelocityArr'] = (agentVelocity['x'], agentVelocity['y'], agentVelocity['z'])
+                info['agentRotationArr'] = (agentRotation['yaw'], agentRotation['pitch'], agentRotation['roll'])
+                info['agentScaleArr'] = (agentScale['x'], agentScale['y'], agentScale['z'])
+                info.pop('previousAction')
+                info.pop('availActions')
+                # info.pop('rSVD1')
+                info.pop('interaction')
+            else:
+                inf = float('inf')
+                info['agentLocationArr'] = (inf, inf, inf)
+                info['agentVelocityArr'] = (inf, inf, inf)
+                info['agentRotationArr'] = (inf, inf, inf)
+
+        info = resp['dataArr']
+        for i, agent_info in enumerate(info):
+            self.agents[i].update_agent_attrs(agent_info)
+
+        self.key_obj = self.extract_key_gameobj(resp)
+
+        # return ob, info
+        return self.make_obs(resp), info_dict
+
 
 
     @staticmethod
@@ -87,7 +259,7 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
             return CORE_DIM
 
         # temporary parameters
-        OBS_RANGE_PYTHON_SIDE = 1500
+        OBS_RANGE_PYTHON_SIDE = 15000
         MAX_NUM_OPP_OBS = 5
         MAX_NUM_ALL_OBS = 5
         
@@ -139,11 +311,7 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
         new_obs = my_view(obs_, [self.n_agents, -1])
 
         assert CORE_DIM == new_obs.shape[-1]
-        OBS_ALL_AGENTS = np.zeros(shape=(
-            self.n_agents, 
-            MAX_NUM_OPP_OBS+MAX_NUM_ALL_OBS, 
-            CORE_DIM
-            ))
+        OBS_ALL_AGENTS = np.zeros(shape=(self.n_agents, MAX_NUM_OPP_OBS+MAX_NUM_ALL_OBS, CORE_DIM))
 
         # now arranging the individual obs
         for i, agent in enumerate(self.agents):
@@ -176,8 +344,7 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
             if len(a2h_feature_sort)<MAX_NUM_OPP_OBS:
                 a2h_feature_sort = np.concatenate((
                     a2h_feature_sort, 
-                    np.ones(shape=(MAX_NUM_OPP_OBS-len(a2h_feature_sort), CORE_DIM))+np.nan
-                ), axis=0)
+                    np.ones(shape=(MAX_NUM_OPP_OBS-len(a2h_feature_sort), CORE_DIM))+np.nan), axis=0)
 
             # scope <ally/friend>
             a2f_dis = dis2all[is_ally]
@@ -249,46 +416,29 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
 
 
 
-    def init_ground(self, agent_info, pos_ro):
-        N_COL = 2
+    def init_ship(self, agent_info, pos_ro):
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
-        tid = agent_info['tid']
-        uid = agent_info['uid']
-        x = 0 + 800*(tid - n_team_agent//2) //N_COL
-        y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
-        x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-        z = 500 # 500 is slightly above the ground
-        yaw = 90 if team==0 else -90
-        assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
-        agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
+        tid = agent_info['tid'] # tid 是智能体在队伍中的编号 
+        uid = agent_info['uid'] # uid 是智能体在仿真中的唯一编号
+        
+        x = -2000
+        y = (tid * 1000) # tid 是智能体在队伍中的编号 
+        z = 500 # 
+
+        agent_property = copy.deepcopy(self.SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
                 'DebugAgent': False,
                 # max drive/fly speed
-                'MaxMoveSpeed':  720          if agent_class == 'RLA_CAR_Laser' else 600,
+                'MaxMoveSpeed':  500,
                 # also influence object mass, please change it with causion!
                 'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
-                # probability of escaping dmg 闪避
-                "DodgeProb": 0.0,
-                # ms explode dmg
-                "ExplodeDmg": 20,           
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
                 'ClassName': agent_class,
-                # Weapon CD
-                'WeaponCD': 1,
-                # open fire range
-                "PerceptionRange":  2000       if agent_class == 'RLA_CAR_Laser' else 2500,
-                "GuardRange":       1400       if agent_class == 'RLA_CAR_Laser' else 1700,
-                "FireRange":        750        if agent_class == 'RLA_CAR_Laser' else 1400,
-                # debugging
-                'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750' if agent_class == 'RLA_CAR_Laser' else '-Ring1=2500 -Ring2=1700 -Ring3=1400',
-                # regular
-                'RSVD2': '-InitAct=ActionSet2::Idle;AsFarAsPossible',
-                # agent hp
-                'AgentHp':np.random.randint(low=95,high=105) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=145,high=155),
+                # custom args
+                'RSVD1': '',
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system
@@ -298,206 +448,44 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
                 # initial location
                 'InitLocation': { 'x': x,  'y': y, 'z': z, },
                 # initial facing direction et.al.
-                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
+                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
         }),
         return agent_property
 
-    def init_air(self, agent_info, pos_ro):
-        N_COL = 2
+
+
+    def init_waterdrop(self, agent_info, pos_ro):
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = agent_info['n_team_agent']
+        tid = agent_info['tid']
+        uid = agent_info['uid']
+        
+        x = +2000
+        y = (tid * 200)
+        z = 500 # 
 
-
-
-        # 此处初始化代码仅做demo使用
-        if ScenarioConfig.DemoType == "AirShow":
-            # tid = agent_info['tid']
-            N_ROW = 10
-            uid = agent_info['uid']
-            tid = agent_info['uid'] if team == 0 else None
-            assert tid is not None, 'Lost tid!'
-
-            if tid < n_team_agent / 2:
-                y = -10000 + (tid%N_ROW) * 5000
-                x = -58000 - (tid//N_ROW) * 5000
-                z = 3000
-            else: 
-                y = 30000 + (tid - n_team_agent/2)%N_ROW * 5000   
-                x = -58000 - ((tid-n_team_agent/2)//N_ROW) * 5000
-                z = 6000
-            
-            yaw = 90 if team==0 else -90
-
-        elif ScenarioConfig.DemoType == "AirAttack":
-            # tid = agent_info['tid']
-            N_ROW = 10
-            uid = agent_info['uid']
-            tid = agent_info['uid'] if team == 0 else None
-            assert tid is not None, 'Lost tid!'
-
-            '''
-            福建省东北角大致方位  (-70000,-200000)
-            福建省西南角大致方位  (-225000,-50000)
-            '''
-
-            if tid < n_team_agent / 2:
-                y = -200000 + (tid%N_ROW) * 2000
-                x = -70000 - (tid//N_ROW) * 2000
-                z = 3000
-            else: 
-                y = -50000 + (tid - n_team_agent/2)%N_ROW * 2000   
-                x = -225000 - ((tid-n_team_agent/2)//N_ROW) * 2000
-                z = 3000
-            
-            yaw = 90 if team==0 else -90
-
-        else:
-            pass
-            print("未指定位置初始化！")
-
-
-        agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
+        agent_property = copy.deepcopy(self.SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
-                # 'DebugAgent': False,
-                # # max drive/fly speed
-                # 'MaxMoveSpeed':  900,
-                # # also influence object mass, please change it with causion!
+                'DebugAgent': False,
+                # max drive/fly speed
+                'MaxMoveSpeed':  1000,
+                # also influence object mass, please change it with causion!
                 'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
-                # # probability of escaping dmg 闪避
-                # "DodgeProb": 0.0,
-                # # ms explode dmg
-                # "ExplodeDmg": 10,           
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
                 'ClassName': agent_class,
-                # # Weapon CD
-                # 'WeaponCD': 3,
-                # # open fire range
-                # "PerceptionRange":  2500,
-                # "GuardRange":       1800,
-                # "FireRange":        1700,
-                # # debugging
-                'RSVD1': '-maxAcc=10 -numMissile=5',
-                # # regular
-                # 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
-                # # agent hp
-                # 'AgentHp':50,
+                # custom args
+                'RSVD1': '-MyCustomArg1=abc -MyCustomArg2=12345',
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system
                 'UID': uid, 
-                # # show color
-                # 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
+                # show color
+                'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location
                 'InitLocation': { 'x': x,  'y': y, 'z': z, },
                 # initial facing direction et.al.
-                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
+                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
         }),
         return agent_property
-
-
-    def init_target(self, agent_info, pos_ro):
-            agent_class = agent_info['type']
-            team = agent_info['team']
-            n_team_agent = 5
-
-            # tid = agent_info['tid']
-            tid = agent_info['uid'] if team == 0 else None
-            uid = agent_info['uid']
-            assert tid is not None, 'Lost ID!'
-
-            # initial positions (within 5 regions)
-            if tid == 100:
-                x = np.random.uniform(140000, 200000)
-                y = np.random.uniform(-162460, -102460)
-                z = 2550
-
-            if tid == 101:
-                x = np.random.uniform(52120, 100120)
-                y = np.random.uniform(-100970, -36970)
-                z = 2550
-
-            if tid == 102:
-                x = np.random.uniform(52050, 95050)
-                y = np.random.uniform(-32220, 47780)
-                z = 2550
-
-            if tid == 103:
-                x = np.random.uniform(36870, 96870)
-                y = np.random.uniform(49000, 112560)
-                z = 2550
-
-            if tid == 104:
-                x = np.random.uniform(22802, 89820)
-                y = np.random.uniform(117310, 157310)
-                z = 2550
-            
-            # # initial air-defense
-            # if tid == 105:
-            #     x = np.random.uniform(140000, 200000)
-            #     y = np.random.uniform(-162460, -102460)
-            #     z = 2550
-
-            # if tid == 106:
-            #     x = np.random.uniform(52120, 100120)
-            #     y = np.random.uniform(-100970, -36970)
-            #     z = 2550
-
-            # if tid == 107:
-            #     x = np.random.uniform(52050, 95050)
-            #     y = np.random.uniform(-32220, 47780)
-            #     z = 2550
-
-            # if tid == 108:
-            #     x = np.random.uniform(36870, 96870)
-            #     y = np.random.uniform(49000, 112560)
-            #     z = 2550
-
-            # if tid == 109:
-            #     x = np.random.uniform(22802, 89820)
-            #     y = np.random.uniform(117310, 157310)
-            #     z = 2550
-
-
-
-            agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
-            agent_property.update({
-                    # 'DebugAgent': False,
-                    # # max drive/fly speed
-                    # 'MaxMoveSpeed':  900,
-                    # # also influence object mass, please change it with causion!
-                    'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
-                    # # probability of escaping dmg 闪避
-                    # "DodgeProb": 0.0,
-                    # # ms explode dmg
-                    # "ExplodeDmg": 10,           
-                    # team belonging
-                    'AgentTeam': team,
-                    # choose ue class to init
-                    'ClassName': agent_class,
-                    # # Weapon CD
-                    # 'WeaponCD': 3,
-                    # # open fire range
-                    # "PerceptionRange":  2500,
-                    # "GuardRange":       1800,
-                    # "FireRange":        1700,
-                    # # debugging
-                    'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700 -value=10',
-                    # # regular
-                    # 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
-                    # # agent hp
-                    # 'AgentHp':50,
-                    # the rank of agent inside the team
-                    'IndexInTeam': tid, 
-                    # the unique identity of this agent in simulation system
-                    'UID': uid, 
-                    # # show color
-                    # 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
-                    # initial location
-                    'InitLocation': { 'x': x,  'y': y, 'z': z, },
-                    # initial facing direction et.al.
-                    # 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
-            }),
-            return agent_property

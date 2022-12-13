@@ -46,8 +46,7 @@ Please use following template:
 
     // config MISSION
     "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {  // ***
-        "n_team1agent": 3, 
-        "n_team2agent": 2, 
+        "N_AGENT_EACH_TEAM": [3, 2], // update N_AGENT_EACH_TEAM
         "MaxEpisodeStep": 30,
         "n_actions": 10, 
         "StateProvided": false,
@@ -77,8 +76,7 @@ path:json配置文件
 |  Field   | Value  | Explaination  | zh Explaination  |
 |  ----    | ----   | ----     |  ----  |
 |  device     | ```str```   | select gpu     |  选择GPU或CPU  |
-|  n_team1agent     | ```int```   | Agent Num in Team1     |  一队智能体数量  |
-|  n_team2agent    | ```int```   | Agent Num in Team2    |  二队智能体数量  |
+|  N_AGENT_EACH_TEAM     | ```list of int```   | Agent Num in Each Team     |  各队智能体数量  |
 |  MaxEpisodeStep    | ```int```   |   Time Step Limit   |  对战时间步数限制  |
 |  n_actions    | ```int```   | ----     |  强化学习预留  |
 |  render    | ```bool```   | use render server     |  是否使用渲染  |

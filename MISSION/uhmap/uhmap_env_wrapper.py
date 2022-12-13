@@ -210,28 +210,42 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             # real_step_time = 
             #   np.floor(ScenarioConfig.StepGameTime/ScenarioConfig.TimeDilation*ScenarioConfig.FrameRate) 
             #   * ScenarioConfig.TimeDilation / ScenarioConfig.FrameRate
+            if not self.render:
+                simulation_exe = ScenarioConfig.UhmapServerExe
+                assert 'Server' in simulation_exe
+            else: 
+                simulation_exe = ScenarioConfig.UhmapRenderExe
+                assert 'NoEditor' in simulation_exe
 
-            required_binary_path = ScenarioConfig.UhmapServerExe if not self.render else ScenarioConfig.UhmapRenderExe
-            if not os.path.exists(required_binary_path):
+            if platform.system()=="Linux":
+                if simulation_exe.endswith('.exe'): 
+                    simulation_exe = simulation_exe.replace('/Windows', '/Linux')
+                    simulation_exe = simulation_exe.replace('.exe','.sh')
+                # expand '~' path
+                simulation_exe = os.path.expanduser(simulation_exe)
+                # give execution permission
+                st = os.stat(simulation_exe)
+                os.chmod(simulation_exe, st.st_mode | stat.S_IEXEC)
+            else:   # Windows
+                if simulation_exe.endswith('.sh'): 
+                    simulation_exe = simulation_exe.replace('/Linux', '/Windows')
+                    simulation_exe = simulation_exe.replace('.sh', '.exe')
+                if simulation_exe.startswith('/home'): 
+                    simulation_exe = './TEMP' + simulation_exe
+
+            if not os.path.exists(simulation_exe):
                 if self.rank == 0:
                     from .auto_download import download_client_binary
-                    download_client_binary(desired_path=required_binary_path, desired_version=ScenarioConfig.UhmapVersion, is_render_client=self.render)
+                    download_client_binary(desired_path=simulation_exe, desired_version=ScenarioConfig.UhmapVersion, is_render_client=self.render)
                 else:
                     while True:
                         time.sleep(60)
-                        if os.path.exists(required_binary_path): break
+                        if os.path.exists(simulation_exe): break
 
-            if platform.system()=="Linux":
-                # expand '~' path
-                ScenarioConfig.UhmapServerExe = os.path.expanduser(ScenarioConfig.UhmapServerExe)
-                # give execution permission
-                st = os.stat(ScenarioConfig.UhmapServerExe)
-                os.chmod(ScenarioConfig.UhmapServerExe, st.st_mode | stat.S_IEXEC)
-
-            if (not self.render) and ScenarioConfig.UhmapServerExe != '':
+            if (not self.render) and simulation_exe != '':
                 # start child process
                 self.sim_thread = subprocess.Popen([
-                    ScenarioConfig.UhmapServerExe,
+                    simulation_exe,
                     # '-log', 
                     '-TcpPort=%d'%self.hmp_ue_port,   # port for hmp data exchanging
                     '-Port=%d'%self.ue_vis_port,   # port for remote visualizing
@@ -247,9 +261,9 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                     '-LockGameDuringCom=True',
                 ], stdout=subprocess.DEVNULL)
                 print('UHMAP (Headless) started ...')
-            elif self.render and ScenarioConfig.UhmapRenderExe != '':
+            elif self.render and simulation_exe != '':
                 self.sim_thread = subprocess.Popen([
-                    ScenarioConfig.UhmapRenderExe,
+                    simulation_exe,
                     # '-log', 
                     '-TcpPort=%d'%self.hmp_ue_port,   # port for hmp data exchanging
                     '-Port=%d'%self.ue_vis_port,   # port for remote visualizing

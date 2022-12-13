@@ -16,7 +16,8 @@ def download_from_shared_server(key = 'cat'):
 
     with open("./TEMP/uhmap_manifest.jsonc", "r") as f:
         manifest = commentjson.load(f)
-
+    if key not in key: 
+        print('The version you are looking for does not exists!')
     uhmap_url = manifest[key]
     print('download main files | 下载预定文件')
     try:
@@ -33,7 +34,7 @@ def download_client_binary_on_platform(desired_path, desired_version, is_render_
     from distutils import dir_util
     target_dir = os.path.abspath(os.path.dirname(desired_path) + './..')
     distutils.dir_util.copy_tree('./TEMP/UNZIP', target_dir)
-    assert os.path.exists(desired_path), "unexpected path error!"
+    assert os.path.exists(desired_path), "unexpected path error! Are you using Linux style path on Windows?"
     return
 
 

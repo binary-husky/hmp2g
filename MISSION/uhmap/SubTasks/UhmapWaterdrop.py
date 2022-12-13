@@ -5,14 +5,14 @@ from ...common.base_env import RawObsArray
 from ..actionset_v3 import digitsToStrAction
 from ..agent import Agent
 from ..uhmap_env_wrapper import UhmapEnv, ScenarioConfig
-from .UhmapPreyPredatorConf import SubTaskConfig
+from .UhmapWaterdropConf import SubTaskConfig
 from .SubtaskCommonFn import UhmapCommonFn
 from .cython_func import tear_num_arr
 
 
 
 
-class UhmapPreyPredator(UhmapCommonFn, UhmapEnv):
+class UhmapWaterdrop(UhmapCommonFn, UhmapEnv):
     def __init__(self, rank) -> None:
         super().__init__(rank)
         self.observation_space = self.make_obs(get_shape=True)
@@ -21,33 +21,29 @@ class UhmapPreyPredator(UhmapCommonFn, UhmapEnv):
         assert os.path.basename(inspect.getfile(SubTaskConfig)) == type(self).__name__+'Conf.py', \
                 ('make sure you have imported the correct SubTaskConfig class')
 
-
-    def init_ground(self, agent_info, pos_ro):
-        N_COL = 4
+    def init_ship(self, agent_info, pos_ro):
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 50
-        tid = agent_info['tid']
-        uid = agent_info['uid']
-        x = 0 + 800*(tid - n_team_agent//2) //N_COL
-        y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
-        x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-        z = 500 # 500 is slightly above the ground
-        yaw = 90 if team==0 else -90
-        assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
+        tid = agent_info['tid'] # tid 是智能体在队伍中的编号 
+        uid = agent_info['uid'] # uid 是智能体在仿真中的唯一编号
+        
+        x = -2000
+        y = (tid * 1000) # tid 是智能体在队伍中的编号 
+        z = 500 # 
+
         agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
                 'DebugAgent': False,
                 # max drive/fly speed
-                'MaxMoveSpeed':  720          if agent_class == 'RLA_CAR_Laser' else 600,
+                'MaxMoveSpeed':  500,
                 # also influence object mass, please change it with causion!
                 'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
                 'ClassName': agent_class,
-                # debugging
-                'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750',
+                # custom args
+                'RSVD1': '',
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system
@@ -57,11 +53,45 @@ class UhmapPreyPredator(UhmapCommonFn, UhmapEnv):
                 # initial location
                 'InitLocation': { 'x': x,  'y': y, 'z': z, },
                 # initial facing direction et.al.
-                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
+                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
         }),
         return agent_property
 
+    def init_waterdrop(self, agent_info, pos_ro):
+        agent_class = agent_info['type']
+        team = agent_info['team']
+        tid = agent_info['tid']
+        uid = agent_info['uid']
+        
+        x = +2000
+        y = (tid * 200)
+        z = 500 # 
 
+        agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
+        agent_property.update({
+                'DebugAgent': False,
+                # max drive/fly speed
+                'MaxMoveSpeed':  1000,
+                # also influence object mass, please change it with causion!
+                'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+                # team belonging
+                'AgentTeam': team,
+                # choose ue class to init
+                'ClassName': agent_class,
+                # custom args
+                'RSVD1': '-MyCustomArg1=abc -MyCustomArg2=12345',
+                # the rank of agent inside the team
+                'IndexInTeam': tid, 
+                # the unique identity of this agent in simulation system
+                'UID': uid, 
+                # show color
+                'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
+                # initial location
+                'InitLocation': { 'x': x,  'y': y, 'z': z, },
+                # initial facing direction et.al.
+                'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
+        }),
+        return agent_property
 
     def extract_key_gameobj(self, resp):
         """
@@ -88,31 +118,28 @@ class UhmapPreyPredator(UhmapCommonFn, UhmapEnv):
             #     reward[1-team]  += 0.10    # opp team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
-                PredatorWin = False
-                PredatorRank = False
-                PredatorReward = 0
-                PreyWin = -1
-                PreyRank = -1
-                PreyReward = 0
+                WaterdropWin = False
+                WaterdropRank = False
+                WaterdropReward = 0
+                ShipWin = -1
+                ShipRank = -1
+                ShipReward = 0
                 EndReason = event_parsed['EndReason']
-                # According to MISSION\uhmap\SubTasks\UhmapPreyPredatorConf.py, team 0 is prey team, team 1 is predator team
-                if EndReason == "AllPreyCaught" or EndReason == "Team_0_AllDead":
-                    PredatorWin = True; PredatorRank = 0; PredatorReward = 1
-                    PreyWin = False; PreyRank = 1; PreyReward = -1
+                # According to MISSION\uhmap\SubTasks\UhmapWaterdropConf.py, team 0 is Ship team, team 1 is Waterdrop team
+                if EndReason == "ShipNumLessThanTheshold" or EndReason == "Team_0_AllDead":
+                    WaterdropWin = True; WaterdropRank = 0; WaterdropReward = 1
+                    ShipWin = False; ShipRank = 1; ShipReward = -1
                 elif EndReason == "TimeMaxCntReached" or EndReason == "Team_1_AllDead":
-                    PredatorWin = False; PredatorRank = 1; PredatorReward = -1
-                    PreyWin = True; PreyRank = 0; PreyReward = 1
+                    WaterdropWin = False; WaterdropRank = 1; WaterdropReward = -1
+                    ShipWin = True; ShipRank = 0; ShipReward = 1
                 else:
                     print('unexpected end reaon:', EndReason)
                     
-                WinningResult = {"team_ranking": [PreyRank, PredatorRank], "end_reason": EndReason}
+                WinningResult = {"team_ranking": [ShipRank, WaterdropRank], "end_reason": EndReason}
 
-                reward = [PreyReward, PredatorReward]
+                reward = [ShipReward, WaterdropReward]
         # print(reward)
         return reward, WinningResult
-
-
-
 
 
     @staticmethod
@@ -299,5 +326,7 @@ class UhmapPreyPredator(UhmapCommonFn, UhmapEnv):
             OBS_ALL_AGENTS = np.concatenate((OBS_ALL_AGENTS, OBS_GameObj), axis=1)
 
         return OBS_ALL_AGENTS
+
+
 
 

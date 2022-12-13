@@ -16,6 +16,7 @@ class UhmapHuge(UhmapEnv):
     def __init__(self, rank) -> None:
         super().__init__(rank)
         self.observation_space = self.make_obs(get_shape=True)
+        self.SubTaskConfig = SubTaskConfig
         inspect.getfile(SubTaskConfig)
         assert os.path.basename(inspect.getfile(SubTaskConfig)) == type(self).__name__+'Conf.py', \
                 ('make sure you have imported the correct SubTaskConfig class')

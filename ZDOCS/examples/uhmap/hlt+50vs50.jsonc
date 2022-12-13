@@ -24,22 +24,17 @@
 
     // --- Part2: config MISSION --- 
     "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
-        "n_team1agent": 50,
-        "n_team2agent": 50,
+        "N_AGENT_EACH_TEAM": [50, 50], // update N_AGENT_EACH_TEAM
         "MaxEpisodeStep": 150,
         "StepGameTime": 0.5,
         "StateProvided": false,
         "render": false, // note: random seed has different impact on renderer and server
         "UElink2editor": false,
-        "AutoPortOverride": true,
         "HeteAgents": true,
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapHuge",
-        // "UhmapRenderExe": "./../../WindowsNoEditor/UHMP.exe",
-        // "UhmapServerExe": "./../../WindowsServer/UHMPServer.exe",
-        "UhmapVersion":"2.4",
-        "UhmapRenderExe": "../WindowsNoEditor/UHMP.exe",
-        "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer_Ver2.4/UHMPServer.sh",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
         "TimeDilation": 64, // simulation time speed up, larger is faster
         "TEAM_NAMES": [
             "ALGORITHM.hete_league_onenet_fix.foundation->ReinforceAlgorithmFoundation",
