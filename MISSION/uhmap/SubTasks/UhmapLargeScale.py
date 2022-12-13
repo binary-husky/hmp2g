@@ -23,9 +23,6 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
 
 
 
-
-
-
     def extract_key_gameobj(self, resp):
         keyObjArr = resp['dataGlobal']['keyObjArr']
         return keyObjArr
@@ -77,9 +74,6 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                     reward = [-1 for _ in range(self.n_teams)]
         # print(reward)
         return reward, WinningResult
-
-
-
 
     @staticmethod
     def item_random_mv(src,dst,prob,rand=False):
