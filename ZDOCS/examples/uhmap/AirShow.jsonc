@@ -28,6 +28,7 @@
         "HeteAgents": true,
         "UnrealLevel": "UhmapJustAnIsland",
         "SubTaskSelection": "UhmapJustAnIsland",
+        "UhmapVersion":"3.2",
         "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
         "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
         "TimeDilation": 5,

@@ -33,6 +33,7 @@
         "UnrealLevel": "UhmapIntercept",
         "SubTaskSelection": "UhmapIntercept",
         "UhmapVersion":"3.2",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
         "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
         "TimeDilation": 2, // simulation time speed up, larger is faster
         "TEAM_NAMES": [

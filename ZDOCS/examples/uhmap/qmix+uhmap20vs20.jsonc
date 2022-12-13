@@ -31,9 +31,9 @@
         "render": false,
         "UElink2editor": false,
         "HeteAgents": true,
-        "UhmapVersion": "3.2",
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapLargeScale",
+        "UhmapVersion": "3.2",
         "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
         "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
         "TimeDilation": 64, // simulation time speed up, larger is faster
