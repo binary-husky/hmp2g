@@ -10,6 +10,13 @@ git submodule update --init
 git submodule foreach -q --recursive 'branch="$(git config -f $toplevel/.gitmodules submodule.$name.branch)"; git switch $branch'
 ```
 
+How to clean temp files when things are not working as expected:
+```sh
+git checkout master --force
+git pull --force
+git clean -xfd && git submodule foreach git clean -xfd
+```
+
 ## step 2: run example
 Save following file as ```private_debug.jsonc```: 
 ``` json
