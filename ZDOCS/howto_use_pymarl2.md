@@ -12,9 +12,14 @@ git submodule foreach -q --recursive 'branch="$(git config -f $toplevel/.gitmodu
 
 How to clean temp files when things are not working as expected:
 ```sh
+# switch to master branch
 git checkout master --force
+# pull lastest code
 git pull --force
-git clean -xfd && git submodule foreach git clean -xfd
+# clean work directory
+git clean -xfd
+# clean submodule
+git submodule foreach git clean -xfd
 ```
 
 ## step 2: run example
