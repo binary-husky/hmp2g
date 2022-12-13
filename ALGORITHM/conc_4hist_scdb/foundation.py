@@ -53,6 +53,8 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
+    distribution_precision = 7
+
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -123,6 +125,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
         state = StateRecall['state'] if 'state' in StateRecall else None
         eprsn = StateRecall['eprsn'] if 'eprsn' in StateRecall else None
+        alive = StateRecall['alive'] if 'alive' in StateRecall else None
 
         with torch.no_grad():
             action, BLA_value_all_level, action_log_prob = self.policy.act(
@@ -134,6 +137,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             "BLA_value_all_level":      BLA_value_all_level,
             "actionLogProb": action_log_prob,
             "obs":           obs,
+            "alive":         alive,
             "eprsn":         eprsn,
             "state":         state,
             "action":        action,

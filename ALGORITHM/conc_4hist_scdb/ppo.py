@@ -64,24 +64,25 @@ class PPO():
         self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party)
 
     def train_on_traj(self, traj_pool, task):
-        ratio = 1.0
-        while True:
-            try:
-                with self.gpu_share_unit:
-                    self.train_on_traj_(traj_pool, task) 
-                break # 运行到这说明显存充足
-            except RuntimeError:
-                if self.prevent_batchsize_oom:
-                    if TrajPoolSampler.MaxSampleNum[-1] < 0:
-                        TrajPoolSampler.MaxSampleNum.pop(-1)
-                        
-                    assert TrajPoolSampler.MaxSampleNum[-1]>0
-                    TrajPoolSampler.MaxSampleNum[-1] = -1
+        with self.gpu_share_unit:
+            self.train_on_traj_(traj_pool, task) 
 
-                    print亮红('Insufficient gpu memory, using previous sample size !')
-                else:
-                    raise Exception
-            torch.cuda.empty_cache()
+        # while True:
+        #     try:
+
+        #         break # 运行到这说明显存充足
+        #     except RuntimeError:
+        #         if self.prevent_batchsize_oom:
+        #             if TrajPoolSampler.MaxSampleNum[-1] < 0:
+        #                 TrajPoolSampler.MaxSampleNum.pop(-1)
+                        
+        #             assert TrajPoolSampler.MaxSampleNum[-1]>0
+        #             TrajPoolSampler.MaxSampleNum[-1] = -1
+
+        #             print亮红('Insufficient gpu memory, using previous sample size !')
+        #         else:
+        #             raise Exception
+        #     torch.cuda.empty_cache()
 
     def train_on_traj_(self, traj_pool, task):
 

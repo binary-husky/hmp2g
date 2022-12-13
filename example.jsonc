@@ -1,49 +1,43 @@
 {
     "config.py->GlobalConfig": {
-        "note": "sc-MMM2-conc-feedback-db",               // experiment note, also means the log saving directory
-        // "train_time_testing": "False",                      // do not manage train time testing, pymarl env manage the testing itself
-        "env_name":"sc2",                                   // starcraft 2
-        "env_path":"MISSION.starcraft.sc2_env_wrapper",    // starcraft 2
-        // "interested_agent_num":100,                         // only for reward logging, **not needed because sc2 use uniform team reward
-        "draw_mode": "Img",                                 // plot curlves as image
-        "num_threads": "32",                                 // number of parallel envs
-        "report_reward_interval": "32",                      // report the reward averaging x episodes
-        "test_interval": "512",                             // begin a test run every x episodes, test run is managed by pymarl side
-        "test_epoch": "128",                                 // begin a test run every x episodes, test run is managed by pymarl side
-        "device": "cuda:0",
+        "note": "run1-32batch",
+        "env_name": "sc2",
+        "env_path": "MISSION.starcraft.sc2_env_wrapper",
+        "draw_mode": "Img",
+        "num_threads": 16,
+        "report_reward_interval": 128,
+        "test_interval": 512,
+        "test_epoch": 128,
+        "device": "cuda:5",
         "max_n_episode": 1500000,
-        "fold": "1",                                        // each linux process handle x parallel envs
-        "backup_files":[
+        "fold": 1,
+        "backup_files": [
             "ALGORITHM/conc_4hist_scdb"
-        ]
+        ],
+        "seed": 753,
+        "gpu_party": "cuda_5_party0"
     },
-
     "MISSION.starcraft.sc2_env_wrapper.py->ScenarioConfig": {
         "map_": "MMM2",
         "sc_version": "2.4.6",
-        // "map_": "5m_vs_6m",
-        // "SINGLE_TEAM_N_AGENT": 5,
-        // "episode_limit": 60,
-        // "reward_vec": true,
         "TEAM_NAMES": [
             "ALGORITHM.conc_4hist_scdb.foundation->ReinforceAlgorithmFoundation"
         ]
     },
-
     "ALGORITHM.conc_4hist_scdb.foundation.py->AlgorithmConfig": {
-        "train_traj_needed": "64",
-        "n_focus_on": 1,
-        "actor_attn_mod": "False",
-        "n_entity_placeholder": 4,
-        "shell_obs_add_id": "True",
-        "shell_obs_add_previous_act": "True",
-        "lr": 0.0003,
+        "lr": 0.0001,
         "ppo_epoch": 16,
-        "load_checkpoint": "False",
-        "use_policy_resonance": "True"
+        "n_focus_on": -1,
+        "n_entity_placeholder": -1,
+        "train_traj_needed": 32,
+        "shell_obs_add_id": true,
+        "shell_obs_add_previous_act": true,
+        "gamma_in_reward_forwarding": true,
+        "use_policy_resonance": true,
+        "load_checkpoint": false,
+        "use_conc_net": false
     },
-
     "ALGORITHM.conc_4hist_scdb.stage_planner.py->PolicyRsnConfig": {
-        "yita_shift_method": "feedback",
+        "yita_shift_method": "feedback"
     }
 }

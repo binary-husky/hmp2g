@@ -25,24 +25,31 @@ class StagePlanner:
         self.mcv = mcv
         self.trainer = None
         self.n_agent = n_agent
-        self.current_distribution_level = None
         if PolicyRsnConfig.yita_shift_method == 'feedback':
             from .scheduler import FeedBackPolicyResonance
             self.feedback_controller = FeedBackPolicyResonance(mcv)
         else:
             self.feedback_controller = None
-        # if AlgorithmConfig.wait_norm_stable:
-        #     self.wait_norm_stable_cnt = 2
-        # else:
-        #     self.wait_norm_stable_cnt = 0
-        # return
+
+        mapLevel2PrNumLs = np.floor(np.arange(AlgorithmConfig.distribution_precision) / AlgorithmConfig.distribution_precision * n_agent)
+        self.mapLevel2PrNumLs = mapLevel2PrNumLs.astype(np.long)
+        self.mapPrNum2LevelLs = {j:i for i,j in enumerate(self.mapLevel2PrNumLs)}
+
+    def mapLevel2PrNum(self, i):
+        return self.mapLevel2PrNumLs[i]
+
+    def mapPrNum2Level(self, j):
+        assert j in self.mapPrNum2LevelLs, f'j={j},self.mapPrNum2LevelLs={self.mapPrNum2LevelLs}'
+        return self.mapPrNum2LevelLs[j]
 
     def n_pr_distribution(self, n_thread, n_agent):
-        es = np.random.rand(n_thread)
-        distribution_level = np.floor(es * AlgorithmConfig.distribution_precision)
-        self.current_distribution_level = distribution_level
-        es = distribution_level / AlgorithmConfig.distribution_precision # 0, 0.1, 0.2, ..., 0.9 离散值
-        return np.floor(es * n_agent) # floor(32*es) = 0, 3, 6, ..., 28 离散值
+        lv = np.random.randint(low=0, high=AlgorithmConfig.distribution_precision, size=n_thread)
+
+        npr = np.array(list(map(self.mapLevel2PrNum, lv)))
+        check = np.array(list(map(self.mapPrNum2Level, npr)))
+        assert (check==lv).all()
+
+        return npr
 
     def uprate_eprsn(self, n_thread):
         """
