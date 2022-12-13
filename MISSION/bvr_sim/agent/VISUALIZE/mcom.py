@@ -67,7 +67,6 @@ class mcom():
 
 
         print蓝('**************mcom service initialized**************')
-        print蓝('use MATLAB to open live log file at:' + self.starting_file)
 
     '''
         mcom core function: send out/write raw bytes

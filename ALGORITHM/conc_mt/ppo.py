@@ -1,95 +1,33 @@
-import torch, math  # v
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
-from random import randint, sample
-from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from UTIL.colorful import *
 from UTIL.tensor_ops import _2tensor, _2cpu2numpy, repeat_at
 from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
-from config import GlobalConfig as cfg
+from config import GlobalConfig
 from UTIL.gpu_share import GpuShareUnit
-
-class TrajPoolSampler():
-    def __init__(self, n_div, traj_pool, flag):
-        self.n_pieces_batch_division = n_div
-        self.num_batch = None
-        self.container = {}
-        self.warned = False
-        assert flag=='train'
-        # req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'avail_act', 'value']
-        # req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'avail_act', 'state_value']
-        req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
-        req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
-        return_rename = "return"
-        value_rename =  "state_value"
-        advantage_rename = "advantage"
-        # replace 'obs' to 'obs > xxxx'
-        for key_index, key in enumerate(req_dict):
-            key_name =  req_dict[key_index]
-            key_rename = req_dict_rename[key_index]
-            if not hasattr(traj_pool[0], key_name):
-                real_key_list = [real_key for real_key in traj_pool[0].__dict__ if (key_name+'>' in real_key)]
-                assert len(real_key_list) > 0, ('check variable provided!', key,key_index)
-                for real_key in real_key_list:
-                    mainkey, subkey = real_key.split('>')
-                    req_dict.append(real_key)
-                    req_dict_rename.append(key_rename+'>'+subkey)
-        self.big_batch_size = -1  # vector should have same length, check it!
-        
-        # load traj into a 'container'
-        for key_index, key in enumerate(req_dict):
-            key_name =  req_dict[key_index]
-            key_rename = req_dict_rename[key_index]
-            if not hasattr(traj_pool[0], key_name): continue
-            set_item = np.concatenate([getattr(traj, key_name) for traj in traj_pool], axis=0)
-            if not (self.big_batch_size==set_item.shape[0] or (self.big_batch_size<0)):
-                print('error')
-            assert self.big_batch_size==set_item.shape[0] or (self.big_batch_size<0), (key,key_index)
-            self.big_batch_size = set_item.shape[0]
-            self.container[key_rename] = set_item    # 指针赋值
-
-        # normalize advantage inside the batch
-        self.container[advantage_rename] = self.container[return_rename] - self.container[value_rename]
-        self.container[advantage_rename] = ( self.container[advantage_rename] - self.container[advantage_rename].mean() ) / (self.container[advantage_rename].std() + 1e-5)
-        # size of minibatch for each agent
-        self.mini_batch_size = math.ceil(self.big_batch_size / self.n_pieces_batch_division)  
-        
-
-    def __len__(self):
-        return self.n_pieces_batch_division
-
-    def reset_and_get_iter(self):
-        self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
-        for indices in self.sampler:
-            selected = {}
-            for key in self.container:
-                selected[key] = self.container[key][indices]
-            for key in [key for key in selected if '>' in key]:
-                # 重新把子母键值组合成二重字典
-                mainkey, subkey = key.split('>')
-                if not mainkey in selected: selected[mainkey] = {}
-                selected[mainkey][subkey] = selected[key]
-                del selected[key]
-            yield selected
+from ALGORITHM.commom.ppo_sampler import TrajPoolSampler
 
 
 class PPO():
-    def __init__(self, policy_and_critic, ppo_config, mcv=None, team=0):
+    def __init__(self, policy_and_critic, cfg, mcv=None, team=0):
         self.policy_and_critic = policy_and_critic
-        self.clip_param = ppo_config.clip_param
-        self.ppo_epoch = ppo_config.ppo_epoch
-        self.n_pieces_batch_division = ppo_config.n_pieces_batch_division
-        self.value_loss_coef = ppo_config.value_loss_coef
-        self.entropy_coef = ppo_config.entropy_coef
-        self.max_grad_norm = ppo_config.max_grad_norm
-        self.add_prob_loss = ppo_config.add_prob_loss
+        self.clip_param = cfg.clip_param
+        self.ppo_epoch = cfg.ppo_epoch
+        self.n_pieces_batch_division = cfg.n_pieces_batch_division
+        self.value_loss_coef = cfg.value_loss_coef
+        self.entropy_coef = cfg.entropy_coef
+        self.max_grad_norm = cfg.max_grad_norm
+        self.add_prob_loss = cfg.add_prob_loss
+        self.prevent_batchsize_oom = cfg.prevent_batchsize_oom
         self.team = team
-        self.lr = ppo_config.lr
-        self.extral_train_loop = ppo_config.extral_train_loop
-        self.turn_off_threat_est = ppo_config.turn_off_threat_est
-        self.experimental_rmDeadSample = ppo_config.experimental_rmDeadSample
+        self.lr = cfg.lr
+        self.extral_train_loop = cfg.extral_train_loop
+        self.turn_off_threat_est = cfg.turn_off_threat_est
+        self.experimental_rmDeadSample = cfg.experimental_rmDeadSample
+        self.gpu_ensure_safe = cfg.gpu_ensure_safe
         self.all_parameter = list(policy_and_critic.named_parameters())
         self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AT_' in p_name]
         self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'CT_' in p_name]
@@ -111,7 +49,6 @@ class PPO():
 
         self.ct_parameter = [p for p_name, p in self.all_parameter if 'CT_' in p_name]
         self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
-
         # self.ae_parameter = [p for p_name, p in self.all_parameter if 'AE_' in p_name]
         # self.ae_optimizer = optim.Adam(self.ae_parameter, lr=self.lr*100.0) #(self.lr)
         self.g_update_delayer = 0
@@ -119,21 +56,20 @@ class PPO():
         # 轮流训练式
         self.mcv = mcv
         self.ppo_update_cnt = 0
-        self.loss_bias =  ppo_config.balance
         self.batch_size_reminder = True
         self.trivial_dict = {}
 
         assert self.n_pieces_batch_division == 1
         self.n_div = 1
         # print亮红(self.n_div)
-        if ppo_config.gpu_party_override == "no-override":
-            gpu_party = cfg.gpu_party
+        if cfg.gpu_party_override == "no-override":
+            gpu_party = GlobalConfig.gpu_party
         else:
-            gpu_party = ppo_config.gpu_party_override
+            gpu_party = cfg.gpu_party_override
 
-        self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=gpu_party)
+        self.gpu_share_unit = GpuShareUnit(GlobalConfig.device, gpu_party=gpu_party, gpu_ensure_safe=self.gpu_ensure_safe)
 
-        self.experimental_useApex = ppo_config.experimental_useApex
+        self.experimental_useApex = cfg.experimental_useApex
         if self.experimental_useApex:
             from apex import amp
             self.amp_ = amp
@@ -146,19 +82,33 @@ class PPO():
 
 
     def train_on_traj(self, traj_pool, task):
-        while True: # 这里train_on_traj_只需要运行一次, while语法是为了处理显存溢出的情况
+        ratio = 1.0
+        while True:
             try:
                 with self.gpu_share_unit:
                     self.train_on_traj_(traj_pool, task) 
-                break # 运行到这说明一切正常, 立刻脱离while
-            except RuntimeError as e:
-                self.n_div += 1
-                print亮红('No More GPU Memory! 切分样本, 当前n_div: %d'%self.n_div)
+                break # 运行到这说明显存充足
+            except RuntimeError:
+                if self.prevent_batchsize_oom:
+                    if TrajPoolSampler.MaxSampleNum[-1] < 0:
+                        TrajPoolSampler.MaxSampleNum.pop(-1)
+                        
+                    assert TrajPoolSampler.MaxSampleNum[-1]>0
+                    TrajPoolSampler.MaxSampleNum[-1] = -1
+
+                    print亮红('Insufficient gpu memory, using previous sample size !')
+                else:
+                    raise Exception
             torch.cuda.empty_cache()
 
     def train_on_traj_(self, traj_pool, task):
+
         ppo_valid_percent_list = []
-        sampler = TrajPoolSampler(n_div=self.n_div, traj_pool=traj_pool, flag=task)
+        sampler = TrajPoolSampler(
+            n_div=self.n_div, traj_pool=traj_pool, flag=task, 
+            req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value'],
+            req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value'],
+            prevent_batchsize_oom=self.prevent_batchsize_oom)
         assert self.n_div == len(sampler)
         for e in range(self.ppo_epoch):
             # print亮紫('pulse')
@@ -172,14 +122,8 @@ class PPO():
                 loss_final, others = self.establish_pytorch_graph(task, sample, e)
                 loss_final = loss_final*0.5 /self.n_div
                 if (e+i)==0:
-                    print亮红('[PPO.py] Memory Allocated %.2f GB'%(torch.cuda.memory_allocated()/1073741824))
-
-                # maybe we can use apex?
-                if not self.experimental_useApex: 
-                    loss_final.backward()
-                else:
-                    with self.amp_.scale_loss(loss_final, [self.at_optimizer, self.ct_optimizer]) as scaled_loss:
-                        scaled_loss.backward()
+                    print('[PPO.py] Memory Allocated %.2f GB'%(torch.cuda.memory_allocated()/1073741824))
+                loss_final.backward()
                 # log
                 ppo_valid_percent_list.append(others.pop('PPO valid percent').item())
                 self.log_trivial(dictionary=others); others = None
@@ -227,6 +171,7 @@ class PPO():
 
     def establish_pytorch_graph(self, flag, sample, n):
         obs = _2tensor(sample['obs'])
+        state = _2tensor(sample['state']) if 'state' in sample else None
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
@@ -247,11 +192,10 @@ class PPO():
 
 
         # threat approximation
-        SAFE_LIMIT = 11
+        SAFE_LIMIT = 8
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
         if self.turn_off_threat_est:  threat_loss = 0
-        
         # dual clip ppo core
         E = newPi_actionLogProb - oldPi_actionLogProb
         E_clip = torch.zeros_like(E)
@@ -265,7 +209,7 @@ class PPO():
         if 'motivation value' in others:
             value_loss += 0.5 * F.mse_loss(real_value, others['motivation value'])
 
-        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef  
+        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef
         CT_net_loss = value_loss * 1.0 + threat_loss * 0.1 # + friend_threat_loss*0.01
         # AE_new_loss = ae_loss * 1.0
 

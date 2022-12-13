@@ -288,7 +288,7 @@ class Net(nn.Module):
                                                 test_mode=test_mode, eval_actions=eval_act, avail_act=avail_act)
 
         def re_scale(t):
-            SAFE_LIMIT = 11
+            SAFE_LIMIT = 8
             r = 1. /2. * SAFE_LIMIT
             return (torch.tanh_(t/r) + 1.) * r
 
@@ -332,7 +332,7 @@ class Net(nn.Module):
                                                                 test_mode=test_mode, eval_actions=eval_act, avail_act=avail_act)
 
         def re_scale(t):
-            SAFE_LIMIT = 11
+            SAFE_LIMIT = 8
             r = 1. /2. * SAFE_LIMIT
             return (torch.tanh_(t/r) + 1.) * r
 

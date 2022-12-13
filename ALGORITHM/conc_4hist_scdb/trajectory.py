@@ -9,7 +9,7 @@ from UTIL.colorful import *
 from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_softmax, scatter_with_nan
 
 class trajectory(TRAJ_BASE):
-
+    dead_mask_check = True  # confirm mask ok
     def __init__(self, traj_limit, env_id):
         super().__init__(traj_limit, env_id)
         self.reference_track_name = 'value'
@@ -60,14 +60,14 @@ class trajectory(TRAJ_BASE):
             gamma = AlgorithmConfig.gamma_in_reward_forwarding_value 
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
-                self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
-                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)  # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
 
         else:
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
-                self.reward[i-1] += np.where(dead_mask[i], self.reward[i], 0)      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
-                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i-1] += np.where(dead_mask[i], self.reward[i], 0)        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
         return
 
 
@@ -80,11 +80,11 @@ class trajectory(TRAJ_BASE):
         # deadmask
         tmp = np.isnan(my_view(self.obs, [0,0,-1]))
         dead_mask = tmp.all(-1)
-        # if (True): # check if the mask is correct
-        #     dead_mask_self = np.isnan(my_view(self.obs, [0,0,-1])[:,:,0])
-        #     assert (dead_mask==dead_mask_self).all()
-        # dead_mask2 = tmp.any(-1)
-        # assert (dead_mask==dead_mask2).all()
+        if trajectory.dead_mask_check:
+            trajectory.dead_mask_check = False
+            if not dead_mask.any(): 
+                assert False, "Are you sure agents cannot die? If so, delete this check."
+
         self.reward_push_forward(dead_mask) # push terminal reward forward 38 42 54
         threat = np.zeros(shape=dead_mask.shape) - 1
         assert dead_mask.shape[0] == self.time_pointer
@@ -144,8 +144,7 @@ class trajectory(TRAJ_BASE):
 
 
 class TrajPoolManager(object):
-    def __init__(self, n_pool):
-        self.n_pool =  n_pool
+    def __init__(self):
         self.cnt = 0
 
     def absorb_finalize_pool(self, pool):
@@ -240,8 +239,7 @@ class BatchTrajManager(TrajManagerBase):
         self.trainer_hook = trainer_hook
         self.traj_limit = traj_limit
         self.train_traj_needed = AlgorithmConfig.train_traj_needed
-        self.upper_training_epoch = AlgorithmConfig.upper_training_epoch
-        self.pool_manager = TrajPoolManager(n_pool=self.upper_training_epoch)
+        self.pool_manager = TrajPoolManager()
 
     def update(self, traj_frag, index):
         assert traj_frag is not None

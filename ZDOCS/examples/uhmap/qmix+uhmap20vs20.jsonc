@@ -29,16 +29,15 @@
         "MaxEpisodeStep": 150,
         "StepGameTime": 0.5,
         "StateProvided": false,
-        "render": false, // note: random seed has different impact on renderer and server
+        "render": false,
         "UElink2editor": false,
         "AutoPortOverride": true,
         "HeteAgents": true,
+        "UhmapVersion": "3.2",
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapLargeScale",
-        // "UhmapRenderExe": "./../../WindowsNoEditor/UHMP.exe",
-        // "UhmapServerExe": "./../../WindowsServer/UHMPServer.exe",
-        "UhmapRenderExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer_Ver1.0/UHMPServer.sh",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
         "TimeDilation": 64, // simulation time speed up, larger is faster
         "TEAM_NAMES": [
             "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",

@@ -15,7 +15,7 @@
         "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
         "n_parallel_frame": 50000000.0,
         "max_n_episode": 1000000.0,
-        "seed": 22334, // 随机数种子
+        "seed": 24571, // 随机数种子
         "mt_act_order": "new_method",
         "backup_files": [
             "ALGORITHM/conc_mt",
@@ -31,8 +31,6 @@
         "random_jam_prob": 0.05,
         "MaxEpisodeStep": "150",     // 时间限制， 胜利条件：尽量摧毁、存活
         "render": "False",       // "True" 和 true 等效，高效渲染，只有0号线程环境会渲染
-        "REWARD_DEBUG": "True",
-        "REWARD_DEBUG_Value": 3,
         "half_death_reward": "True",
         "TEAM_NAMES": [
             "ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
@@ -41,12 +39,12 @@
         ]
     },
     "ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "device_override": "cuda:1", // 显卡选择（覆盖）
-        "gpu_party_override": "cuda1_party0", // 是否允许多进程共享显存
+        "device_override": "cuda:0", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda0_party1", // 是否允许多进程共享显存
         "train_traj_needed": 64,
         "n_focus_on": 3,
         "actor_attn_mod": "False",
-        "lr": 0.0003,
+        "lr": 0.0001,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
         // "gamma_in_reward_forwarding_value": 0.95,
@@ -55,12 +53,12 @@
         "load_checkpoint": false
     },
     "TEMP.TEAM2.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "device_override": "cuda:6", // 显卡选择（覆盖）
-        "gpu_party_override": "cuda6_party1", // 是否允许多进程共享显存
+        "device_override": "cuda:1", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda1_party1", // 是否允许多进程共享显存
         "train_traj_needed": 64,
         "n_focus_on": 3,
         "actor_attn_mod": "False",
-        "lr": 0.0003,
+        "lr": 0.0005,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
         // "gamma_in_reward_forwarding_value": 0.95,

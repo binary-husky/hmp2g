@@ -1,6 +1,6 @@
 {
     "config.py->GlobalConfig": {
-        "note": "qplex-cat",
+        "note": "RVE-drone2-qmix-fixstate-run1",
         "env_name": "uhmap",
         "env_path": "MISSION.uhmap",
         "draw_mode": "Img",
@@ -9,6 +9,7 @@
         "test_interval": 5120,
         "test_epoch": 256,
         "interested_team": 0,
+        "seed": 8529,
         "device": "cuda",
         "max_n_episode": 5000000,
         "fold": 1,
@@ -29,11 +30,12 @@
         "HeteAgents": true,
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapLargeScale",
-        "UhmapRenderExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer_Ver1.0/UHMPServer.sh",
+        "UhmapVersion": "3.2",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
         "TimeDilation": 64,
         "TEAM_NAMES": [
-            "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundationOld",
+            "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",
             "ALGORITHM.script_ai.uhmap_ls->DummyAlgorithmLinedAttack"
         ]
     },
@@ -67,25 +69,18 @@
     "ALGORITHM.script_ai.uhmap_ls.py->DummyAlgConfig": {
         "reserve": ""
     },
-
     "ALGORITHM.pymarl2_compat.pymarl2_compat.py->AlgorithmConfig": {
         "use_shell": "mini_shell_uhmap",
-        "use_shell_normalization": true,
-        "state_compat": "obs_cat",
-        "load_checkpoint": "False",
-        "pymarl2_alg_select": "qplex",
-        "pymarl2_runner_select": "parallel",
-        "pymarl_config_injection":{
-            "config.py->GlobalConfig": {
-                "batch_size": 128,
-                "load_checkpoint": "False",
-                "runner": "parallel",
-            },
-            "controllers.my_n_controller.py->PymarlAlgorithmConfig":{
+        "state_compat": "pad",
+        "pymarl_config_injection": {
+            "controllers.my_n_controller.py->PymarlAlgorithmConfig": {
                 "use_normalization": "True",
                 "use_vae": "False"
             },
+            "config.py->GlobalConfig": {
+                "batch_size": 128,
+                "load_checkpoint": "False"
+            }
         }
     }
-
 }

@@ -33,4 +33,4 @@ sudo systemctl restart docker
 
 # 3. Download docker image and open it | 下载并打开HMAP的容器环境
 
-Please read [SetupDocker](./ZDOCS/setup_docker.md)
+Please read [SetupDocker](./setup_docker.md)

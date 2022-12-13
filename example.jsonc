@@ -1,49 +1,72 @@
 {
     "config.py->GlobalConfig": {
-        // please checkout config.py for information
-        "note": "example experiment",                   // in case you forget the purpose of this trainning session, write a note
-        "env_name": "collective_assult",                // which environment, see ./MISSION/env_router.py
-        "env_path": "MISSION.collective_assult",        // path of environment
-        "draw_mode": "Img",                             // activate data plotting (Tensorboard is not used because I do not like it)
-        "num_threads": "64",                            // run N parallel envs, a 'env' is refered to as a 'thread'
-        "report_reward_interval": "64",                 // reporting interval
-        "test_interval": "2048",                        // test every $test_interval episode
-        "fold": "1",                                    // this 'folding' is designed for IPC efficiency, you can thank python GIL for such a strange design... 
-        "seed": 8888,                                   // seed controls pytorch and numpy
-        "backup_files": [                               // backup files, pack them up
-            "example.jsonc",
-            "ALGORITHM/conc",
-            "MISSION/collective_assult/envs/collective_assult_env.py"
-        ],
-        "device": "cuda:0",                             // choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU) 
-        // GPU memory is precious! assign multiple training process to a 'party', then they will share GPU memory 
-        "gpu_party": "off"                     // default is 'off', 
-    },
-
-
-    "MISSION.collective_assult.collective_assult_parallel_run.py->ScenarioConfig": {
-        // please checkout ./MISSION/collective_assult/collective_assult_parallel_run.py for information
-        "size": "5",
-        "random_jam_prob": 0.1,
-        "introduce_terrain": "True",
-        "terrain_parameters": [
-            0.05,
-            0.2
-        ],
-        "num_steps": "180",
-        "render": "False",
-        "half_death_reward": "True",
-        "TEAM_NAMES": [ //select team algorithm
-            "ALGORITHM.conc.foundation->ReinforceAlgorithmFoundation"
+        "note": "Run1_T1Epoch24_T2Epoch12_tryfraction",   // 实验存储路径
+        "env_name": "dca_multiteam",  // 环境（任务名称）
+        "env_path": "MISSION.dca_multiteam", 
+        "draw_mode": "Img",
+        "num_threads": 64,    // 环境并行数量
+        "report_reward_interval": "64",
+        "test_interval": "128",
+        "test_epoch": "256",
+        "mt_parallel": "True",
+        "interested_agent_num": 22,
+        "device": "cpu", // 使用哪张显卡
+        "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
+        "n_parallel_frame": 50000000.0,
+        "max_n_episode": 1000000.0,
+        "seed": 22334, // 随机数种子
+        "mt_act_order": "new_method",
+        "backup_files": [
+            "ALGORITHM/conc_mt",
+            "MISSION/dca_multiteam"
         ]
     },
-    "ALGORITHM.conc.foundation.py->AlgorithmConfig": {
-        // please checkout ./ALGORITHM/conc/foundation.py for information
-        "n_focus_on": 4,                    // d_k
-        "actor_attn_mod": "False",          // add self-attention to actor network
-        "lr": 0.0005,
+    "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
+        "N_TEAM": 2,
+        "N_AGENT_EACH_TEAM": [50, 50],
+        "introduce_terrain": "True",
+        "terrain_parameters": [0.15, 0.2],
+        "size": "5",
+        "random_jam_prob": 0.05,
+        "MaxEpisodeStep": "150",     // 时间限制， 胜利条件：尽量摧毁、存活
+        "render": "False",       // "True" 和 true 等效，高效渲染，只有0号线程环境会渲染
+        "RewardAsUnity": true,
+        "half_death_reward": "True",
+        "TEAM_NAMES": [
+            "ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
+            // two/multiple teams must not share the same name, move one of them to TEMP directory (automatic)
+            "TEMP.TEAM2.ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
+        ]
+    },
+    "ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
+        "device_override": "cuda:6", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda6_party0", // 是否允许多进程共享显存
+        "gpu_fraction_override": 0.5,
+        "train_traj_needed": 64,
+        "n_focus_on": 3,
+        "actor_attn_mod": "False",
+        "lr": 0.0001,
         "ppo_epoch": 24,
-        "train_traj_needed": "64",
+        // "gamma_in_reward_forwarding": "True",
+        // "gamma_in_reward_forwarding_value": 0.95,
+        "gamma": 0.99,
+        // "ignore_test_mode": true,
         "load_checkpoint": false
-    }
+    },
+    "TEMP.TEAM2.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
+        "device_override": "cuda:7", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda7_party0", // 是否允许多进程共享显存
+        "gpu_fraction_override": 0.5,
+        "train_traj_needed": 64,
+        "n_focus_on": 3,
+        "actor_attn_mod": "False",
+        "lr": 0.0001,
+        "ppo_epoch": 12,
+        // "gamma_in_reward_forwarding": "True",
+        // "gamma_in_reward_forwarding_value": 0.95,
+        "gamma": 0.99,
+        // "ignore_test_mode": true,
+        "load_checkpoint": false
+    },
+
 }

@@ -8,7 +8,7 @@ from config import GlobalConfig
 StandardPlotFig = 1
 ComparePlotFig = 2
 class rec_family(object):
-    def __init__(self, colorC=None, draw_mode='Native', image_path=None, figsize=None, rec_exclude=[], **kwargs):
+    def __init__(self, colorC=None, draw_mode='Native', image_path=None, figsize=None, smooth_level=None, rec_exclude=[], **kwargs):
         # the list of vars' name (with order), string
         self.name_list = []
         # the list of vars' value sequence (with order), float
@@ -27,7 +27,7 @@ class rec_family(object):
         # recent time
         self.current_time = None
         self.time_index = None
-
+        self.smooth_level = smooth_level
         self.figsize_given = figsize
         self.colorC = 'k' if colorC is None else colorC
         self.Working_path = 'Testing-beta'
@@ -136,7 +136,6 @@ class rec_family(object):
         else:
             return self.figsize_given
             
-    # This function is ugly because it is translated from MATLAB
     def rec_show(self):
         # the number of total subplots | 一共有多少条曲线
         image_num = len(self.line_list)
@@ -206,6 +205,14 @@ class rec_family(object):
                 self.working_figure_handle2.tight_layout()
                 self.working_figure_handle2.savefig(self.img_to_write2)
 
+    def smooth(self, data, sm_lv=1):
+        if sm_lv > 1:
+            y = np.ones(sm_lv)*1.0/sm_lv
+            d = np.convolve(y, data, 'same')#"same")
+        else:
+            d = data
+        return np.array(d)
+
     def plot_advanced(self):
         #画重叠曲线，如果有的话
 
@@ -268,6 +275,8 @@ class rec_family(object):
                 index = group_member[i][j]
 
                 _ydata_ = np.array(self.line_list[index], dtype=np.double)
+                if self.smooth_level is not None:
+                    _ydata_ = self.smooth(_ydata_, sm_lv=self.smooth_level)
                 # 如果有时间数据，把x轴绑定时间
                 if time_explicit:
                     _xdata_ = np.array(self.time_list[index], dtype=np.double)
@@ -292,6 +301,7 @@ class rec_family(object):
                     else:
                         self.line_plot_handle2[index], =  target_subplot.plot(_ydata_, lw=1, label=name_tmp)
                 else:
+                    # 非第一次，则只需要更新数据即可
                     self.line_plot_handle2[index].set_data((_xdata_, _ydata_))
 
             #标题

@@ -5,6 +5,8 @@ from UTIL.shm_pool_db import SmartPool
 
 class alg_parallel_wrapper(object):
     def __init__(self, t_name, n_agent, n_thread, space, mcv, team) -> None:
+        self.team = team
+        if mcv is None: mcv = self.init_alg_logger()
         module_, class_ = t_name.split('->')
         init_f = getattr(importlib.import_module(module_), class_)
         self.alg = init_f(n_agent, n_thread, space, mcv, team)
@@ -24,6 +26,21 @@ class alg_parallel_wrapper(object):
         assert self._hook_deligate_ is not None
         self._hook_deligate_(callback_arg)
         self._hook_deligate_ = None
+
+    # -- you may delete it or replace it with Tensorboard --
+    def init_alg_logger(self):
+        from config import GlobalConfig as cfg
+        from VISUALIZE.mcom import mcom
+        logdir = cfg.logdir
+        if cfg.activate_logger:
+            mcv = mcom( path=f'{logdir}/logger/{self.team}/',
+                        image_path=f'{logdir}/team-{self.team}.jpg',
+                        rapid_flush=True,
+                        draw_mode=cfg.draw_mode,
+                        tag='[multi_team_parallel.py]',
+                        resume_mod=cfg.resume_mod)
+        mcv.rec_init(color='k')
+        return mcv
 
 class MMPlatform(object):
 

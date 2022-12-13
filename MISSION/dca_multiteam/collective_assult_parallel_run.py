@@ -74,8 +74,6 @@ class ScenarioConfig(object):
     MCOM_DEBUG = False
     Terrain_DEBUG = False
     half_death_reward = True
-    REWARD_DEBUG = False
-    REWARD_DEBUG_Value = 1
 
     n_actions = 7
 
@@ -89,9 +87,9 @@ def make_collective_assult_env(env_id, rank):
     world.max_time_steps = ScenarioConfig.MaxEpisodeStep
     # create multiagent environment
     if ScenarioConfig.benchmark:
-        env = collective_assultGlobalEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, id=rank)
+        env = collective_assultGlobalEnv(world, scenario, scenario.benchmark_data, id=rank)
     else:
-        env = collective_assultGlobalEnv(world, scenario.reset_world, scenario.reward, scenario.observation, id=rank)
+        env = collective_assultGlobalEnv(world, scenario, id=rank)
     return env
 
 
@@ -102,12 +100,12 @@ class collective_assultGlobalEnv(gym.Env):
     def terminate(self):
         pass
 
-    def __init__(self, world, reset_callback=None, reward_callback=None,
-                 observation_callback=None, info_callback=None,
+    def __init__(self, world, scenario, info_callback=None,
                  done_callback=None, shared_viewer=True, id = -1):
         self.render_on = ScenarioConfig.render
         self.render_with_unity = ScenarioConfig.render_with_unity
         self.n_teams = len(ScenarioConfig.N_AGENT_EACH_TEAM)
+        self.scenario = scenario
         self.s_cfg = ScenarioConfig
         # 当并行时，只有0号环境可以渲染
         self.id = id
@@ -121,9 +119,9 @@ class collective_assultGlobalEnv(gym.Env):
         # set required vectorized gym env property
         self.n = len(world.agents)
         # scenario callbacks
-        self.reset_callback = reset_callback
-        self.reward_callback = reward_callback
-        self.observation_callback = observation_callback
+        self.reset_callback = self.scenario.reset_world
+        self.reward_callback = self.scenario.reward
+        self.observation_callback = self.scenario.observation
         self.info_callback = info_callback
         self.done_callback = done_callback
         # environment parameters
@@ -132,8 +130,6 @@ class collective_assultGlobalEnv(gym.Env):
         self.discrete_action_input = True #False
         # if true, even the action is continuous, action will be performed discretely
         self.force_discrete_action = world.discrete_action if hasattr(world, 'discrete_action') else False
-        # if true, every agent has the same reward
-        self.shared_reward = world.collaborative if hasattr(world, 'collaborative') else False
 
 
         # configure spaces
@@ -172,39 +168,26 @@ class collective_assultGlobalEnv(gym.Env):
             obs_n.append(o_)
 
         
-        for agent in self.agents: ##
+        for agent in self.agents:
             if not ScenarioConfig.ObsAsUnity: 
                 o_, _ = self._get_obs(agent)
                 obs_n.append(o_)
-            reward_n.append(self._get_reward(agent))
-            # done_n.append(self._get_done(agent))
+            if not ScenarioConfig.RewardAsUnity: 
+                reward_n.append(self._get_reward(agent))
 
-        
-        ## implement single done reflecting game state
-        done, WinningResultInfo = self._get_done()
+        done, WinningResultInfo, ExtraReward = self._get_done()
+
+        if ScenarioConfig.RewardAsUnity:
+            reward_n = self._get_sparse_reward()
+            reward_n += ExtraReward
+
         info = WinningResultInfo
-        # info['others'] = info_n
         reward_n = np.array(reward_n)
-        # if done:
-        #     print('win', info['win'])
-        # if ScenarioConfig.REWARD_DEBUG and done and info['win']:
-        #     win_extra_reward = ScenarioConfig.REWARD_DEBUG_Value
-        #     reward_n += win_extra_reward
-        #     pass
-
-        # all agents get total reward in cooperative case
-        # print(reward_n)
-        if self.shared_reward:
-            reward = np.sum(reward_n)
-            reward_n = [reward] * self.n
         self.world.time_step += 1
         obs_n = np.array(obs_n)
         if self.render_on: 
-            if self.render_with_unity: 
-                assert False
-                # self.unity_render()
-            else:
-                self.render()
+            if self.render_with_unity:  assert False
+            self.render()
         return obs_n, reward_n, done, info
 
     def reset(self):
@@ -250,6 +233,7 @@ class collective_assultGlobalEnv(gym.Env):
     # get done for the whole environment
     # unused right now -- agents are allowed to go beyond the viewing screen
     def _get_done(self):
+        ExtraReward = np.array([0] * self.n_teams)
         alive_agent_each_team = np.array([0] * self.n_teams)
         for a in self.world.agents:
             if a.alive: alive_agent_each_team[a.team] += 1
@@ -263,10 +247,11 @@ class collective_assultGlobalEnv(gym.Env):
                 "team_ranking": team_ranking,
                 "end_reason": 'EndGame'
             }
-            return True, WinningResult
+            ExtraReward = ((self.n_teams - 1) - team_ranking) * 10
+            return True, WinningResult, ExtraReward
 
         # otherwise not done
-        return False, {}
+        return False, {}, ExtraReward
 
 
     # get reward for a particular agent
@@ -274,7 +259,13 @@ class collective_assultGlobalEnv(gym.Env):
         if self.reward_callback is None:
             return 0.0
         return self.reward_callback(agent)
+    
 
+    # get reward for teams
+    def _get_sparse_reward(self):
+        return self.scenario.sparse_reward()
+    
+    
     # set env action for a particular agent
     def _set_action(self, action, agent, action_space, time=None):
         agent.act = np.zeros(self.world.dim_p)

@@ -17,8 +17,7 @@ class AlgorithmConfig:
     TakeRewardAsUnity = False
     use_normalization = True
     add_prob_loss = False
-    n_focus_on = 2
-
+    n_entity_placeholder = 10
     load_checkpoint = False
     load_specific_checkpoint = ''
 
@@ -32,7 +31,10 @@ class AlgorithmConfig:
     clip_param = 0.2
     lr = 1e-4
 
-    # prevent GPU OOM
+    # sometimes the episode length gets longer,
+    # resulting in more samples and causing GPU OOM,
+    # prevent this by fixing the number of samples to initial
+    # by randomly sampling and droping
     prevent_batchsize_oom = False
     gamma_in_reward_forwarding = False
     gamma_in_reward_forwarding_value = 0.99
@@ -152,7 +154,6 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             "action":        action,
         }
         if avail_act is not None: traj_framefrag.update({'avail_act':  avail_act})
-        
         # deal with rollout later when the reward is ready, leave a hook as a callback here
         if not test_mode: StateRecall['_hook_'] = self.commit_traj_frag(traj_framefrag, req_hook = True)
         return action.copy(), StateRecall
@@ -189,7 +190,6 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             
             # 
             self.stage_planner.update_plan()
-
 
 
 

@@ -1,23 +1,24 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from ALGORITHM.commom.mlp import LinearFinal
+from ..commom.mlp import LinearFinal
 from UTIL.tensor_ops import add_onehot_id_at_last_dim, repeat_at, _2tensor, gather_righthand, scatter_righthand
 
 
     
 class DivTree(nn.Module): # merge by MLP version
-    def __init__(self, input_dim, h_dim, n_action):
+    def __init__(self, h_dim, n_action, n_agent, stage_planner):
         super().__init__()
 
         # to design a division tree, I need to get the total number of agents
         from .foundation import AlgorithmConfig
-        self.n_agent = AlgorithmConfig.n_agent
+        self.n_agent = n_agent
         self.div_tree = get_division_tree(self.n_agent)
         self.n_level = len(self.div_tree)
         self.max_level = len(self.div_tree) - 1
         self.current_level = 0
-        self.init_level = AlgorithmConfig.div_tree_init_level
+        self.init_level = 0
+        stage_planner.hook_div_tree(self)
         if self.init_level < 0:
             self.init_level = self.max_level
         self.current_level_floating = 0.0
@@ -30,15 +31,21 @@ class DivTree(nn.Module): # merge by MLP version
         # Note: this is NOT net defining for each agent
         # Instead, all agents starts from self.nets[0]
         self.nets = torch.nn.ModuleList(modules=[
-            get_net() for i in range(self.n_agent)  
+            get_net() for _ in range(self.n_agent)  
         ])
+
+    def at_max_level(self):
+        return self.max_level==self.current_level
+
+    def set_to_max_level(self, auto_transfer=True):
+        if self.max_level!=self.current_level:
+            for i in range(self.current_level, self.max_level):
+                self.change_div_tree_level(i+1, auto_transfer)
 
     def set_to_init_level(self, auto_transfer=True):
         if self.init_level!=self.current_level:
             for i in range(self.current_level, self.init_level):
                 self.change_div_tree_level(i+1, auto_transfer)
-
-
 
     def change_div_tree_level(self, level, auto_transfer=True):
         print('performing div tree level change (%d -> %d/%d) \n'%(self.current_level, level, self.max_level))
@@ -61,11 +68,11 @@ class DivTree(nn.Module): # merge by MLP version
             print('transfering model parameters from %d-th net to %d-th net'%(from_which_net, to_which_net))
         return 
 
-    def forward(self, x_in, req_confact_info):  # x0: shape = (?,...,?, n_agent, core_dim)
+    def forward(self, x_in):  # x0: shape = (?,...,?, n_agent, core_dim)
         if self.current_level == 0:
             x0 = add_onehot_id_at_last_dim(x_in)
             x2 = self.nets[0](x0)
-            return x2, None
+            return x2
         else:
             x0 = add_onehot_id_at_last_dim(x_in)
             res = []
@@ -73,7 +80,7 @@ class DivTree(nn.Module): # merge by MLP version
                 use_which_net = self.div_tree[self.current_level, i]
                 res.append(self.nets[use_which_net](x0[..., i, :]))
             x2 = torch.stack(res, -2)
-            return x2, None
+            return x2
 
 
 

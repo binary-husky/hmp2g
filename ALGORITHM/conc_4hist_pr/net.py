@@ -258,9 +258,6 @@ class Net(nn.Module):
         else:             return value, actLogProbs, distEntropy, probs, others
 
 
-
-
-
     def logit2act(self, logits_agent_cluster, eval_mode, test_mode, eval_actions=None, avail_act=None):
         if avail_act is not None: logits_agent_cluster = torch.where(avail_act>0, logits_agent_cluster, -pt_inf())
 
@@ -276,12 +273,6 @@ class Net(nn.Module):
         distEntropy = act_dist.entropy().mean(-1) if eval_mode else None
         
         return act, actLogProbs, distEntropy, act_dist.probs
-
-
-
-
-
-
 
 
     @staticmethod
