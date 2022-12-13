@@ -240,16 +240,28 @@ class collective_assultGlobalEnv(gym.Env):
         # sum(alive_agent_each_team>0)<=1 : only one team is still standing
         terminate_cond = sum(alive_agent_each_team>0)<=1 or \
             (self.world.time_step == self.world.max_time_steps-1)
-        
+        WinLoseRewardScale = 10
         if terminate_cond:
             team_ranking = self.get_rank(alive_agent_each_team)
             WinningResult = {
                 "team_ranking": team_ranking,
                 "end_reason": 'EndGame'
             }
-            ExtraReward = ((self.n_teams - 1) - team_ranking) * 10
-            return True, WinningResult, ExtraReward
+            # 2 team
+            #   Top 1: reward +10
+            #   Top 2: reward +0
+            # 3 team
+            #   Top 1: reward +20
+            #   Top 2: reward +10
+            #   Top 3: reward +0
+            # draw: reward -10
 
+            for i, rank in enumerate(team_ranking):
+                if rank >= 0: 
+                    ExtraReward[i] = ((self.n_teams - 1) - rank) * WinLoseRewardScale
+                else:
+                    ExtraReward[i] = -WinLoseRewardScale
+            return True, WinningResult, ExtraReward
         # otherwise not done
         return False, {}, ExtraReward
 
