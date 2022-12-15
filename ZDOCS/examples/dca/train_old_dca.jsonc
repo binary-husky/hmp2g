@@ -40,7 +40,6 @@
     "ALGORITHM.conc.foundation.py->AlgorithmConfig": {
         // please checkout ./ALGORITHM/conc/foundation.py for information
         "n_focus_on": 4,                    // d_k
-        "actor_attn_mod": "False",          // add self-attention to actor network
         "lr": 0.0005,
         "ppo_epoch": 24,
         "train_traj_needed": "64",

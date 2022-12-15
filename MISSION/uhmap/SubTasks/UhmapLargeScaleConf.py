@@ -24,3 +24,6 @@ class SubTaskConfig():
         { 'team':1,  'tid':9,  'uid':19, 'n_team_agent':10,   'type':'RLA_CAR',        'init_fn_name':'init_ground',  },
     ]
 
+    obs_vec_length = 23
+    obs_n_entity = 11
+    ActionFormat = 'Multi-Digit'

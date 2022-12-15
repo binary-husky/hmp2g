@@ -43,7 +43,6 @@
         "train_traj_needed": "64",
         "prevent_batchsize_oom": "True",
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0005,
         "ppo_epoch": 24,
         "gamma_in_reward_forwarding": "True",

@@ -1,8 +1,8 @@
 {
     "config.py->GlobalConfig": {
-        "note": "Run1_T1Epoch24_T2Epoch12_tryfraction",   // 实验存储路径
-        "env_name": "dca_multiteam",  // 环境（任务名称）
-        "env_path": "MISSION.dca_multiteam", 
+        "note": "RVE-drone2-qmix-fixstate-run1",
+        "env_name": "uhmap",
+        "env_path": "MISSION.uhmap",
         "draw_mode": "Img",
         "num_threads": 1,    // 环境并行数量
         "report_reward_interval": "64",
@@ -17,8 +17,8 @@
         "seed": 22331, // 随机数种子
         "mt_act_order": "new_method",
         "backup_files": [
-            "ALGORITHM/conc_mt",
-            "MISSION/dca_multiteam"
+            "ALGORITHM/pymarl2_compat",
+            "MISSION/uhmap"
         ]
     },
     "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
@@ -33,9 +33,8 @@
         "RewardAsUnity": true,
         "half_death_reward": "True",
         "TEAM_NAMES": [
-            "ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
-            // two/multiple teams must not share the same name, move one of them to TEMP directory (automatic)
-            "TEMP.TEAM2.ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
+            "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",
+            "ALGORITHM.script_ai.uhmap_ls->DummyAlgorithmLinedAttack"
         ]
     },
     "ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
@@ -69,4 +68,22 @@
         "load_checkpoint": false
     },
 
+
+    "ALGORITHM.script_ai.uhmap_ls.py->DummyAlgConfig": {
+        "reserve": ""
+    },
+    "ALGORITHM.pymarl2_compat.pymarl2_compat.py->AlgorithmConfig": {
+        "use_shell": "mini_shell_uhmap",
+        "state_compat": "pad",
+        "pymarl_config_injection": {
+            "controllers.my_n_controller.py->PymarlAlgorithmConfig": {
+                "use_normalization": "True",
+                "use_vae": "False"
+            },
+            "config.py->GlobalConfig": {
+                "batch_size": 128,
+                "load_checkpoint": "False"
+            }
+        }
+    }
 }

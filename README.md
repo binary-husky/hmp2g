@@ -1,4 +1,14 @@
-Author: Fu Qingxu, CASIA
+Contact us: 
+- Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
+- Shijie Wang, CASIA,
+- Min Chen, CASIA,
+- Tianyi Hu, CASIA, hutianyi2021@ia.ac.cn
+- Yifan Xu, CASIA, xuyifan2021@ia.ac.cn
+- Organization：
+- - Institute of Automation, Chinese Academy of Sciences
+- - School of Artificial Intelligence, University of Chinese Academy of Sciences
+- - Yiteam Swarm Intelligent Research Group
+
 
 # Introduction
 The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
@@ -24,12 +34,19 @@ Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/
 <div align="center">
 <img src="ZDOCS/examples/uhmap/uhmp_demo.gif" width="300" >
 </div>
-Note: render client is not included in the docker image. For visualization,
-refer to https://github.com/binary-husky/uhmap-visual-tool git resp.
+
 
 ``` sh
 git pull && python main.py -c ZHECKPOINT/uhmap_hete10vs10/render_result.jsonc
 ```
+To visualize:
+- (Option 1) Run trained model on Windows, switch ```"render": false``` option to ```true```.
+- (Option 2) Link to a headless simulation remotely. Download Windows client [UHMP.exe](./ZDOCS/use_unreal_hmap.md), run it with ```./UHMP.exe -OpenLevel=Ip:Port``` (Port is random, see program terminal output).
+
+
+Redirection to another MARL project: Building high efficient multiagent environment with Unreal Engine! Please refer to resp ```https://github.com/binary-husky/unreal-hmp```.
+
+
 
 ## Web Demo of DCA (AAAI Paper Version)
 
@@ -81,6 +98,10 @@ also refer to the last part of [setup_docker](./ZDOCS/setup_docker.md) for pip r
 
 # Introducing the Structure of HMP
 ## HMP's General Framework Structure
+
+<div align="center">
+<img src="VISUALIZE/md_imgs/simple_framework.jpg" width="500" >
+</div>
 
 ## HMP's Config System (How to experiment)
 HMP aims to optimize the parameter control experience as a framework for researchers. 

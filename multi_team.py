@@ -149,10 +149,11 @@ class MMPlatform(object):
                 })
 
     def notify_teams(self, message, **kargs):
-        for algo_fdn in self.algo_foundations:
+        for t_index, algo_fdn in enumerate(self.algo_foundations):
             if (not hasattr(algo_fdn, 'on_notify')) or (not callable(algo_fdn.on_notify)): continue
-            algo_fdn.on_notify(message, **kargs)
-
+            team_kargs = {k:v[t_index] for k,v in kargs.items()}
+            algo_fdn.on_notify(message, **team_kargs)
+            
     def __split_obs(self, obs, t_index):
         # obs [n_thread, n_team/n_agent, coredim]
         if obs[0] is None:

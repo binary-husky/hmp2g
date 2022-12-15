@@ -10,8 +10,7 @@
         "test_epoch": "256",
         "mt_parallel": "True",
         "interested_agent_num": 22,
-        "device": "cuda:3", // 使用哪张显卡
-        "gpu_party": "cuda3_party0", // 是否允许多进程共享显存，这里不需要
+        "device": "cpu", // 使用哪张显卡
         "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
         "n_parallel_frame": 50000000.0,
         "max_n_episode": 1000000.0,
@@ -31,8 +30,6 @@
         "random_jam_prob": 0.05,
         "MaxEpisodeStep": "180",     // 时间限制， 胜利条件：尽量摧毁、存活
         "render": "True",       // "True" 和 true 等效，高效渲染，只有0号线程环境会渲染
-        "REWARD_DEBUG": "True",
-        "REWARD_DEBUG_Value": 3,
         "half_death_reward": "True",
         "TEAM_NAMES": [
             "ALGORITHM.conc_mt.foundation->ReinforceAlgorithmFoundation",
@@ -42,10 +39,10 @@
         ]
     },
     "ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "gpu_party_override": "cuda3_party0", // 是否允许多进程共享显存
+        "device_override": "cuda:0", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda0_party0", // 是否允许多进程共享显存
         "train_traj_needed": 32,
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0003,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
@@ -55,10 +52,10 @@
         "load_checkpoint": false
     },
     "TEMP.TEAM2.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "gpu_party_override": "cuda3_party1", // 是否允许多进程共享显存
+        "device_override": "cuda:1", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda1_party0", // 是否允许多进程共享显存
         "train_traj_needed": 32,
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0003,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",
@@ -68,10 +65,10 @@
         "load_checkpoint": false
     },
     "TEMP.TEAM3.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "gpu_party_override": "cuda3_party2", // 是否允许多进程共享显存
+        "device_override": "cuda:2", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda2_party0", // 是否允许多进程共享显存
         "train_traj_needed": 32,
         "n_focus_on": 3,
-        "actor_attn_mod": "False",
         "lr": 0.0003,
         "ppo_epoch": 24,
         // "gamma_in_reward_forwarding": "True",

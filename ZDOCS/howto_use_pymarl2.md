@@ -1,32 +1,29 @@
 # Using pymarl2 as Algorithm
-## step 1: clone hmap code (dev-uhmp)
+## step 1: clone hmap code
 ```
-git clone https://github.com/binary-husky/hmp2g.git -b dev-uhmp
+git clone https://github.com/binary-husky/hmp2g.git
+
+cd hmp2g
 
 git submodule update --init
 
 git submodule foreach -q --recursive 'branch="$(git config -f $toplevel/.gitmodules submodule.$name.branch)"; git switch $branch'
 ```
 
-
-## step 2: clone hmap code (dev-uhmp)
-
-``` sh
-# change dir
-cd ./hmp2g/THIRDPARTY/pymarl2
-
-# clone pymarl2
-git clone https://github.com/binary-husky/pymarl-hmap-compat.git 
-
-# rename pymarl2
-mv pymarl-hmap-compat pymarl2src
-
-# change dir
-cd ../..
+How to clean temp files when things are not working as expected:
+```sh
+# switch to master branch
+git checkout master --force
+# pull lastest code
+git pull --force
+# clean work directory
+git clean -xfd
+# clean submodule
+git submodule foreach git clean -xfd
 ```
 
-## step 3: run example
-Save following file as ```debug.json```: 
+## step 2: run example
+Save following file as ```private_debug.jsonc```: 
 ``` json
 {
     "config.py->GlobalConfig": {
@@ -49,19 +46,18 @@ Save following file as ```debug.json```:
         ]
     },
     "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
-        "n_team1agent": 10,
-        "n_team2agent": 10,
+        "N_AGENT_EACH_TEAM": [10, 10], // update N_AGENT_EACH_TEAM
         "MaxEpisodeStep": 125,
         "StepGameTime": 0.5,
         "StateProvided": false,
         "render": false,
         "UElink2editor": false,
-        "AutoPortOverride": true,
         "HeteAgents": true,
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapLargeScale",
-        "UhmapRenderExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/fuqingxu/UHMP/Build/LinuxServer_Ver1.0/UHMPServer.sh",
+        "UhmapVersion": "3.2",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
         "TimeDilation": 64,
         "TEAM_NAMES": [
             "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",
@@ -116,4 +112,4 @@ Save following file as ```debug.json```:
 ```
 
 Then start training with:
-```python main.py -c debug.json```
+```python main.py -c private_debug.jsonc```
