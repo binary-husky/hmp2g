@@ -30,6 +30,11 @@ runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a
 Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
 
 # Demo
+This resp is frequently updating.
+If any unexpected problem is encountered, 
+please clean the temp files by running ```git checkout master --force && git pull --force && git clean -xfd```.
+If the problem does not go away, do not hesitate to contact us or send an issue!
+
 ## Unreal-Engine-Based Simulation
 <div align="center">
 <img src="ZDOCS/examples/uhmap/uhmp_demo.gif" width="300" >
