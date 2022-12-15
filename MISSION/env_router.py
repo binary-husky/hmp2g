@@ -1,7 +1,7 @@
 import_path_ref = {
     "collective_assult": ("MISSION.collective_assult.collective_assult_parallel_run",          'ScenarioConfig'),
     "dca_multiteam": ("MISSION.dca_multiteam.collective_assult_parallel_run",                   'ScenarioConfig'),
-    "collective_assult_debug": ("MISSION.collective_assult_debug.collective_assult_parallel_run", 'ScenarioConfig'),
+    "dca": ("MISSION.dca.collective_assult_parallel_run", 'ScenarioConfig'),
     "air_fight": ("MISSION.air_fight.environment.air_fight_compat",                            'ScenarioConfig'),
     "native_gym": ("MISSION.native_gym.native_gym_config",                                     'ScenarioConfig'),
     "starcraft2": ("MISSION.starcraft.sc2_env_wrapper",                                        'ScenarioConfig'),
@@ -19,7 +19,7 @@ import_path_ref = {
 env_init_function_ref = {
     "collective_assult": ("MISSION.collective_assult.collective_assult_parallel_run",          'make_collective_assult_env'),
     "dca_multiteam": ("MISSION.dca_multiteam.collective_assult_parallel_run",                  'make_collective_assult_env'),
-    "collective_assult_debug": ("MISSION.collective_assult_debug.collective_assult_parallel_run", 'make_collective_assult_env'),
+    "dca": ("MISSION.dca.collective_assult_parallel_run", 'make_collective_assult_env'),
     "air_fight": ("MISSION.air_fight.environment.air_fight_compat",                            'make_air_fight_env'),
     "native_gym": ("MISSION.native_gym.native_gym_config",                                     'env_init_function'),
     "starcraft2": ("MISSION.starcraft.sc2_env_wrapper",                                        'make_sc2_env'),
@@ -94,10 +94,10 @@ def make_parallel_envs(process_pool, marker=''):
             raise "Error checking docker in docker, can not control host docker interface!"
         pass
 
-    if GlobalConfig.env_name == 'collective_assult_debug':
+    if GlobalConfig.env_name == 'dca':
         # This particular env has a cython file that needs to be compiled in main process
         # that must be loaded in main process
-        from MISSION.collective_assult_debug.cython_func import laser_hit_improve3
+        from MISSION.dca.cython_func import laser_hit_improve3
     if GlobalConfig.env_name == 'dca_multiteam':
         # This particular env has a cython file that needs to be compiled in main process
         # that must be loaded in main process
