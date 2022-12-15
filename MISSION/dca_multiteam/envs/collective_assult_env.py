@@ -45,7 +45,7 @@ class collective_assultEnvV1(gym.Env):
         self.world.numAliveAgents = self.world.numAgents
         theta_terrain = (2*np.random.rand()-1)*np.pi # -PI ~ +PI
         self.world.init_theta = theta_terrain
-
+        self.reward_acc = np.array([0.]*self.n_teams)
         random_theta = (2*np.random.rand()-1)*np.pi # -PI ~ +PI
 
         xMin, xMax, yMin, yMax = self.world.init_box
@@ -71,23 +71,22 @@ class collective_assultEnvV1(gym.Env):
             agent.atk_rad = team_face_dir + noise
 
 
-            agent.numHit = 0
-            agent.numWasHit = 0
             agent.hit = False
             agent.wasHit = False
 
     def sparse_reward(self):
-        
         reward_each_team = []
+        total_agent_num = sum(self.N_AGENT_EACH_TEAM)
         for team, uid_list in enumerate(self.AGENT_ID_EACH_TEAM):
             team_agents = [self.world.agents[i] for i in uid_list]
-            hit_list_cnt = sum([a.hit for a in team_agents])
-            be_hit_list_cnt = sum([a.wasHit for a in team_agents])
-            reward_team = hit_list_cnt*0.01
-            reward_team -= be_hit_list_cnt*0.01
+            hit_list_cnt = sum([a.hit for a in team_agents if (a.alive or a.justDied)])
+            be_hit_list_cnt = sum([a.wasHit for a in team_agents if (a.alive or a.justDied)])
+            # print(f"{hit_list_cnt},{be_hit_list_cnt}")
+            reward_team = hit_list_cnt / total_agent_num
+            reward_team -= be_hit_list_cnt / total_agent_num
             reward_each_team.append(reward_team)
             assert len(reward_each_team) == team+1
-
+        self.reward_acc += np.array(reward_each_team)
         return reward_each_team
 
     def reward(self, agent):

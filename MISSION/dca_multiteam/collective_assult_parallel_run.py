@@ -51,7 +51,8 @@ class ScenarioConfig(object):
     introduce_terrain = False
     terrain_parameters = [0, 0]
 
-    MaxEpisodeStep = 180
+    MaxEpisodeStep = 150
+    StepsToNarrowCircle = 100
 
     init_distance = 2.5  # 5-2,5+2
     render = False
@@ -105,6 +106,7 @@ class collective_assultGlobalEnv(gym.Env):
         self.render_on = ScenarioConfig.render
         self.render_with_unity = ScenarioConfig.render_with_unity
         self.n_teams = len(ScenarioConfig.N_AGENT_EACH_TEAM)
+        self.N_AGENT_EACH_TEAM = ScenarioConfig.N_AGENT_EACH_TEAM
         self.scenario = scenario
         self.s_cfg = ScenarioConfig
         # 当并行时，只有0号环境可以渲染
@@ -350,7 +352,7 @@ class collective_assultGlobalEnv(gym.Env):
                 posz='/wget/snow_textures/posz.jpg',
                 negz='/wget/snow_textures/negz.jpg',
             )
-            self.threejs_bridge.其他几何体之旋转缩放和平移('tower', 'BoxGeometry(1,1,1)',   0,0,0,  1,1,5, 0,0,-3) # 长方体
+            self.threejs_bridge.其他几何体之旋转缩放和平移('tower', 'BoxGeometry(1,1,1)',   0,0,0,  0.25,0.25,0.25, 0,0,-3) # 长方体
             self.threejs_bridge.advanced_geometry_material('tower', 
                 map='/wget/hex_texture.jpg',
             )
@@ -372,17 +374,29 @@ class collective_assultGlobalEnv(gym.Env):
 
         t = self.threejs_bridge.time_cnt
         self.threejs_bridge.time_cnt += 1
-        self.threejs_bridge.v2dx('tower|1000|%s|0.15'%('White'), 5, 5, 1.5, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
-            label='Coord(+5,+5)', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
-        self.threejs_bridge.v2dx('tower|1001|%s|0.15'%('White'), 5, -5, 1.5, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
-            label='Coord(+5,-5)', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
-        self.threejs_bridge.v2dx('tower|1002|%s|0.15'%('White'), -5, 5, 1.5, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
-            label='Coord(-5,+5)', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
-        self.threejs_bridge.v2dx('tower|1003|%s|0.15'%('White'), -5, -5, 1.5, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
-            label='Coord(-5,-5)', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
+
+        n_circle_mark = 16
+        phase = np.arange(start=t/20, stop=t/20+np.pi * 2, step=np.pi * 2 / n_circle_mark)
+        d = self.world.current_cir_size
+        for i in range(n_circle_mark):
+            offset = 1000+i
+            if self.s_cfg.introduce_terrain:
+                z = self.world.get_terrain(np.array([[np.sin(phase[i])*d, np.cos(phase[i])*d]]), theta=self.world.init_theta, A=self.s_cfg.terrain_parameters[0], B=self.s_cfg.terrain_parameters[1])
+                z = z[0]
+            else:
+                z = 0
+            self.threejs_bridge.v2dx(f'tower|{offset}|White|0.15', np.sin(phase[i])*d, np.cos(phase[i])*d, z+0.1, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
+                label='', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
+
+        # self.threejs_bridge.v2dx('tower|1001|%s|0.15'%('White'), 5, -5, 1.5, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
+        #     label='', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
+        # self.threejs_bridge.v2dx('tower|1002|%s|0.15'%('White'), -5, 5, 1.5, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
+        #     label='', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
+        # self.threejs_bridge.v2dx('tower|1003|%s|0.15'%('White'), -5, -5, 1.5, ro_x=0, ro_y=0, ro_z=t/20,label_bgcolor='Aqua',
+        #     label='', label_offset = np.array([0,0,0.15]), label_color='Indigo', opacity=0.8)
 
         show_lambda = 2
-
+        
         if self.threejs_bridge.terrain_theta != self.world.init_theta:
             self.threejs_bridge.terrain_theta = self.world.init_theta
             terrain_A = self.s_cfg.terrain_parameters[0]
@@ -391,9 +405,11 @@ class collective_assultGlobalEnv(gym.Env):
 
         n_red= len([0 for agent in self.world.agents if agent.alive and agent.team==1])
         n_blue = len([0 for agent in self.world.agents if agent.alive and agent.team==0])
+        reward_blue = "%.2f"%self.scenario.reward_acc[0]
+        reward_red = "%.2f"%self.scenario.reward_acc[1]
         who_is_winning = '<Blue>Blue<Black> is leading' if n_blue>n_red else '<Red>Red<Black> is leading'
-        self.threejs_bridge.v2dx('tower2|1004|Gray|0.2', 0, 0, 1, ro_x=0, ro_y=0, ro_z=0, label_bgcolor='GhostWhite',
-            label='<Blue>Blue<Black>Agents Remain: <Blue>%d\n<Red>Red<Black>Agents Remain: <Red>%d \n%s<End>'%(n_blue, n_red, who_is_winning), label_color='DarkGreen', opacity=0)
+        self.threejs_bridge.v2dx('tower2|1104|Gray|0.2', 0, 0, 1, ro_x=0, ro_y=0, ro_z=0, label_bgcolor='GhostWhite',
+            label=f'<Blue>Blue<Black>Agents Remain: <Blue>{n_blue}<Black>,Reward:<Blue>{reward_blue}\n<Red>Red<Black>Agents Remain: <Red>{n_red}<Black>,Reward:<Red>{reward_red} \n{who_is_winning}<End>', label_color='DarkGreen', opacity=0)
 
         _color = ['blue', 'red', 'green']
         _base_color = ['CornflowerBlue', 'LightPink', 'green']

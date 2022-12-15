@@ -4,7 +4,7 @@
         "env_name": "dca_multiteam",  // 环境（任务名称）
         "env_path": "MISSION.dca_multiteam", 
         "draw_mode": "Img",
-        "num_threads": 64,    // 环境并行数量
+        "num_threads": 1,    // 环境并行数量
         "report_reward_interval": "64",
         "test_interval": "128",
         "test_epoch": "256",
@@ -14,7 +14,7 @@
         "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
         "n_parallel_frame": 50000000.0,
         "max_n_episode": 1000000.0,
-        "seed": 22334, // 随机数种子
+        "seed": 22331, // 随机数种子
         "mt_act_order": "new_method",
         "backup_files": [
             "ALGORITHM/conc_mt",
@@ -24,12 +24,12 @@
     "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
         "N_TEAM": 2,
         "N_AGENT_EACH_TEAM": [50, 50],
-        "introduce_terrain": "True",
+        "introduce_terrain": true,
         "terrain_parameters": [0.15, 0.2],
         "size": "5",
         "random_jam_prob": 0.05,
-        "MaxEpisodeStep": "150",     // 时间限制， 胜利条件：尽量摧毁、存活
-        "render": "False",       // "True" 和 true 等效，高效渲染，只有0号线程环境会渲染
+        "MaxEpisodeStep": 150,     // 时间限制， 胜利条件：尽量摧毁、存活
+        "render": true,       // "True" 和 true 等效，高效渲染，只有0号线程环境会渲染
         "RewardAsUnity": true,
         "half_death_reward": "True",
         "TEAM_NAMES": [
@@ -39,10 +39,10 @@
         ]
     },
     "ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
-        "device_override": "cuda:6", // 显卡选择（覆盖）
-        "gpu_party_override": "cuda6_party0", // 是否允许多进程共享显存
-        "gpu_fraction_override": 0.5,
-        "train_traj_needed": 64,
+        "device_override": "cuda:3", // 显卡选择（覆盖）
+        "gpu_party_override": "cuda3_party0", // 是否允许多进程共享显存
+        // "gpu_fraction_override": 0.5,
+        "train_traj_needed": 2,
         "n_focus_on": 3,
         "actor_attn_mod": "False",
         "lr": 0.0001,
@@ -56,8 +56,8 @@
     "TEMP.TEAM2.ALGORITHM.conc_mt.foundation.py->AlgorithmConfig": {
         "device_override": "cuda:7", // 显卡选择（覆盖）
         "gpu_party_override": "cuda7_party0", // 是否允许多进程共享显存
-        "gpu_fraction_override": 0.5,
-        "train_traj_needed": 64,
+        // "gpu_fraction_override": 0.5,
+        "train_traj_needed": 2,
         "n_focus_on": 3,
         "actor_attn_mod": "False",
         "lr": 0.0001,
