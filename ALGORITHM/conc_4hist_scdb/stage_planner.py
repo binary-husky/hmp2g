@@ -43,11 +43,15 @@ class StagePlanner:
         return self.mapPrNum2LevelLs[j]
 
     def n_pr_distribution(self, n_thread, n_agent):
-        lv = np.random.randint(low=0, high=AlgorithmConfig.distribution_precision, size=n_thread)
+        low = AlgorithmConfig.ac_target_distribute.min()
+        high = AlgorithmConfig.ac_target_distribute.max()+1
+        lv = np.random.randint(low=low, high=high, size=n_thread)
+        # lv = np.random.randint(low=0, high=AlgorithmConfig.distribution_precision, size=n_thread)
+        # lv = np.random.randint(low=0, high=1, size=n_thread)
 
         npr = np.array(list(map(self.mapLevel2PrNum, lv)))
-        check = np.array(list(map(self.mapPrNum2Level, npr)))
-        assert (check==lv).all()
+        # check = np.array(list(map(self.mapPrNum2Level, npr)))
+        # assert (check==lv).all()
 
         return npr
 

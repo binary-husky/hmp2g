@@ -2,8 +2,9 @@ import os, time, torch, shutil
 import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
-from UTIL.tensor_ops import __hash__, repeat_at
-from ..commom.rl_alg_base import RLAlgorithmBase
+from UTIL.tensor_ops import __hash__
+from ALGORITHM.commom.rl_alg_base import RLAlgorithmBase
+from ALGORITHM.commom.onfly_config import ConfigOnFly
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -53,10 +54,13 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
-    distribution_precision = 7
+    distribution_precision = 10
+    pg_target_distribute = np.array([0,1,2,3,4,5])
+    ac_target_distribute = np.array([0,1,2,3,4,5,6,7,8,9])
+    ConfigOnTheFly = True
 
 
-class ReinforceAlgorithmFoundation(RLAlgorithmBase):
+class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         self.n_thread = n_thread
         self.n_agent = n_agent
@@ -117,6 +121,10 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         # Skip currupt data integraty check after this patience is exhausted
         self.patience = 1000
 
+        # activate config on the fly ability
+        if AlgorithmConfig.ConfigOnTheFly:
+            self._create_config_fly()
+
     def action_making(self, StateRecall, test_mode):
         assert StateRecall['obs'] is not None, ('Make sure obs is ok')
 
@@ -170,6 +178,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             # time to start a training routine
             self.batch_traj_manager.train_and_clear_traj_pool()
             self.stage_planner.update_plan()
+            if AlgorithmConfig.ConfigOnTheFly: self._config_on_fly()
 
 
     '''

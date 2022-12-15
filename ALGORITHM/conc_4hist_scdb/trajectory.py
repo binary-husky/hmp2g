@@ -106,7 +106,7 @@ class trajectory(TRAJ_BASE):
         rewards = getattr(self, reward_key)
         BLA_value_all_level = getattr(self, value_key)
         # how to merge?
-        self.value = BLA_value_all_level[:, :, :3].mean(-1, keepdims=True)
+        self.value = BLA_value_all_level[:, :, AlgorithmConfig.pg_target_distribute].mean(-1, keepdims=True)
         value = self.value
         assert value.shape[-1] == 1
         # how to merge BLA_value_all_level ?
