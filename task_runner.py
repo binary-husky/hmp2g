@@ -323,5 +323,5 @@ class Runner(object):
         if not hasattr(self, 'fps_smooth'):
             self.fps_smooth = new_fps
         else:
-            self.fps_smooth = int(self.fps_smooth*0.98 + new_fps*0.02)
-        return self.fps_smooth
+            self.fps_smooth = self.fps_smooth*0.98 + new_fps*0.02
+        return int(self.fps_smooth)
