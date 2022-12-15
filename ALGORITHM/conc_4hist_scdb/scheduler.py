@@ -5,13 +5,13 @@ class FeedBackPolicyResonance:
         self.last_epoch = 0
         self.best = -np.inf
         self.num_bad_epochs = 0
-        self.patience = 25
+        self.patience = 50
         self.cooldown_counter = 0
-        self.cooldown = 25
+        self.cooldown = 50
         self.threshold = 0.01
         self.recommanded_yita = 0
         self.recommanded_yita_max_limit = 0.8
-        self.recommanded_yita_inc_unit = 0.2
+        self.recommanded_yita_inc_unit = 0.1
         self.mcv = mcv
 
     def step(self, metrics):

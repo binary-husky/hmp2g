@@ -55,8 +55,8 @@ class AlgorithmConfig:
     fall_back_to_small_net = False
 
     distribution_precision = 10
-    pg_target_distribute = np.array([0,1,2,3,4,5])
-    ac_target_distribute = np.array([0,1,2,3,4,5,6,7,8,9])
+    pg_target_distribute = [0,1,2,3,4,5]
+    ct_target_distribute = [0,1,2,3,4,5]
     ConfigOnTheFly = True
 
 
