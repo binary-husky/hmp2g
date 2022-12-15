@@ -114,7 +114,7 @@ class Runner(object):
             win = 1 if 'win' in term_info and term_info['win']==True else 0
             self.info_runner['Recent-Win'].append(win)
             if 'team_ranking' in term_info: 
-                self.info_runner['Recent-Team-Ranking'].append(term_info['team_ranking'])
+                self.info_runner['Recent-Team-Ranking'].append(term_info['team_ranking'].copy())
             self.info_runner['Latest-Reward-Sum'][i] = 0
             self.info_runner['Current-Obs-Step'][i] = 0
             self.info_runner['Thread-Episode-Cnt'][i] += 1
@@ -210,7 +210,7 @@ class Runner(object):
                 win = 1 if 'win' in term_info and term_info['win']==True else 0
                 self.test_info_runner['Recent-Win'].append(win)
                 if 'team_ranking' in term_info: 
-                    self.test_info_runner['Recent-Team-Ranking'].append(term_info['team_ranking'])
+                    self.test_info_runner['Recent-Team-Ranking'].append(term_info['team_ranking'].copy())
                 if self.align_episode: self.test_info_runner['ENV-PAUSE'][i] = True
             if self.align_episode and self.test_info_runner['ENV-PAUSE'].all(): self.test_info_runner['ENV-PAUSE'][:] = False
             return self.test_info_runner
@@ -235,11 +235,11 @@ class Runner(object):
         mean_reward_each_team = []
         if self.RewardAsUnity:
             for interested_team in range(self.n_team):
-                mean_reward_each_team.append(recent_rewards[:, interested_team].mean())
+                mean_reward_each_team.append(recent_rewards[:, interested_team].mean().copy())
         else:
             for interested_team in range(self.n_team):
                 tean_agent_uid = cfg.ScenarioConfig.AGENT_ID_EACH_TEAM[interested_team]
-                mean_reward_each_team.append(recent_rewards[:, tean_agent_uid].mean())
+                mean_reward_each_team.append(recent_rewards[:, tean_agent_uid].mean().copy())
 
         for team in range(self.n_team):
             self.mcv.rec(mean_reward_each_team[team], f'{prefix} reward of=team-{team}')

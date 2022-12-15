@@ -27,17 +27,21 @@ class ShellEnvWrapper(object):
         act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
         # read internal coop graph info
         obs = StateRecall['Latest-Obs']
+        alive = ~((obs==0).all(-1))
         n_thread = obs.shape[0]
 
         previous_obs = StateRecall['_Previous_Obs_'] if '_Previous_Obs_' in StateRecall else np.zeros_like(obs)
 
         P = StateRecall['ENV-PAUSE']
         obs_feed = obs[~P]
+        alive_feed = alive[~P]
         prev_obs_feed = previous_obs[~P]
 
         obs_feed_in = self.solve_duplicate(obs_feed, prev_obs_feed)
 
-        I_StateRecall = {'obs':obs_feed_in, 
+        I_StateRecall = {
+            'obs':obs_feed_in, 
+            'alive':alive_feed,
             'Test-Flag':StateRecall['Test-Flag'], 
             'threads_active_flag':~P, 
             'Latest-Team-Info':StateRecall['Latest-Team-Info'][~P],
