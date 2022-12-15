@@ -124,7 +124,6 @@ from VISUALIZE.mcom import mcom
 可视化桥.设置样式('background', color='White') # 注意不可以省略参数键值'color=' ！可用颜色（JS颜色，支持Hex颜色）参考 https://www.w3schools.com/colors/colors_names.asp
 
 # 如果label要使用中文字符，需要设置字体，否则字符会变成问号'?'
-可视化桥.设置样式('font', fontpath='/examples/fonts/ttf/HGXH_CNKI.TTF') # 注意不可以省略参数键值'fontpath=' ！
 # 如果label要使用中文字符，而且需要换行，则还需要额外设置行距 fontLineHeight
 可视化桥.设置样式('font', fontPath='/examples/fonts/ttf/simhei.ttf', fontLineHeight=1500)   
 

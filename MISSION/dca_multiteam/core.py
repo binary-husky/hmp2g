@@ -58,8 +58,6 @@ class Agent(Entity):
         # script behavior to execute
         self.action_callback_test = None
         ## number of bullets hit
-        self.numHit = 0         # overall
-        self.numWasHit = 0
         self.hit = False        # in last time
         self.wasHit = False
         ## shooting cone's radius and width (in radian)
@@ -94,12 +92,6 @@ class World():
         self.contact_force = 1e+2
         self.contact_margin = 1e-10 # 1e-3
         ## wall positions
-        self.wall_pos = [-1, 1, -1, 1]  # (xmin, xmax) vertical and  (ymin,ymax) horizontal walls
-        # written by qth, 2021/04/20,用于判断是否第一次初始化
-        self.start_flag = True
-        self.target_index = 0
-        self.teams_result_step1 = None
-        self.team_centroid_step1 = None
         from .collective_assult_parallel_run import ScenarioConfig
         self.s_cfg = ScenarioConfig
 
@@ -114,13 +106,29 @@ class World():
         p_force = [None] * len(self.before_step_alive_agents)
         # apply agent physical controls
         p_force = self.apply_action_force(p_force)
-        # apply environment forces
-        # p_force = self.apply_environment_force(p_force)
-        ## apply wall collision forces
-        p_force = self.apply_wall_collision_force(p_force)
-        # integrate physical state
         # calculates new state based on forces
         self.integrate_state(p_force)
+        # 
+        self.update_kill_circle()
+
+    def update_kill_circle(self):
+        current_step = self.time_step
+        terminal_cri_step = self.s_cfg.StepsToNarrowCircle
+        init_cir_radius = self.s_cfg.size
+        terminal_cir_radius = self.s_cfg.size/3.5
+
+        self.current_cir_size = init_cir_radius + (terminal_cir_radius - init_cir_radius) * min((current_step/terminal_cri_step),1)
+        current_cir_size_square = self.current_cir_size ** 2
+        
+        for _, agent in enumerate(self.before_step_alive_agents):
+            if not agent.alive: continue
+            dis_square = agent.pos[0]**2 + agent.pos[1]**2
+            if dis_square > current_cir_size_square:
+                agent.alive = False
+                agent.wasHit = True
+                agent.wasHitBy = None
+                agent.justDied = True
+
 
     # gather agent action forces
     def apply_action_force(self, p_force):
@@ -178,10 +186,8 @@ class World():
                         hit_prob_final = base_prob + terrain_advantage
                         if np.random.rand() < hit_prob_final:
                             entity.hit = True
-                            entity.numHit += 1
                             entity_b.wasHit = True
                             entity_b.wasHitBy = entity
-                            entity_b.numWasHit += 1
 
         # update just died state of dead agents
         for agent in self.agents:
