@@ -75,19 +75,20 @@ class collective_assultEnvV1(gym.Env):
             agent.wasHit = False
 
     def sparse_reward(self):
-        reward_each_team = []
-        total_agent_num = sum(self.N_AGENT_EACH_TEAM)
-        for team, uid_list in enumerate(self.AGENT_ID_EACH_TEAM):
-            team_agents = [self.world.agents[i] for i in uid_list]
-            hit_list_cnt = sum([a.hit for a in team_agents if (a.alive or a.justDied)])
-            be_hit_list_cnt = sum([a.wasHit for a in team_agents if (a.alive or a.justDied)])
-            # print(f"{hit_list_cnt},{be_hit_list_cnt}")
-            reward_team = hit_list_cnt / total_agent_num
-            reward_team -= be_hit_list_cnt / total_agent_num
-            reward_each_team.append(reward_team)
-            assert len(reward_each_team) == team+1
-        self.reward_acc += np.array(reward_each_team)
-        return reward_each_team
+        return np.array([0 for _ in range(self.n_teams)])
+        # reward_each_team = []
+        # total_agent_num = sum(self.N_AGENT_EACH_TEAM)
+        # for team, uid_list in enumerate(self.AGENT_ID_EACH_TEAM):
+        #     team_agents = [self.world.agents[i] for i in uid_list]
+        #     hit_list_cnt = sum([a.hit for a in team_agents if (a.alive or a.justDied)])
+        #     be_hit_list_cnt = sum([a.wasHit for a in team_agents if (a.alive or a.justDied)])
+        #     # print(f"{hit_list_cnt},{be_hit_list_cnt}")
+        #     reward_team = hit_list_cnt / total_agent_num
+        #     reward_team -= be_hit_list_cnt / total_agent_num
+        #     reward_each_team.append(reward_team)
+        #     assert len(reward_each_team) == team+1
+        # self.reward_acc += np.array(reward_each_team)
+        # return reward_each_team
 
     def reward(self, agent):
         main_reward = 0
