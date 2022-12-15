@@ -116,7 +116,7 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
             src_path = '/home/%s/MultiServerMission/%s/src'%(usr, time_mark)
             try:
                 sftp.mkdir(src_path, ignore_existing=False)
-                sftp.put_dir('./', src_path, ignore_list=['.vscode', '__pycache__','TEMP','ZHECKPOINT'])
+                sftp.put_dir('./', src_path, ignore_list=['__pycache__','TEMP','ZHECKPOINT'])
                 sftp.close()
                 print紫('upload complete')
             except:
