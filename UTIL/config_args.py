@@ -174,13 +174,20 @@ def prepare_alg_tmp_folder(json_data):
                 path = parent
             # transmit temp algorithm
             if trace_success:
-                rmtree(path, ignore_errors=True)
+                import glob
+                from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWRITE
+                def readonly_handler(func, path, execinfo):
+                    try:
+                        os.chmod(path, S_IWRITE)
+                        func(path)
+                    except:
+                        pass
+                    return
+                rmtree(path, onerror=readonly_handler)
                 # src_path = remove_prefix(path, 'TEMP/')
                 print亮绿(f'[config] Copying mirror algorithm from {src_path} to {path}')
                 copytree(src_path, path)
                 # make these temp files read only
-                import glob
-                from stat import S_IREAD, S_IRGRP, S_IROTH
                 for f in glob.glob(path+'/**/*.py', recursive=True): os.chmod(f, S_IREAD|S_IRGRP|S_IROTH)
     except:
         print亮红('[config] Errors occurs when executing prepare_alg_tmp_folder')

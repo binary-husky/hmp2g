@@ -185,7 +185,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             print绿('save model finish')
         if command == 'load':
             manual_dir = AlgorithmConfig.load_specific_checkpoint
-            ckpt_dir = '%s/model.pt'%logdir if manual_dir=='' else '%s/%s'%(logdir, manual_dir)
+            ckpt_dir = f'{logdir}/{self.team}-model.pt' if manual_dir=='' else '%s/%s'%(logdir, manual_dir)
             print黄('加载检查点:', ckpt_dir)
             if not AlgorithmConfig.checkpoint_reload_cuda:
                 self.policy.load_state_dict(torch.load(ckpt_dir))
