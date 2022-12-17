@@ -32,9 +32,9 @@
         "HeteAgents": true,
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapPreyPredator",
-        "UhmapVersion":"3.2",
-        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
+        "UhmapVersion":"3.5",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxServer/UHMPServer.sh",
         "TimeDilation": 2, // simulation time speed up, larger is faster
         "TEAM_NAMES": [
             "ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation",
