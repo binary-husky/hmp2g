@@ -6,9 +6,9 @@
 ``` python 
 from MISSION.uhmap.auto_download import download_client_binary_on_platform
 download_client_binary_on_platform(
-    desired_path="./UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh", 
-    # desired_path="./UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.exe", 
-    desired_version="3.2", 
+    desired_path="./UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.sh", 
+    # desired_path="./UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.exe", 
+    desired_version="3.5", 
     is_render_client=True,
     platform="Windows",
     # platform="Linux",

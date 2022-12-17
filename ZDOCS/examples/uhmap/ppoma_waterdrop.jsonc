@@ -1,7 +1,7 @@
 {
     // --- Part1: config HMP core --- 
     "config.py->GlobalConfig": {
-        "note": "ppoma-predatorprey",// http://localhost:59547
+        "note": "ppoma-waterdorp",// http://localhost:59547
         "env_name": "uhmap",
         "env_path": "MISSION.uhmap",
         // "heartbeat_on": "False",
@@ -21,25 +21,27 @@
     },
 
 
-    // --- Part2: config MISSION --- 
+      // --- Part2: config MISSION ---
     "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
-        "N_AGENT_EACH_TEAM": [10, 3],
-        "MaxEpisodeStep": 100,
-        "StepGameTime": 0.5,
-        "StateProvided": false,
-        "render": false, // note: random seed has different impact on renderer and server
-        "UElink2editor": false,
-        "HeteAgents": true,
-        "UnrealLevel": "UhmapLargeScale",
-        "SubTaskSelection": "UhmapPreyPredator",
-        "UhmapVersion":"3.5",
-        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxServer/UHMPServer.sh",
-        "TimeDilation": 2, // simulation time speed up, larger is faster
-        "TEAM_NAMES": [
-            "ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation",
-            "TEMP.TEAM2.ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation",
-        ]
+      "N_AGENT_EACH_TEAM": [ 10, 2 ], // 10 ships, 2 waterdrops
+      "MaxEpisodeStep": 100,
+      "StepGameTime": 0.5,
+      "StateProvided": false,
+      "render": true, // note: random seed has different impact on renderer and server
+      "UElink2editor": false,
+      "HeteAgents": true,
+      "UnrealLevel": "UhmapWaterdrop",
+      "SubTaskSelection": "UhmapWaterdrop",
+      // "UhmapRenderExe": "./../../WindowsNoEditor/UHMP.exe",
+      // "UhmapServerExe": "./../../WindowsServer/UHMPServer.exe",
+      "UhmapVersion": "2.4",
+      "UhmapRenderExe": "../WindowsNoEditor/UHMP.exe",
+      "UhmapServerExe": "../WindowsServer/UHMPServer.exe",
+      "TimeDilation": 64, // simulation time speed up, larger is faster
+      "TEAM_NAMES": [
+        "ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation",
+        "TEMP.TEAM2.ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation"
+      ]
     },
 
 

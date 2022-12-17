@@ -42,7 +42,7 @@ class AlgorithmConfig:
     # prevent this by fixing the number of samples to initial
     # by randomly sampling and droping
     prevent_batchsize_oom = True
-    gamma_in_reward_forwarding = False
+    gamma_in_reward_forwarding = True
     gamma_in_reward_forwarding_value = 0.99
 
     # extral
@@ -84,29 +84,22 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         self.team = team
         self.ScenarioConfig = GlobalConfig.ScenarioConfig
         n_actions = GlobalConfig.ScenarioConfig.n_actions
-        alg_config = AlgorithmConfig
         from .shell_env import ShellEnvWrapper
         self.shell_env = ShellEnvWrapper(n_agent, n_thread, space, mcv, self, 
-                                        alg_config, self.ScenarioConfig)
-        if 'm-cuda' in GlobalConfig.device:
-            assert False, ('not support anymore')
-            gpu_id = json.loads(GlobalConfig.device.split('->')[-1])
-            device = 'cuda:%d'%gpu_id[0]
-        else:
-            gpu_id = None
-            device = GlobalConfig.device
-            cuda_n = 'cpu' if 'cpu' in device else GlobalConfig.device
-        self.device = device
+                                        AlgorithmConfig, self.ScenarioConfig)
+        
+        if 'm-cuda' in GlobalConfig.device: assert False, ('not support anymore')
+        else: self.device = GlobalConfig.device
 
         self.policy = Net(rawob_dim=self.ScenarioConfig.obs_vec_length,
                           n_action = n_actions, 
-                          use_normalization=alg_config.use_normalization,
+                          use_normalization=AlgorithmConfig.use_normalization,
                           n_focus_on = AlgorithmConfig.n_focus_on, 
                           actor_attn_mod=AlgorithmConfig.actor_attn_mod,
                           dual_conc=AlgorithmConfig.dual_conc)
         self.policy = self.policy.to(self.device)
 
-        self.AvgRewardAgentWise = alg_config.TakeRewardAsUnity
+        self.AvgRewardAgentWise = AlgorithmConfig.TakeRewardAsUnity
         from .ppo import PPO
         self.trainer = PPO(self.policy, cfg=AlgorithmConfig, mcv=mcv, team=self.team)
         from .trajectory import BatchTrajManager
@@ -123,13 +116,8 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         if not os.path.exists(f'{logdir}/history_cpt/'):
             os.makedirs(f'{logdir}/history_cpt/')
         if self.load_checkpoint:
-            manual_dir = AlgorithmConfig.load_specific_checkpoint
-            ckpt_dir = '%s/model.pt'%logdir if manual_dir=='' else '%s/%s'%(logdir, manual_dir)
-            print黄('加载检查点:', ckpt_dir)
-            if not alg_config.checkpoint_reload_cuda:
-                self.policy.load_state_dict(torch.load(ckpt_dir))
-            else:
-                self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n))
+            self.save_or_load('load', None)
+
         # data integraty check
         self._unfi_frag_ = None
         # Skip currupt data integraty check after this patience is exhausted
@@ -153,7 +141,6 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         obs, threads_active_flag = StateRecall['obs'], StateRecall['threads_active_flag']
         assert len(obs) == sum(threads_active_flag), ('make sure we have the right batch of obs')
         avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
-        alive = StateRecall['alive'] if 'alive' in StateRecall else None
         # make decision
         with torch.no_grad():
             action, value, action_log_prob = self.policy.act(obs, test_mode=test_mode, avail_act=avail_act)
@@ -163,7 +150,6 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         traj_frag = {
             '_SKIP_':        ~threads_active_flag, # thread mask
             'value':         value,
-            'alive':         alive,
             'actionLogProb': action_log_prob,
             'obs':           obs,
             'action':        action,
@@ -182,26 +168,29 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             update_cnt = self.batch_traj_manager.train_and_clear_traj_pool()
             toc = time.time()
             print('训练用时:',toc-tic)
-            self.save_model(update_cnt)
+            self.save_or_load('save', update_cnt)
 
 
 
-    def save_model(self, update_cnt):
+    def save_or_load(self, command, update_cnt):
         logdir = GlobalConfig.logdir
-        flag = '%s/save_now'%logdir
-        if os.path.exists(flag) or update_cnt%50==0:
-            # dir 1
+        if command == 'save':
             pt_path = f'{logdir}/{self.team}-model.pt'
+            # dir 1
             print绿('saving model to %s'%pt_path)
             torch.save(self.policy.state_dict(), pt_path)
-
             # dir 2
             pt_path = f'{logdir}/history_cpt/{self.team}-model_{update_cnt}.pt'
             torch.save(self.policy.state_dict(), pt_path)
-            try: os.remove(flag)
-            except: pass
-            print绿('保存模型完成')
-
+            print绿('save model finish')
+        if command == 'load':
+            manual_dir = AlgorithmConfig.load_specific_checkpoint
+            ckpt_dir = f'{logdir}/{self.team}-model.pt' if manual_dir=='' else '%s/%s'%(logdir, manual_dir)
+            print黄('加载检查点:', ckpt_dir)
+            if not AlgorithmConfig.checkpoint_reload_cuda:
+                self.policy.load_state_dict(torch.load(ckpt_dir))
+            else:
+                self.policy.load_state_dict(torch.load(ckpt_dir, map_location=self.device))
 
 
 

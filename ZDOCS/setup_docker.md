@@ -151,7 +151,7 @@ sacred
 cython
 psutil
 pygame
-sklearn
+scikit-learn
 filelock
 waitress
 colorama
