@@ -177,8 +177,12 @@ def prepare_alg_tmp_folder(json_data):
                 import glob
                 from stat import S_IREAD, S_IRGRP, S_IROTH, S_IWRITE
                 def readonly_handler(func, path, execinfo):
-                    os.chmod(path, S_IWRITE)
-                    func(path)
+                    try:
+                        os.chmod(path, S_IWRITE)
+                        func(path)
+                    except:
+                        pass
+                    return
                 rmtree(path, onerror=readonly_handler)
                 # src_path = remove_prefix(path, 'TEMP/')
                 print亮绿(f'[config] Copying mirror algorithm from {src_path} to {path}')
