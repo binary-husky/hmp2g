@@ -1,7 +1,7 @@
 {
     // --- Part1: config HMP core --- 
     "config.py->GlobalConfig": {
-        "note": "z-test-qmix",// http://localhost:59547
+        "note": "qmix-uhmap50vs50",//
         "env_name": "uhmap",
         "env_path": "MISSION.uhmap",
         // "heartbeat_on": "False",
