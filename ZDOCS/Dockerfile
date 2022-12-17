@@ -79,7 +79,7 @@ RUN $useProxyNetwork curl cip.cc
 # pip install everything we need
 USER hmp
 SHELL ["/bin/bash", "-c"]
-RUN $useProxyNetwork pip install numpy scipy sklearn
+RUN $useProxyNetwork pip install numpy scipy scikit-learn
 RUN $useProxyNetwork pip install lz4 gym flask cython waitress colorama func_timeout setproctitle filelock
 RUN $useProxyNetwork pip install commentjson matplotlib psutil paramiko ipykernel onedrivedownloader flock
 RUN $useProxyNetwork pip install torch --extra-index-url https://download.pytorch.org/whl/cu115
