@@ -6,6 +6,7 @@ import redis
 import pickle
 import subprocess
 import json
+import platform
 import os
 from config import GlobalConfig
 
@@ -67,9 +68,16 @@ class PymarlFoundation():
             "--pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
             "--env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
         
-        from UTIL.network import UnixTcpServerP2P
-        unix_path = 'TEMP/Sockets/unix/%s'%self.remote_uuid
-        self.remote_link_server = UnixTcpServerP2P(unix_path, obj='pickle')
+        if platform.system() == "Windows":
+            from UTIL.network import TcpServerP2P
+            unix_path = ('localhost', 12235)
+            self.remote_link_server = TcpServerP2P(unix_path, obj='pickle')
+        else:
+            from UTIL.network import UnixTcpServerP2P
+            unix_path = 'TEMP/Sockets/unix/%s'%self.remote_uuid
+            self.remote_link_server = UnixTcpServerP2P(unix_path, obj='pickle')
+
+
         atexit.register(lambda: self.__del__()) 
         time.sleep(5)
 
