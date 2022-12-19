@@ -66,7 +66,7 @@ class PymarlFoundation():
             "--config=%s"%AlgorithmConfig.pymarl2_alg_select, 
             "--env-config=HMP_compat",
             "--pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
-            "--env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
+            "--env_uuid=%s"%self.remote_uuid], stdout=fp)
         
         if platform.system() == "Windows":
             from UTIL.network import TcpServerP2P
