@@ -54,6 +54,8 @@ class AlgorithmConfig:
     alternative_critic = False
     ignore_test_mode = False
 
+    use_policy_resonance = False
+
 class ReinforceAlgorithmFoundation(object):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         self.n_thread = n_thread

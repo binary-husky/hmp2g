@@ -99,7 +99,7 @@ class Net(nn.Module):
                     actor_attn_mod=False,
                     dual_conc=True):
         super().__init__()
-        h_dim = 48
+        h_dim = 16
         self.skip_connect = True
         self.n_action = n_action
         assert use_m_gpu is None
@@ -144,8 +144,7 @@ class Net(nn.Module):
         self.check_n = self.n_focus_on*2
         self.AT_get_logit_db = nn.Sequential(  
             nn.Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),
-            nn.Linear(h_dim, h_dim//2), nn.ReLU(inplace=True),
-            LinearFinal(h_dim//2, self.n_action))
+            LinearFinal(h_dim, self.n_action))
 
         self.is_recurrent = False
         self.apply(weights_init)
