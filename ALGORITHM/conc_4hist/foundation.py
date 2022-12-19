@@ -4,7 +4,7 @@ from UTIL.colorful import *
 from .net import Net
 from config import GlobalConfig
 from UTIL.tensor_ops import __hash__, repeat_at
-from ALGORITHM.commom.traj_gae import BatchTrajManager
+from ALGORITHM.common.traj_gae import BatchTrajManager
 
 class AlgorithmConfig:  
     '''
