@@ -44,6 +44,7 @@ class AlgorithmConfig:
     extral_train_loop = False
     load_specific_checkpoint = ''
     use_conc_net = True
+    dual_conc = True
     use_my_attn = True
     use_policy_resonance = False
 
