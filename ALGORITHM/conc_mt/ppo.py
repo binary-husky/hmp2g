@@ -8,7 +8,7 @@ from UTIL.tensor_ops import _2tensor, _2cpu2numpy, repeat_at
 from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
 from config import GlobalConfig
 from UTIL.gpu_share import GpuShareUnit
-from ALGORITHM.commom.ppo_sampler import TrajPoolSampler
+from ALGORITHM.common.ppo_sampler import TrajPoolSampler
 
 
 class PPO():

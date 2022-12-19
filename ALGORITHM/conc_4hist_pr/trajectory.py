@@ -3,7 +3,7 @@ from config import GlobalConfig
 import numpy as np
 from numpy.core.numeric import indices
 from .foundation import AlgorithmConfig
-from ALGORITHM.commom.traj import TRAJ_BASE
+from ALGORITHM.common.traj import TRAJ_BASE
 import copy
 from UTIL.colorful import *
 from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_softmax, scatter_with_nan

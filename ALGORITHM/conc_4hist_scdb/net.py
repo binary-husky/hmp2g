@@ -5,13 +5,13 @@ import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn.modules.linear import Linear
-from ALGORITHM.commom.attention import MultiHeadAttention
-from ALGORITHM.commom.norm import DynamicNormFix
-from ALGORITHM.commom.attention import SimpleAttention
-from ALGORITHM.commom.conc import Concentration
-from ALGORITHM.commom.mlp import LinearFinal, SimpleMLP, ResLinear
-from ALGORITHM.commom.net_manifest import weights_init
-from ALGORITHM.commom.logit2act import Logit2Act
+from ALGORITHM.common.attention import MultiHeadAttention
+from ALGORITHM.common.norm import DynamicNormFix
+from ALGORITHM.common.attention import SimpleAttention
+from ALGORITHM.common.conc import Concentration
+from ALGORITHM.common.mlp import LinearFinal, SimpleMLP, ResLinear
+from ALGORITHM.common.net_manifest import weights_init
+from ALGORITHM.common.logit2act import Logit2Act
 from .ccategorical import CCategorical
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, __hash__, __hashn__, pad_at_dim
 from UTIL.tensor_ops import repeat_at, one_hot_with_nan, gather_righthand, pt_inf

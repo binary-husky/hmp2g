@@ -6,14 +6,14 @@ from .ccategorical import CCategorical
 from torch.distributions.categorical import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn.modules.linear import Linear
-from ALGORITHM.commom.attention import MultiHeadAttention
-from ALGORITHM.commom.norm import DynamicNorm
-from ALGORITHM.commom.mlp import LinearFinal, SimpleMLP, ResLinear
+from ALGORITHM.common.attention import MultiHeadAttention
+from ALGORITHM.common.norm import DynamicNorm
+from ALGORITHM.common.mlp import LinearFinal, SimpleMLP, ResLinear
 from UTIL.colorful import print亮紫
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, __hash__, __hashn__, pad_at_dim
 from UTIL.tensor_ops import pt_inf
 from .foundation import AlgorithmConfig
-from ALGORITHM.commom.conc import Concentration
+from ALGORITHM.common.conc import Concentration
 
 def weights_init(m):
     def init_Linear(m, final_layer=False):

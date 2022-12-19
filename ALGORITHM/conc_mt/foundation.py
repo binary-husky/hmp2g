@@ -4,7 +4,7 @@ from UTIL.colorful import *
 from .net import Net
 from config import GlobalConfig
 from UTIL.tensor_ops import __hash__, repeat_at
-from ALGORITHM.commom.rl_alg_base import RLAlgorithmBase
+from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -141,6 +141,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         obs, threads_active_flag = StateRecall['obs'], StateRecall['threads_active_flag']
         assert len(obs) == sum(threads_active_flag), ('make sure we have the right batch of obs')
         avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
+        alive = StateRecall['alive'] if 'alive' in StateRecall else None
         # make decision
         with torch.no_grad():
             action, value, action_log_prob = self.policy.act(obs, test_mode=test_mode, avail_act=avail_act)
@@ -150,6 +151,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         traj_frag = {
             '_SKIP_':        ~threads_active_flag, # thread mask
             'value':         value,
+            'alive':         alive,
             'actionLogProb': action_log_prob,
             'obs':           obs,
             'action':        action,

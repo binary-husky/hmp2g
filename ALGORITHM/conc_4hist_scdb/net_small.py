@@ -7,10 +7,10 @@ from UTIL.tensor_ops import gather_righthand, _2tensor
 from UTIL.exp_helper import changed
 from .ccategorical import CCategorical
 from .foundation import AlgorithmConfig
-from ALGORITHM.commom.attention import SimpleAttention
-from ALGORITHM.commom.norm import DynamicNormFix
-from ALGORITHM.commom.net_manifest import weights_init
-from ALGORITHM.commom.logit2act import Logit2Act
+from ALGORITHM.common.attention import SimpleAttention
+from ALGORITHM.common.norm import DynamicNormFix
+from ALGORITHM.common.net_manifest import weights_init
+from ALGORITHM.common.logit2act import Logit2Act
 
 
 

@@ -150,7 +150,7 @@ def run_batch_exp(n_run, n_run_mode, test_subjects, script_path, sum_note='run-h
         time.sleep(1)
 
         print亮蓝("command send is done!")
-        time.sleep(45)
+        time.sleep(660)
 
         print亮蓝("kill")
         ssh.exec_command(command='byobu send-keys -t %s C-c'%(time_mark_only), timeout=1)
@@ -201,7 +201,7 @@ def run_batch_exp(n_run, n_run_mode, test_subjects, script_path, sum_note='run-h
         time.sleep(1)
         t -= 1
 
-    DELAY = 60
+    DELAY = 600
     for ith_run in range(n_run):
         worker(ith_run)
         for i in range(DELAY):

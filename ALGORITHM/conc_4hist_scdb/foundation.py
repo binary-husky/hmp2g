@@ -3,8 +3,10 @@ import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
 from UTIL.tensor_ops import __hash__
-from ALGORITHM.commom.rl_alg_base import RLAlgorithmBase
-from ALGORITHM.commom.onfly_config import ConfigOnFly
+from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
+from ALGORITHM.common.onfly_config import ConfigOnFly
+from UTIL.tensor_ops import __hash__, repeat_at
+from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -45,6 +47,7 @@ class AlgorithmConfig:
     extral_train_loop = False
     load_specific_checkpoint = ''
     use_conc_net = True
+    dual_conc = True
     use_my_attn = True
     use_policy_resonance = False
 
