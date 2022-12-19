@@ -12,7 +12,16 @@ from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
 
 class TrajPoolSampler():
-    def __init__(self, n_div, traj_pool, flag, req_dict, req_dict_rename, prevent_batchsize_oom=False, mcv=None):
+    def __init__(self, 
+            n_div, 
+            traj_pool, 
+            flag, 
+            req_dict, 
+            return_rename,
+            value_rename,
+            advantage_rename,
+            prevent_batchsize_oom=False, 
+            mcv=None):
         self.n_pieces_batch_division = n_div
         self.prevent_batchsize_oom = prevent_batchsize_oom    
         self.mcv = mcv
@@ -23,14 +32,10 @@ class TrajPoolSampler():
         self.container = {}
         self.warned = False
         assert flag=='train'
-        # req_dict =        ['obs', 'state', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
-        # req_dict_rename = ['obs', 'state', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
+        req_dict_rename = req_dict
         if cfg.ScenarioConfig.AvailActProvided:
             req_dict.append('avail_act')
             req_dict_rename.append('avail_act')
-        return_rename = "return"
-        value_rename =  "state_value"
-        advantage_rename = "advantage"
         # replace 'obs' to 'obs > xxxx'
         for key_index, key in enumerate(req_dict):
             key_name =  req_dict[key_index]
@@ -83,7 +88,6 @@ class TrajPoolSampler():
 
     def get_sampler(self):
         if not self.prevent_batchsize_oom:
-            # 
             sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
         else:
             max_n_sample = self.determine_max_n_sample()

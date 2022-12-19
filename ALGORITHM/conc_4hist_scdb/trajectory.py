@@ -95,7 +95,7 @@ class trajectory(TRAJ_BASE):
         setattr(self, 'threat', np.expand_dims(threat, -1))
 
         # ! Use GAE to calculate return
-        self.gae_finalize_return(reward_key='reward', value_key='BLA_value_all_level', new_return_name='return')
+        self.gae_finalize_return(reward_key='reward', value_key='BAL_value_all_level', new_return_name='return')
         return
 
     def gae_finalize_return(self, reward_key, value_key, new_return_name):
@@ -104,12 +104,12 @@ class trajectory(TRAJ_BASE):
         tau = AlgorithmConfig.tau
         # ------- -------------- -------
         rewards = getattr(self, reward_key)
-        BLA_value_all_level = getattr(self, value_key)
+        BAL_value_all_level = getattr(self, value_key)
         # how to merge?
-        self.value = BLA_value_all_level[:, :, np.array(AlgorithmConfig.pg_target_distribute)].mean(-1, keepdims=True)
+        self.value = BAL_value_all_level[:, :, np.array(AlgorithmConfig.pg_target_distribute)].mean(-1, keepdims=True)
         value = self.value
         assert value.shape[-1] == 1
-        # how to merge BLA_value_all_level ?
+        # how to merge BAL_value_all_level ?
         length = rewards.shape[0]
         assert rewards.shape[0]==value.shape[0]
         # if dimension not aligned

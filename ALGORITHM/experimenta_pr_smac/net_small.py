@@ -2,7 +2,7 @@ import torch, math, copy
 import numpy as np
 import torch.nn as nn
 from torch.distributions.categorical import Categorical
-from UTIL.tensor_ops import Args2tensor_Return2numpy, Args2tensor, __hashn__, repeat_at
+from UTIL.tensor_ops import Args2tensor_Return2numpy, Args2tensor, __hashn__, repeat_at, pt_nan
 from UTIL.tensor_ops import gather_righthand, _2tensor
 from UTIL.exp_helper import changed
 from .ccategorical import CCategorical
@@ -70,7 +70,7 @@ class Net(Logit2Act, nn.Module):
         self.apply(weights_init)
         return
 
-    def _act(self, obs, state, test_mode, eval_mode=False, eval_actions=None, avail_act=None, eprsn=None):
+    def _act(self, obs, state, test_mode, eval_mode=False, eval_actions=None, avail_act=None, eprsn=None, randl=None):
         eval_act = eval_actions if eval_mode else None
         others = {}
         if self.use_normalization:
@@ -104,24 +104,22 @@ class Net(Logit2Act, nn.Module):
         ct_bac = self.ct_encoder(ct_bac)
         ct_bac = self.ct_attention_layer(k=ct_bac,q=ct_bac,v=ct_bac)
         BAL_value_all_level = self.ct_get_value(ct_bac)
-        value = self.select_value_level(BAL_value_all_level, eprsn, n_agent)
+        BAL_value_all_level[..., 1:] = pt_nan() # pt_inf
 
         # in this mode, value is used for advantage calculation
-        if not eval_mode: return act, BAL_value_all_level, actLogProbs
+        if not eval_mode: 
+            return act, BAL_value_all_level, actLogProbs
         # in this mode, value is used for critic regression
-        else:             return value, actLogProbs, distEntropy, probs, others
+        else:             
+            value = self.select_value_level(BAL_all_level=BAL_value_all_level, randl=randl)
+            return value, actLogProbs, distEntropy, probs, others
 
-    def select_value_level(self, BAL_value_all_level, eprsn, n_agent):
-        def get_lv(eprsn):
-            with torch.no_grad():
-                asum = eprsn.sum(-1).cpu().numpy()
-                lv = np.array(list(map(self.stage_planner.mapPrNum2Level, asum)))
-                lv = _2tensor(lv).long()
-                return repeat_at(lv, -1, n_agent).unsqueeze(-1)
-        lv = get_lv(eprsn)
-        value = gather_righthand(src=BAL_value_all_level, index=lv, check=False)
-        return value
-    
+    def select_value_level(self, BAL_all_level, randl):
+        n_agent = BAL_all_level.shape[1]
+        tmp_index = repeat_at(randl, -1, n_agent).unsqueeze(-1)
+        return gather_righthand(src=BAL_all_level, index=tmp_index, check=False)
+
+
     @Args2tensor_Return2numpy
     def act(self, *args, **kargs):
         return self._act(*args, **kargs)

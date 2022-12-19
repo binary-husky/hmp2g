@@ -56,16 +56,18 @@ class ShellEnvWrapper(object):
         alive_feed = alive[~P]
         obs_feed_in  = obs[~P] #, his_pool_next = self.solve_duplicate(obs_feed.copy(), his_pool_obs_feed.copy(), alive_feed.copy())
         eprsn = self.rl_functional.stage_planner.eprsn[~P] if self.use_policy_resonance else None
+        randl = self.rl_functional.stage_planner.randl[~P] if self.use_policy_resonance else None
 
         I_State_Recall = {
-            'obs':obs_feed_in, 
+            'obs':obs_feed_in,
             'alive':alive_feed,
-            'state':state_feed, 
-            'eprsn':eprsn, 
-            'Test-Flag':State_Recall['Test-Flag'], 
-            'threads_active_flag':~P, 
+            'state':state_feed,
+            'randl':randl,
+            'eprsn':eprsn,
+            'Test-Flag':State_Recall['Test-Flag'],
+            'threads_active_flag':~P,
             'Latest-Team-Info':State_Recall['Latest-Team-Info'][~P],
-            }
+        }
         if self.AvailActProvided:
             avail_act = np.array([info['avail-act'] for info in np.array(State_Recall['Latest-Team-Info'][~P], dtype=object)])
             I_State_Recall.update({'avail_act':avail_act})

@@ -139,13 +139,13 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         alive = StateRecall['alive'] if 'alive' in StateRecall else None
 
         with torch.no_grad():
-            action, BLA_value_all_level, action_log_prob = self.policy.act(
+            action, BAL_value_all_level, action_log_prob = self.policy.act(
                 obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
             "_SKIP_":        ~threads_active_flag,
-            "BLA_value_all_level":      BLA_value_all_level,
+            "BAL_value_all_level":      BAL_value_all_level,
             "actionLogProb": action_log_prob,
             "obs":           obs,
             "alive":         alive,

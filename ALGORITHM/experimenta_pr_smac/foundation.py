@@ -5,6 +5,8 @@ from config import GlobalConfig
 from UTIL.tensor_ops import __hash__
 from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 from ALGORITHM.common.onfly_config import ConfigOnFly
+from UTIL.tensor_ops import __hash__, repeat_at
+from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -45,6 +47,7 @@ class AlgorithmConfig:
     extral_train_loop = False
     load_specific_checkpoint = ''
     use_conc_net = True
+    dual_conc = True
     use_my_attn = True
     use_policy_resonance = False
 
@@ -54,9 +57,9 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
-    distribution_precision = 10
-    pg_target_distribute = [0,1,2,3,4,5]
-    ct_target_distribute = [0,1,2,3,4,5]
+    distribution_precision = 8
+    # pg_target_distribute = [0,1,2,3,4,5]
+    target_distribute = [0,1,2,3,4,5]
     ConfigOnTheFly = True
 
 
@@ -95,11 +98,11 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
 
         # initialize optimizer and trajectory (batch) manager
         from .ppo import PPO
-        from .trajectory import BatchTrajManager
+        from ALGORITHM.common.traj_gae import BatchTrajManager
         self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv)
         self.batch_traj_manager = BatchTrajManager(
             n_env=n_thread, traj_limit=int(self.ScenarioConfig.MaxEpisodeStep),
-            trainer_hook=self.trainer.train_on_traj)
+            trainer_hook=self.trainer.train_on_traj, alg_cfg=AlgorithmConfig)
         # confirm that reward method is correct
         self.check_reward_type(AlgorithmConfig)
 
@@ -134,18 +137,20 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         state = StateRecall['state'] if 'state' in StateRecall else None
         eprsn = StateRecall['eprsn'] if 'eprsn' in StateRecall else None
         alive = StateRecall['alive'] if 'alive' in StateRecall else None
+        randl = StateRecall['randl'] if 'randl' in StateRecall else None
 
         with torch.no_grad():
-            action, BLA_value_all_level, action_log_prob = self.policy.act(
-                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
+            action, BAL_value_all_level, action_log_prob = self.policy.act(
+                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn, randl=randl)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
             "_SKIP_":        ~threads_active_flag,
-            "BLA_value_all_level":      BLA_value_all_level,
+            "BAL_value_all_level":      BAL_value_all_level,
             "actionLogProb": action_log_prob,
             "obs":           obs,
             "alive":         alive,
+            "randl":         randl,
             "eprsn":         eprsn,
             "state":         state,
             "action":        action,
