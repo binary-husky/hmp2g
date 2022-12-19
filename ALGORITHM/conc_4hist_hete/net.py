@@ -8,9 +8,9 @@ from UTIL.tensor_ops import pt_inf
 from UTIL.exp_helper import changed
 from .ccategorical import CCategorical
 from .foundation import AlgorithmConfig
-from ALGORITHM.commom.norm import DynamicNormFix
-from ALGORITHM.commom.conc import Concentration
-from ALGORITHM.commom.net_manifest import weights_init
+from ALGORITHM.common.norm import DynamicNormFix
+from ALGORITHM.common.conc import Concentration
+from ALGORITHM.common.net_manifest import weights_init
 
 
 

@@ -199,7 +199,7 @@ class DynamicNormFix(nn.Module):
 test script
 
 import torch, time
-from ALGORITHM.commom.norm import DynamicNormFix
+from ALGORITHM.common.norm import DynamicNormFix
 
 input_size = 1
 only_for_last_dim = True

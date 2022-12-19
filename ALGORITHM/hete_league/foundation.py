@@ -4,7 +4,7 @@ import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
 from UTIL.tensor_ops import repeat_at
-from ALGORITHM.commom.rl_alg_base import RLAlgorithmBase
+from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.

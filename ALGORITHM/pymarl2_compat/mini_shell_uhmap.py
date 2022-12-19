@@ -4,7 +4,7 @@ from UTIL.colorful import *
 from UTIL.tensor_ops import my_view, __hash__, repeat_at, gather_righthand
 from MISSION.uhmap.actset_lookup import encode_action_as_digits
 from .pymarl2_compat import AlgorithmConfig
-from ALGORITHM.commom.norm import DynamicNormFix
+from ALGORITHM.common.norm import DynamicNormFix
 class ShellEnv(object):
     def __init__(self, rl_foundation, n_agent, n_thread, space, mcv, team):
         self.n_agent = n_agent
