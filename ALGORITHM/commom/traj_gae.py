@@ -9,10 +9,11 @@ from UTIL.colorful import *
 from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_softmax, scatter_with_nan
 
 class trajectory(TRAJ_BASE):
-
-    def __init__(self, traj_limit, env_id):
+    dead_mask_check = True  # confirm mask ok
+    def __init__(self, traj_limit, env_id, use_pr=False):
         super().__init__(traj_limit, env_id)
-        self.reference_track_name = 'value'
+        self.agent_alive_reference = 'alive'
+        self.use_pr = use_pr
 
     def early_finalize(self):
         assert not self.readonly_lock   # unfinished traj
@@ -26,20 +27,14 @@ class trajectory(TRAJ_BASE):
         super().cut_tail()
         TJ = lambda key: getattr(self, key)
         # 进一步地， 根据这个轨迹上的NaN，删除所有无效时间点
-        reference_track = getattr(self, self.reference_track_name)
+        agent_alive = getattr(self, self.agent_alive_reference)
+        assert len(agent_alive.shape) == 2, "shoud be 2D (time, agent)/dead_or_alive"
         if self.need_reward_bootstrap:
             assert False, ('it should not go here if everything goes as expected')
-            # print('need_reward_bootstrap') 找到最后一个不是nan的位置
-            T = np.where(~np.isnan(reference_track.squeeze()))[0][-1]
-            self.boot_strap_value = {
-                'bootstrap_value':TJ('value').squeeze()[T].copy(), 
-            }
-            assert not hasattr(self,'tobs')
-            self.set_terminal_obs(TJ('g_obs')[T].copy())
-            reference_track[T] = np.nan
         # deprecated if nothing in it
-        p_invalid = np.isnan(my_view(reference_track, [0, -1])).any(axis=-1)
-        p_valid = ~p_invalid
+        p_valid = agent_alive.any(axis=-1)
+        p_invalid = ~p_valid
+        assert p_valid[-1] == True
         if p_invalid.all(): #invalid traj
             self.deprecated_flag = True
             return
@@ -60,14 +55,14 @@ class trajectory(TRAJ_BASE):
             gamma = AlgorithmConfig.gamma_in_reward_forwarding_value 
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
-                self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
-                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)  # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
 
         else:
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
-                self.reward[i-1] += np.where(dead_mask[i], self.reward[i], 0)      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
-                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])      # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i-1] += np.where(dead_mask[i], self.reward[i], 0)        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
+                self.reward[i]    = np.where(dead_mask[i], 0, self.reward[i])        # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
         return
 
 
@@ -78,13 +73,14 @@ class trajectory(TRAJ_BASE):
         TJ = lambda key: getattr(self, key) 
         assert not np.isnan(TJ('reward')).any()
         # deadmask
-        tmp = np.isnan(my_view(self.obs, [0,0,-1]))
-        dead_mask = tmp.all(-1)
-        # if (True): # check if the mask is correct
-        #     dead_mask_self = np.isnan(my_view(self.obs, [0,0,-1])[:,:,0])
-        #     assert (dead_mask==dead_mask_self).all()
-        # dead_mask2 = tmp.any(-1)
-        # assert (dead_mask==dead_mask2).all()
+        agent_alive = getattr(self, self.agent_alive_reference)
+        dead_mask = ~agent_alive
+
+        if trajectory.dead_mask_check:
+            trajectory.dead_mask_check = False
+            if not dead_mask.any(): 
+                assert False, "Are you sure agents cannot die? If so, delete this check."
+
         self.reward_push_forward(dead_mask) # push terminal reward forward 38 42 54
         threat = np.zeros(shape=dead_mask.shape) - 1
         assert dead_mask.shape[0] == self.time_pointer
@@ -95,12 +91,15 @@ class trajectory(TRAJ_BASE):
             elif i+1 == self.time_pointer:
                 threat[:] += (~dead_mask[i]).astype(np.int)
 
-        SAFE_LIMIT = 11
+        SAFE_LIMIT = 8
         threat = np.clip(threat, -1, SAFE_LIMIT)
         setattr(self, 'threat', np.expand_dims(threat, -1))
 
         # ! Use GAE to calculate return
-        self.gae_finalize_return(reward_key='reward', value_key='value', new_return_name='return')
+        if self.use_pr:
+            self.gae_finalize_return(reward_key='reward', value_key='BLA_value_all_level', new_return_name='return')
+        else:
+            self.gae_finalize_return(reward_key='reward', value_key='value', new_return_name='return')
         return
 
     def gae_finalize_return(self, reward_key, value_key, new_return_name):
@@ -109,7 +108,16 @@ class trajectory(TRAJ_BASE):
         tau = AlgorithmConfig.tau
         # ------- -------------- -------
         rewards = getattr(self, reward_key)
-        value = getattr(self, value_key)
+        if self.use_pr:
+            BLA_value_all_level = getattr(self, value_key)
+            # how to merge?
+            self.value = BLA_value_all_level[:, :, np.array(AlgorithmConfig.pg_target_distribute)].mean(-1, keepdims=True)
+            value = self.value
+            assert value.shape[-1] == 1
+            # how to merge BLA_value_all_level ?
+        else:
+            value = getattr(self, value_key)
+        # ------- -------------- -------
         length = rewards.shape[0]
         assert rewards.shape[0]==value.shape[0]
         # if dimension not aligned
@@ -117,7 +125,7 @@ class trajectory(TRAJ_BASE):
         # initalize two more tracks
         setattr(self, new_return_name, np.zeros_like(value))
         self.key_dict.append(new_return_name)
-
+        # ------- -------------- -------
         returns = getattr(self, new_return_name)
         boot_strap = 0 if not self.need_reward_bootstrap else self.boot_strap_value['bootstrap_'+value_key]
 
@@ -144,8 +152,7 @@ class trajectory(TRAJ_BASE):
 
 
 class TrajPoolManager(object):
-    def __init__(self, n_pool):
-        self.n_pool =  n_pool
+    def __init__(self):
         self.cnt = 0
 
     def absorb_finalize_pool(self, pool):
@@ -240,8 +247,7 @@ class BatchTrajManager(TrajManagerBase):
         self.trainer_hook = trainer_hook
         self.traj_limit = traj_limit
         self.train_traj_needed = AlgorithmConfig.train_traj_needed
-        self.upper_training_epoch = AlgorithmConfig.upper_training_epoch
-        self.pool_manager = TrajPoolManager(n_pool=self.upper_training_epoch)
+        self.pool_manager = TrajPoolManager()
 
     def update(self, traj_frag, index):
         assert traj_frag is not None
