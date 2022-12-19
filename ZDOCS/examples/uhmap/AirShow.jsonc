@@ -28,9 +28,9 @@
         "HeteAgents": true,
         "UnrealLevel": "UhmapJustAnIsland",
         "SubTaskSelection": "UhmapJustAnIsland",
-        "UhmapVersion":"3.2",
-        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
+        "UhmapVersion":"3.5",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxServer/UHMPServer.sh",
         "TimeDilation": 5,
         "TEAM_NAMES": [
             "ALGORITHM.script_ai.uhmap_island->DummyAlgorithmIdle"

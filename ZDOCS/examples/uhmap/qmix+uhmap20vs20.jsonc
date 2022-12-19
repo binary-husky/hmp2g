@@ -1,7 +1,7 @@
 {
     // --- Part1: config HMP core --- 
     "config.py->GlobalConfig": {
-        "note": "z-test-qmix",// http://localhost:59547
+        "note": "qmix-uhmap50vs50",//
         "env_name": "uhmap",
         "env_path": "MISSION.uhmap",
         // "heartbeat_on": "False",
@@ -33,9 +33,9 @@
         "HeteAgents": true,
         "UnrealLevel": "UhmapLargeScale",
         "SubTaskSelection": "UhmapLargeScale",
-        "UhmapVersion": "3.2",
-        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxNoEditor/UHMP.sh",
-        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.2/LinuxServer/UHMPServer.sh",
+        "UhmapVersion": "3.5",
+        "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.sh",
+        "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxServer/UHMPServer.sh",
         "TimeDilation": 64, // simulation time speed up, larger is faster
         "TEAM_NAMES": [
             "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",
