@@ -2,8 +2,9 @@ import os, time, torch, shutil
 import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
-from UTIL.tensor_ops import __hash__, repeat_at
-from ..commom.rl_alg_base import RLAlgorithmBase
+from UTIL.tensor_ops import __hash__
+from ALGORITHM.commom.rl_alg_base import RLAlgorithmBase
+from ALGORITHM.commom.onfly_config import ConfigOnFly
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -53,8 +54,13 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
+    distribution_precision = 10
+    pg_target_distribute = [0,1,2,3,4,5]
+    ct_target_distribute = [0,1,2,3,4,5]
+    ConfigOnTheFly = True
 
-class ReinforceAlgorithmFoundation(RLAlgorithmBase):
+
+class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         self.n_thread = n_thread
         self.n_agent = n_agent
@@ -65,7 +71,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         n_actions = GlobalConfig.ScenarioConfig.n_actions
         # self.StagePlanner
         from .stage_planner import StagePlanner
-        self.stage_planner = StagePlanner(mcv=mcv)
+        self.stage_planner = StagePlanner(n_agent=self.n_agent, mcv=mcv)
 
         if AlgorithmConfig.use_conc_net: from .shell_env import ShellEnvWrapper
         else: from .shell_env_without_conc import ShellEnvWrapper
@@ -115,6 +121,9 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         # Skip currupt data integraty check after this patience is exhausted
         self.patience = 1000
 
+        # activate config on the fly ability
+        if AlgorithmConfig.ConfigOnTheFly:
+            self._create_config_fly()
 
     def action_making(self, StateRecall, test_mode):
         assert StateRecall['obs'] is not None, ('Make sure obs is ok')
@@ -123,18 +132,21 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         assert len(obs) == sum(threads_active_flag), ('Make sure the right batch of obs!')
         avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
         state = StateRecall['state'] if 'state' in StateRecall else None
-        eprsn = repeat_at(StateRecall['eprsn'], -1, self.n_agent) if 'eprsn' in StateRecall else None
+        eprsn = StateRecall['eprsn'] if 'eprsn' in StateRecall else None
+        alive = StateRecall['alive'] if 'alive' in StateRecall else None
 
         with torch.no_grad():
-            action, value, action_log_prob = self.policy.act(
+            action, BLA_value_all_level, action_log_prob = self.policy.act(
                 obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
             "_SKIP_":        ~threads_active_flag,
-            "value":         value,
+            "BLA_value_all_level":      BLA_value_all_level,
             "actionLogProb": action_log_prob,
             "obs":           obs,
+            "alive":         alive,
+            "eprsn":         eprsn,
             "state":         state,
             "action":        action,
         }
@@ -166,6 +178,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             # time to start a training routine
             self.batch_traj_manager.train_and_clear_traj_pool()
             self.stage_planner.update_plan()
+            if AlgorithmConfig.ConfigOnTheFly: self._config_on_fly()
 
 
     '''

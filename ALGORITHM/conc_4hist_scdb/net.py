@@ -69,7 +69,7 @@ class Net(Logit2Act, nn.Module):
         tmp_dim = h_dim if not self.dual_conc else h_dim*2
         self.CT_get_value = nn.Sequential(
             Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
-            Linear(h_dim, 1)
+            Linear(h_dim, self.distribution_precision)
         )
         self.CT_get_threat = nn.Sequential(
             Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
@@ -130,10 +130,12 @@ class Net(Logit2Act, nn.Module):
         # motivation encoding fusion
         n_agent = vh_M.shape[-2]
         state_cp = repeat_at(state, -2, n_agent)
+
+        # eprsn_cp = repeat_at(eprsn.sum(-1, keepdim=True)/n_agent, -2, n_agent)
         v_M_fuse = torch.cat((vf_M, vh_M, state_cp), dim=-1)
 
         # motivation objectives
-        value = self.CT_get_value(v_M_fuse)
+        BAL_value_all_level = self.CT_get_value(v_M_fuse)   # BAL
         threat = self.CT_get_threat(v_M_fuse)
 
         # choose action selector
@@ -147,7 +149,11 @@ class Net(Logit2Act, nn.Module):
             return (torch.tanh_(t/r) + 1.) * r
 
         others['threat'] = re_scale(threat)
-        if not eval_mode: return act, value, actLogProbs
+        value = self.select_value_level(BAL_value_all_level, eprsn, n_agent)
+
+        # in this mode, value is used for advantage calculation
+        if not eval_mode: return act, BAL_value_all_level, actLogProbs
+        # in this mode, value is used for critic regression
         else:             return value, actLogProbs, distEntropy, probs, others
 
         

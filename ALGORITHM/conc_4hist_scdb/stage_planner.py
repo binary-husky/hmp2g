@@ -15,7 +15,7 @@ class PolicyRsnConfig:
 
 
 class StagePlanner:
-    def __init__(self, mcv) -> None:
+    def __init__(self, n_agent, mcv) -> None:
         if AlgorithmConfig.use_policy_resonance:
             self.resonance_active = False
             self.yita = 0
@@ -24,22 +24,55 @@ class StagePlanner:
         self.update_cnt = 0
         self.mcv = mcv
         self.trainer = None
-        
+        self.n_agent = n_agent
         if PolicyRsnConfig.yita_shift_method == 'feedback':
             from .scheduler import FeedBackPolicyResonance
             self.feedback_controller = FeedBackPolicyResonance(mcv)
         else:
             self.feedback_controller = None
-        # if AlgorithmConfig.wait_norm_stable:
-        #     self.wait_norm_stable_cnt = 2
-        # else:
-        #     self.wait_norm_stable_cnt = 0
-        # return
+
+        mapLevel2PrNumLs = np.floor(np.arange(AlgorithmConfig.distribution_precision) / AlgorithmConfig.distribution_precision * n_agent)
+        self.mapLevel2PrNumLs = mapLevel2PrNumLs.astype(np.long)
+        self.mapPrNum2LevelLs = {j:i for i,j in enumerate(self.mapLevel2PrNumLs)}
+
+    def mapLevel2PrNum(self, i):
+        return self.mapLevel2PrNumLs[i]
+
+    def mapPrNum2Level(self, j):
+        assert j in self.mapPrNum2LevelLs, f'j={j},self.mapPrNum2LevelLs={self.mapPrNum2LevelLs}'
+        return self.mapPrNum2LevelLs[j]
+
+    def n_pr_distribution(self, n_thread, n_agent):
+        # low = np.array(AlgorithmConfig.ct_target_distribute).min()
+        # high = np.array(AlgorithmConfig.ct_target_distribute).max()+1
+        # lv = np.random.randint(low=low, high=high, size=n_thread)
+        lv = np.random.choice(AlgorithmConfig.ct_target_distribute, n_thread, replace=True)
+        # lv = np.random.randint(low=0, high=AlgorithmConfig.distribution_precision, size=n_thread)
+        # lv = np.random.randint(low=0, high=1, size=n_thread)
+
+        npr = np.array(list(map(self.mapLevel2PrNum, lv)))
+        # check = np.array(list(map(self.mapPrNum2Level, npr)))
+        # assert (check==lv).all()
+
+        return npr
 
     def uprate_eprsn(self, n_thread):
-        eprsn_yita = self.yita
-        EpRsn = np.random.rand(n_thread) < eprsn_yita
-        self.eprsn = EpRsn
+        """
+            共鸣组合的生成
+        """
+        # eprsn_yita = self.yita
+        n_pr_agent = self.n_pr_distribution(n_thread, self.n_agent) # np.random.rand(n_thread) < eprsn_yita
+        self.eprsn = []
+        for n_pr in n_pr_agent: 
+            self.eprsn.append(self.generate_random_n_hot_vector(vlength=self.n_agent, n=int(n_pr)))
+        self.eprsn = np.stack(self.eprsn)
+        return self.eprsn
+
+    def generate_random_n_hot_vector(self, vlength, n):
+        pick = np.random.choice(vlength, n, replace=False)
+        tmp = np.zeros(vlength, dtype=np.bool)
+        tmp[pick] = True
+        return tmp
 
     def is_resonance_active(self,):
         return self.resonance_active

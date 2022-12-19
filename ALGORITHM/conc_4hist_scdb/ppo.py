@@ -64,24 +64,25 @@ class PPO():
         self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party)
 
     def train_on_traj(self, traj_pool, task):
-        ratio = 1.0
-        while True:
-            try:
-                with self.gpu_share_unit:
-                    self.train_on_traj_(traj_pool, task) 
-                break # 运行到这说明显存充足
-            except RuntimeError:
-                if self.prevent_batchsize_oom:
-                    if TrajPoolSampler.MaxSampleNum[-1] < 0:
-                        TrajPoolSampler.MaxSampleNum.pop(-1)
-                        
-                    assert TrajPoolSampler.MaxSampleNum[-1]>0
-                    TrajPoolSampler.MaxSampleNum[-1] = -1
+        with self.gpu_share_unit:
+            self.train_on_traj_(traj_pool, task) 
 
-                    print亮红('Insufficient gpu memory, using previous sample size !')
-                else:
-                    raise Exception
-            torch.cuda.empty_cache()
+        # while True:
+        #     try:
+
+        #         break # 运行到这说明显存充足
+        #     except RuntimeError:
+        #         if self.prevent_batchsize_oom:
+        #             if TrajPoolSampler.MaxSampleNum[-1] < 0:
+        #                 TrajPoolSampler.MaxSampleNum.pop(-1)
+                        
+        #             assert TrajPoolSampler.MaxSampleNum[-1]>0
+        #             TrajPoolSampler.MaxSampleNum[-1] = -1
+
+        #             print亮红('Insufficient gpu memory, using previous sample size !')
+        #         else:
+        #             raise Exception
+        #     torch.cuda.empty_cache()
 
     def train_on_traj_(self, traj_pool, task):
 
@@ -141,19 +142,21 @@ class PPO():
 
     def establish_pytorch_graph(self, flag, sample, n):
         obs = _2tensor(sample['obs'])
-        state = _2tensor(sample['state'])
+        state = _2tensor(sample['state']) if 'state' in sample else None
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
         real_value = _2tensor(sample['return'])
         real_threat = _2tensor(sample['threat'])
         avail_act = _2tensor(sample['avail_act']) if 'avail_act' in sample else None
+        eprsn = _2tensor(sample['eprsn']) if 'eprsn' in sample else None
 
         batchsize = advantage.shape[0]#; print亮紫(batchsize)
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
-        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, state=state, eval_actions=action, test_mode=False, avail_act=avail_act)
+        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
+            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn)
         entropy_loss = entropy.mean()
 
         if self.use_conc_net:
