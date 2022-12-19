@@ -4,9 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
-from ALGORITHM.commom.attention import MultiHeadAttention
-from ALGORITHM.commom.norm import DynamicNorm
-from ALGORITHM.commom.mlp import LinearFinal, SimpleMLP
+from ALGORITHM.common.attention import MultiHeadAttention
+from ALGORITHM.common.norm import DynamicNorm
+from ALGORITHM.common.mlp import LinearFinal, SimpleMLP
 from UTIL.colorful import print亮紫
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, repeat_at
 

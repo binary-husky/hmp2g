@@ -3,7 +3,7 @@ import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
 from UTIL.tensor_ops import __hash__, repeat_at
-from ..commom.rl_alg_base import RLAlgorithmBase
+from ..common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.

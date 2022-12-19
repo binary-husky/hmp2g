@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from ALGORITHM.commom.mlp import LinearFinal
+from ALGORITHM.common.mlp import LinearFinal
 from UTIL.tensor_ops import add_onehot_id_at_last_dim, repeat_at, _2tensor, gather_righthand, scatter_righthand
 
 

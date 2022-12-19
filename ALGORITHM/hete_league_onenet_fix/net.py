@@ -8,10 +8,10 @@ from UTIL.tensor_ops import pt_inf
 from UTIL.exp_helper import changed
 from .ccategorical import CCategorical
 from .foundation import AlgorithmConfig
-from ALGORITHM.commom.attention import SimpleAttention
-from ALGORITHM.commom.norm import DynamicNormFix
-from ALGORITHM.commom.net_manifest import weights_init
-from ALGORITHM.commom.hyper_net import HyperNet
+from ALGORITHM.common.attention import SimpleAttention
+from ALGORITHM.common.norm import DynamicNormFix
+from ALGORITHM.common.net_manifest import weights_init
+from ALGORITHM.common.hyper_net import HyperNet
 
 
 
