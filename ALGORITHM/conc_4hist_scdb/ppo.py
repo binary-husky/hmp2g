@@ -28,8 +28,8 @@ class PPO():
         self.lr = ppo_config.lr
         self.extral_train_loop = ppo_config.extral_train_loop
         self.all_parameter = list(policy_and_critic.named_parameters())
-        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name)]
-        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name)]
+        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
+        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
         # self.ae_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AE_' in p_name]
         # 检查剩下是是否全都是不需要训练的参数
         remove_exists = lambda LA,LB: list(set(LA).difference(set(LB)))
@@ -39,13 +39,13 @@ class PPO():
         # res = remove_exists(res, self.ae_parameter)
         for p_name, p in res:   
             assert not p.requires_grad, ('a parameter must belong to either CriTic or AcTor, unclassified parameter:',p_name)
-        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name) and ('at_' in p_name)]
+        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if (('ct_' in p_name) or ('CT_' in p_name)) and (('at_' in p_name) or ('AT_' in p_name))]
         assert len(self.cross_parameter)==0,('a parameter must belong to either CriTic or AcTor, not both')
         # 不再需要参数名
-        self.at_parameter = [p for p_name, p in self.all_parameter if 'at_' in p_name]
+        self.at_parameter = [p for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
         self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)
 
-        self.ct_parameter = [p for p_name, p in self.all_parameter if 'ct_' in p_name]
+        self.ct_parameter = [p for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
         self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
         # self.ae_parameter = [p for p_name, p in self.all_parameter if 'AE_' in p_name]
         # self.ae_optimizer = optim.Adam(self.ae_parameter, lr=self.lr*100.0) #(self.lr)
