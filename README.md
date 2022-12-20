@@ -1,16 +1,31 @@
 
 # HMP：Hybrid Multi-agent Playground
 
-
+## Contact us: 
+- Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
+- Shijie Wang, CASIA, wangshijie2020@ia.ac.cn
+- Min Chen, CASIA, chenmin2020@ia.ac.cn
+- Tianyi Hu, CASIA, hutianyi2021@ia.ac.cn
+- Yifan Xu, CASIA, xuyifan2021@ia.ac.cn
+- Organization：
+    - Institute of Automation, Chinese Academy of Sciences
+    - School of Artificial Intelligence, University of Chinese Academy of Sciences
+    - Yiteam Swarm Intelligent Research Group
 ## Content
+
 1. [Introduction](#introduction)
+
 1. [Demo](#demo)
 1. [Structure of HMP](#structure-of-hmp)
+1. [Visualization of HMP](#vhmap-visualization-of-hmp)
 1. [Dependency](#dependency)
-1. [Other READMES](#other-readmes)
 1. [Quick Start](#quick-start)
+1. [How to Add a New Environment in HMP](#how-to-add-a-new-environment-in-hmp)
+1. [Execution Pool](#execution-pool)
+1. [Project Roadmap](#project-roadmap)
+1. [Other READMES](#other-readmes)
 1. [Papers Supported by HMP](#papers-supported-by-hmp)
-1. [Contact us](#contact-us)
+
 
 
 
@@ -37,9 +52,12 @@ Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/
 
 ## Demo
 This resp is frequently updating.
+
 If any unexpected problem is encountered, 
 please clean the temp files by running
- ```git checkout master --force && git pull --force && git clean -xfd```
+ ```sh
+ git checkout master --force && git pull --force && git clean -xfd
+ ```
 
 If the problem does not go away, do not hesitate to [contact us](#contact-us) or send an issue!
 
@@ -213,19 +231,160 @@ In general, the HMP task runner can operate two ways:
 </div>
 
 
+## VHMAP, Visualization of HMP
+[VHMAP](./VISUALIZE/README.md) is a visualization component of HMP. 
+
+
+
+It is unfortunate that 
+all existing RL environments fail to provide a visual
+interface satisfying the following useful features:
+
+- Allowing visualizing while training without slowing down the training server. 
+- Using as few resources as possible.
+- Friendly to SSH users, faster than RDP and X server, which is notoriously slow.
+- No dependency, even an Android with a browser can access it.
+- Smooth, using the client's CPU and GPU to render instead of the server's.
+- Simple, no verbose lines about lights, buffering, refresh, and bla.bla.bla about which we researchers never care.
+
+VHMAP is just the answer, Features:
+- Python interface simplified to the max
+- Rendering on the client side, automatic frame insertion, and silky smooth frame rates
+- Few server-side dependencies
+- Very low server-side resource consumption
+- Based on ThreeJs, drag and drop support, mobile touch screen support
+- Support switching between perspective and projection views
+- Playback support
+- Use zlib to compress data streams, low network bandwidth requirement
+
+<div align="center">
+<img src="VISUALIZE/md_imgs/动画9.gif" width="450" >
+</div>
+
+Interface functions, operation introduction.
+- Right mouse button to pan, left mouse button to rotate, scroll wheel to zoom
+- Support touch screen. If your laptop or phone has a touch screen
+- Rendering refresh rate is displayed in the upper left corner
+- play fps: how many keyframes per second (less than the rendering refresh rate, then insert frames; greater than the rendering refresh rate, then the excess is invalid)
+- pause: pause
+- next frame: pause and switch the next frame
+- previous frame: pause and switch the previous frame
+- loop to start: play all data, go back to the first frame
+- ppt step: play a frame at a very slow speed. Easy to record the screen, will be stuck for a few seconds after pressing
+- use orthcam: switch the perspective view (object near large and far small)/projection view (similar to what you would use in engineering drawing)
+- P.S. The first time you switch to the projection view, you need to use the mouse wheel to enlarge the screen
+
+More details of VHMAP can be found in [VHMAP README](./VISUALIZE/README.md).
+
+
+
 ##  Dependency
 We use docker to solve dependency: [SetupDocker](./ZDOCS/setup_docker.md).
 
 Please do not run on WindowsOS (low efficiency), 
 but if you have to, 
-also refer to the last part of [setup_docker](./ZDOCS/setup_docker.md) for pip requirements list. 
-
-## Other READMES
+also refer to the last part of [SetupDocker](./ZDOCS/setup_docker.md) for pip requirements list. 
 
 
 
-## MISSION
-Please refer to [MISSION README](./MISSION/readme.md).
+## Quick Start
+
+### 1. Dependency
+We use docker to solve dependency: 
+[SetupDocker](./ZDOCS/setup_docker.md). 
+This project uses techniques such as shared memory for extreme training efficiency, 
+as a cost, 
+WindowsOS+GPU training is not well supported (using pipe IO for Windows compat).
+
+For Windows (Not recommended, please do NOT run under Windows if possible), 
+also refer to the last part of [SetupDocker](./ZDOCS/setup_docker.md) for pip requirements list. 
+
+Please read [setup_docker.md](./ZDOCS/setup_docker.md) first, and then set up the container using:
+```bash
+$ docker run -itd   --name  hmp-$USER \
+--net host \
+--gpus all \
+--shm-size=16G \
+fuqingxu/hmp:latest
+
+# Now inside the HMP container
+$ su hmp # (switch the account Inside the HMP container, password: hmp)
+$ cd ~   # (go to home directory)
+```
+
+
+### 2. AAAI 2022
+### 2.1. All Default: Testing
+```
+git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
+git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
+```
+When the testing starts, open the revealed URL for ```monitoring```. The front end is done by JavaScript and ThreeJS.
+```
+--------------------------------
+JS visualizer online: http://172.18.116.150:aRandomPort
+JS visualizer online (localhost): http://localhost:aRandomPort
+--------------------------------
+```
+### 2.2. All Default: Training
+
+```
+git pull && python main.py -c ZDOCS/examples/dca/example_dca.jsonc
+git pull && python main.py -c ZDOCS/examples/dca/train_old_dca.jsonc
+```
+
+
+### 2.3. Change Settings
+
+Launch with: 
+```
+python main.py --cfg xx.json
+```
+
+### 3. IJCNN 2022
+### 
+```
+git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip 
+git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
+```
+
+### 4. Others
+
+```
+git pull && python main.py --cfg ZHECKPOINT/adca-demo/test.json
+git pull && python main.py --cfg ZHECKPOINT/basic-ma-40-demo/test.json
+```
+
+
+
+## How to Add a New Environment in HMP
+
+Please refer to [MISSION README](./MISSION/readme.md) for more details.
+
+
+- Make a new jsonc config file, using 'example.jsonc' as a template
+- mkdir in MISSION, e.g. ./MISSION/bvr_sim, copy src code of the environment inside it.
+- Open ```MISSION/env_router.py```, add the path of environment's init function in ```env_init_function_ref```, 
+for example:
+``` python
+env_init_function_ref = {
+    "bvr": ("MISSION.bvr_sim.init_env", "make_bvr_env"),
+}   
+# bvr is the final name that HMP recognizes, 
+# MISSION.bvr_sim.init_env is a py file, 
+# ScenarioConfig is a class
+```
+- Open ```MISSION/env_router.py```, add the path of environment's configuration in ```import_path_ref```
+``` python
+import_path_ref = {
+    "bvr": ("MISSION.bvr_sim.init_env", 'ScenarioConfig'),
+}   
+# bvr will be the final name that HMP recognizes, 
+# MISSION.bvr_sim.init_env is a py file, 
+# make_bvr_env is a function
+```
+- Write your own ScenarioConfig. (refer to ```MISSION.bvr_sim.init_env.ScenarioConfig```, as a template).
+- Write your own env init function. (refer to ```MISSION.bvr_sim.init_env.make_bvr_env```, as a template).
 
 ## Execution Pool
 We designed a parallel execution pool based on shared memory,
@@ -258,119 +417,7 @@ However, note that setting ```fold>1``` will not accelerate the parallel FPS (an
 but it allows you to run more experiments simultaneously on the server.
 
 
-## VHMAP, Visualization of HMP
-VHMAP is a visualization component of HMP. [VHMAP](./VISUALIZE/README.md)
-
-It is unfortunate that 
-all existing RL environments fail to provide a visual
-interface satisfying the following useful features:
-
-- Allowing visualizing while training without slowing down the training server. 
-- Using as few resources as possible.
-- Friendly to SSH users, faster than RDP and X server, which is notoriously slow.
-- No dependency, even an Android with a browser can access it.
-- Smooth, using the client's CPU and GPU to render instead of the server's.
-- Simple. No verbose lines about lights, buffering, refresh, and bla.bla.bla about which we researchers never care.
-
-VHMAP is just the answer, Features:
-- Python interface simplified to the max
-- Rendering on the client side, automatic frame insertion, and silky smooth frame rates
-- Few server-side dependencies
-- Very low server-side resource consumption
-- Based on ThreeJs, drag and drop support, mobile touch screen support
-- Support switching between perspective and projection views
-- Playback support
-- Use zlib to compress data streams, low network bandwidth requirement
-
-<div align="center">
-<img src="VISUALIZE/md_imgs/动画9.gif" width="450" >
-</div>
-
-Interface functions, operation introduction.
-- Right mouse button to pan, left mouse button to rotate, scroll wheel to zoom
-- Support touch screen. If your laptop or phone has a touch screen
-- Rendering refresh rate is displayed in the upper left corner
-- play fps: how many keyframes per second (less than the rendering refresh rate, then insert frames; greater than the rendering refresh rate, then the excess is invalid)
-- pause: pause
-- next frame: pause and switch the next frame
-- previous frame: pause and switch the previous frame
-- loop to start: play all data, go back to the first frame
-- ppt step: play a frame at a very slow speed. Easy to record the screen, will be stuck for a few seconds after pressing
-- use orthcam: switch the perspective view (object near large and far small)/projection view (similar to what you would use in engineering drawing)
-- P.S. The first time you switch to the projection view, you need to use the mouse wheel to enlarge the screen
-
-
-
-# Quick Start
-
-## Dependency
-We use docker to solve dependency: 
-[setup_docker](./ZDOCS/setup_docker.md). 
-This project uses techniques such as shared memory for extreme training efficiency, 
-as a cost, 
-WindowsOS+GPU training is not well supported (using pipe IO for Windows compat).
-
-For Windows (Not recommended, please do NOT run under Windows if possible), 
-also refer to the last part of [setup_docker](./ZDOCS/setup_docker.md) for pip requirements list. 
-
-Please read [setup_docker.md](./ZDOCS/setup_docker.md) first, and then set up the container using:
-```bash
-$ docker run -itd   --name  hmp-$USER \
---net host \
---gpus all \
---shm-size=16G \
-fuqingxu/hmp:latest
-
-# Now inside the HMP container
-$ su hmp # (switch the account Inside the HMP container, password: hmp)
-$ cd ~   # (go to home directory)
-```
-
-
-## AAAI 2022
-### 1. All Default: Testing
-```
-git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
-git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
-```
-When the testing starts, open the revealed URL for monitoring. The front end is done by JavaScript and ThreeJS.
-```
---------------------------------
-JS visualizer online: http://172.18.116.150:aRandomPort
-JS visualizer online (localhost): http://localhost:aRandomPort
---------------------------------
-```
-### 2. All Default: Training
-
-```
-git pull && python main.py -c ZDOCS/examples/dca/example_dca.jsonc
-git pull && python main.py -c ZDOCS/examples/dca/train_old_dca.jsonc
-```
-
-
-### 3. Change Settings
-
-Launch with: 
-```
-python main.py --cfg xx.json
-```
-
-## IJCNN 2022
-### 
-```
-git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip 
-git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
-```
-
-## Others
-
-```
-git pull && python main.py --cfg ZHECKPOINT/adca-demo/test.json
-git pull && python main.py --cfg ZHECKPOINT/basic-ma-40-demo/test.json
-```
-
-
-# Project Roadmap
+## Project Roadmap
 If you are interested in something, you may continue to read:
 ```
     Handling parallel environment             -->   task_runner.py & shm_env.py
@@ -398,35 +445,24 @@ If you are interested in something, you may continue to read:
     experiment batch executor                 -->   mprofile.py
 ```
 
-# How to Add a New Environment (MISSION) in HMP
-Please refer to [MISSION README](./MISSION/readme.md) for more details.
 
 
-- Make a new jsonc config file, using 'example.jsonc' as a template
-- mkdir in MISSION, e.g. ./MISSION/bvr_sim, copy src code of the environment inside it.
-- Open ```MISSION/env_router.py```, add the path of environment's init function in ```env_init_function_ref```, e.g.:
-``` python
-env_init_function_ref = {
-    "bvr": ("MISSION.bvr_sim.init_env", "make_bvr_env"),
-}   
-# bvr is the final name that HMP recognizes, 
-# MISSION.bvr_sim.init_env is a py file, 
-# ScenarioConfig is a class
-```
-- Open ```MISSION/env_router.py```, add the path of environment's configuration in ```import_path_ref```
-``` python
-import_path_ref = {
-    "bvr": ("MISSION.bvr_sim.init_env", 'ScenarioConfig'),
-}   
-# bvr will be the final name that HMP recognizes, 
-# MISSION.bvr_sim.init_env is a py file, 
-# make_bvr_env is a function
-```
-- Write your own ScenarioConfig. (refer to ```MISSION.bvr_sim.init_env.ScenarioConfig```, as a template).
-- Write your own env init function. (refer to ```MISSION.bvr_sim.init_env.make_bvr_env```, as a template).
+## Other READMEs
+This resp is frequently updating.
 
+For more information on how to use HMP, please check out the README list below, most of other READMEs are located in ./ZDOCS/*.
 
+How to change environments(missions): [MISSION README](./MISSION/readme.md)
 
+How to solve dependency with Docker: [SetupDocker](./ZDOCS/setup_docker.md) 
+
+How to solve dependency without Docker: [SetupNODocker](./ZDOCS/setup_no_docker.md) 
+
+How to get Docker with unreal engine: [SetupUEDocker](./ZDOCS/setup_ue_docker.md)
+
+How to use third-party framework(pymarl2): [UsePymarl2 ](./ZDOCS/use_pymarl2.md)
+
+How to use Unreal-Engine-Based HMP: [UseUHMP](./ZDOCS/use_unreal_hmap.md)
 
 
 ##  Papers Supported by HMP
@@ -465,15 +501,6 @@ import_path_ref = {
 
 ```
 
-## Contact us: 
-- Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
-- Shijie Wang, CASIA, wangshijie2020@ia.ac.cn
-- Min Chen, CASIA, chenmin2020@ia.ac.cn
-- Tianyi Hu, CASIA, hutianyi2021@ia.ac.cn
-- Yifan Xu, CASIA, xuyifan2021@ia.ac.cn
-- Organization：
-    - Institute of Automation, Chinese Academy of Sciences
-    - School of Artificial Intelligence, University of Chinese Academy of Sciences
-    - Yiteam Swarm Intelligent Research Group
+
 
 
