@@ -32,3 +32,10 @@ func_timeout commentjson PyYAML onedrivedownloader redis filelock
 ```
 paramiko psutil setproctitle sacred
 ```
+
+## install
+``` 
+pip install torch
+pip install numpy scipy gym scikit-learn pygame  lz4 smac flask waitress colorama matplotlib ipykernel numba cython  func_timeout commentjson PyYAML onedrivedownloader redis filelock paramiko psutil setproctitle sacred
+```
+
