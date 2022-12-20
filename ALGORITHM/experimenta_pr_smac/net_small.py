@@ -104,8 +104,7 @@ class Net(Logit2Act, nn.Module):
         ct_bac = self.ct_encoder(ct_bac)
         ct_bac = self.ct_attention_layer(k=ct_bac,q=ct_bac,v=ct_bac)
         BAL_value_all_level = self.ct_get_value(ct_bac)
-        BAL_value_all_level[..., 1:] = pt_nan() # pt_inf
-
+        # BAL_value_all_level[..., 1:] = pt_nan() # pt_inf
         # in this mode, value is used for advantage calculation
         if not eval_mode: 
             return act, BAL_value_all_level, actLogProbs
