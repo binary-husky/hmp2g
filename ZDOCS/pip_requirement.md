@@ -1,5 +1,7 @@
 # all pip requirements
 
+First of all, python version must >= 3.8, then, use pip to install following packages:
+
 ## Group 1: Common
 ```
 numpy scipy torch gym scikit-learn pygame 
@@ -30,3 +32,10 @@ func_timeout commentjson PyYAML onedrivedownloader redis filelock
 ```
 paramiko psutil setproctitle sacred
 ```
+
+## install
+``` 
+pip install torch
+pip install numpy scipy gym scikit-learn pygame  lz4 smac flask waitress colorama matplotlib ipykernel numba cython  func_timeout commentjson PyYAML onedrivedownloader redis filelock paramiko psutil setproctitle sacred
+```
+
