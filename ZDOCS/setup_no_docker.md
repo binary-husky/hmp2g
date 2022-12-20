@@ -14,12 +14,9 @@ This file is written for those who are very confident to solve all kinds of prob
 python 3.8
 ```
 ## pip requirements 
-``` sh
-pip install numpy scipy
-pip install lz4 gym flask numba cython waitress colorama func_timeout setproctitle 
-pip install commentjson matplotlib psutil paramiko ipykernel onedrivedownloader flock
-pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
-```
+Please read [pip_requirement](pip_requirement.md)
+
+
 ## Download and extract starcraft
 ``` sh
 cd /home/hmp
@@ -27,6 +24,7 @@ git clone https://github.com/binary-husky/uhmap-visual-tool.git
 python linux_deploy_starcraft_all_versions.py
 mv /home/hmp/uhmap-visual-tool/UnrealEngine/home/hmp/*  /home/hmp
 ```
+
 ## Download Unreal-HMAP binary client
 Please read [get UHMP](use_unreal_hmap.md)
 <!-- ## download and extract starcraft and unreal engine

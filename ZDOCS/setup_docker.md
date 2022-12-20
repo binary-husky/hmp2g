@@ -135,32 +135,4 @@ a reminder of dependencies being used,
 do NOT use it for configuration unless
 no other choice is available!
 
-```python
-# Just install the latest version !
-python >= 3.8   # (Very necessary!)
-pytorch
-lz4
-gym             # (the latest version will do)
-flask
-redis
-numpy
-numba
-flock
-scipy
-sacred
-cython
-psutil
-pygame
-scikit-learn
-filelock
-waitress
-colorama
-func_timeout
-onedrivedownloader
-setproctitle
-commentjson
-matplotlib
-ipykernel       # (optional, for openning jupyter notebook)
-paramiko        # (for multi-server experiments)
-```
-
+Please read [get UHMP](use_unreal_hmap.md)
