@@ -94,4 +94,4 @@ if __name__ == '__main__':
     shutil.copyfile(__file__, os.path.join(os.path.dirname(__file__), 'batch_experiment_backup.py'))
     # run experiments remotely
     from UTIL.batch_exp import run_batch_exp
-    run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override)
+    run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, __file__)

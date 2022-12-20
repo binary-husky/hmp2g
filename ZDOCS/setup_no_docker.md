@@ -20,8 +20,16 @@ pip install lz4 gym flask numba cython waitress colorama func_timeout setproctit
 pip install commentjson matplotlib psutil paramiko ipykernel onedrivedownloader flock
 pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
 ```
-
-## download and extract starcraft and unreal engine
+## Download and extract starcraft
+``` sh
+cd /home/hmp
+git clone https://github.com/binary-husky/uhmap-visual-tool.git
+python linux_deploy_starcraft_all_versions.py
+mv /home/hmp/uhmap-visual-tool/UnrealEngine/home/hmp/*  /home/hmp
+```
+## Download Unreal-HMAP binary client
+Please read [get UHMP](use_unreal_hmap.md)
+<!-- ## download and extract starcraft and unreal engine
 ``` sh
 cd /home/hmp
 git clone https://github.com/binary-husky/uhmap-visual-tool.git
@@ -29,11 +37,11 @@ cd /home/hmp/uhmap-visual-tool/
 python linux_deploy.py
 python linux_deploy_starcraft_all_versions.py
 mv /home/hmp/uhmap-visual-tool/UnrealEngine/home/hmp/*  /home/hmp
-``` 
+```  -->
 
-## download and extract HMAP main framework
+## Download and extract HMAP main framework
 ``` sh
 cd /home/hmp
-git clone https://github.com/binary-husky/hmp2g.git -b multiteam
+git clone https://github.com/binary-husky/hmp2g.git
 cd /home/hmp/hmp2g
 ```
