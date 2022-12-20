@@ -22,6 +22,7 @@ class PPO():
         self.max_grad_norm = ppo_config.max_grad_norm
         self.add_prob_loss = ppo_config.add_prob_loss
         self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
+        self.BlockInvalidPg = ppo_config.BlockInvalidPg
         self.lr = ppo_config.lr
         self.extral_train_loop = ppo_config.extral_train_loop
         self.all_parameter = list(policy_and_critic.named_parameters())
@@ -177,7 +178,12 @@ class PPO():
             filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
             threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
 
-        # dual clip ppo core
+        # remove the Non-PR agents' policy
+        oldPi_actionLogProb = oldPi_actionLogProb[~eprsn]
+        advantage = advantage[~eprsn]
+        newPi_actionLogProb = newPi_actionLogProb[~eprsn]
+        batch_agent_size = advantage.shape[0]
+        # dual clip ppo core: input oldPi_actionLogProb, advantage, newPi_actionLogProb
         E = newPi_actionLogProb - oldPi_actionLogProb
         E_clip = torch.zeros_like(E)
         E_clip = torch.where(advantage > 0, torch.clamp(E, max=np.log(1.0+self.clip_param)), E_clip)
