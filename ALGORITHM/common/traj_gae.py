@@ -31,18 +31,23 @@ class trajectory(TRAJ_BASE):
         # deprecated if nothing in it
         p_valid = agent_alive.any(axis=-1)
         p_invalid = ~p_valid
-        assert p_valid[-1] == True
+        is_fully_valid_traj = (p_valid[-1] == True)
+        # assert p_valid[-1] == True, 如果有三只队伍，很有可能出现一只队伍全体阵亡，但游戏仍未结束的情况
         if p_invalid.all(): #invalid traj
             self.deprecated_flag = True
             return
-        # adjust reward position
-        reward = TJ('reward')
-        for i in reversed(range(self.time_pointer)):
-            if p_invalid[i] and i != 0: # invalid, push reward forward
-                reward[i-1] += reward[i]; reward[i] = np.nan
-        setattr(self, 'reward', reward)
+        if not is_fully_valid_traj:
+            # adjust reward position if not fully valid
+            reward = TJ('reward')
+            for i in reversed(range(self.time_pointer)):
+                if p_invalid[i] and i != 0: # invalid, push reward forward
+                    reward[i-1] += reward[i]; reward[i] = np.nan
+            setattr(self, 'reward', reward)
         # clip NaN
         for key in self.key_dict: setattr(self, key, TJ(key)[p_valid])
+        if not is_fully_valid_traj:
+            # reset time pointer
+            self.time_pointer = p_valid.sum()
         # all done
         return
 
