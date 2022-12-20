@@ -14,7 +14,7 @@
             "ALGORITHM/conc",
             "MISSION/collective_assult/envs/collective_assult_env.py"
         ],
-        "device": "cuda:0",                             // choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU) 
+        "device": "cuda",                             // choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU) 
         // GPU memory is precious! assign multiple training process to a 'party', then they will share GPU memory 
         "gpu_party": "off"                     // default is 'off', 
     },
