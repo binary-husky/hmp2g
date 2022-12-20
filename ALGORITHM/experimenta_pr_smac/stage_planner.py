@@ -17,7 +17,7 @@ class PolicyRsnConfig:
 class StagePlanner:
     def __init__(self, n_agent, mcv) -> None:
         if AlgorithmConfig.use_policy_resonance:
-            self.resonance_active = False
+            self.resonance_active = True
             self.yita = 0
             self.yita_min_prob = PolicyRsnConfig.yita_min_prob
         self.freeze_body = False

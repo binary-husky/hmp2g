@@ -170,7 +170,6 @@ class PPO():
         assert flag == 'train'
         newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
             state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn, randl=randl)
-        entropy_loss = entropy.mean()
 
         if self.use_conc_net:
             # threat approximation
@@ -179,9 +178,11 @@ class PPO():
             threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
 
         # remove the Non-PR agents' policy
-        oldPi_actionLogProb = oldPi_actionLogProb[~eprsn]
-        advantage = advantage[~eprsn]
-        newPi_actionLogProb = newPi_actionLogProb[~eprsn]
+        no_pr = ~eprsn
+        oldPi_actionLogProb = oldPi_actionLogProb[no_pr]
+        advantage = advantage[no_pr]
+        newPi_actionLogProb = newPi_actionLogProb[no_pr]
+        entropy = entropy[no_pr]
         batch_agent_size = advantage.shape[0]
         # dual clip ppo core: input oldPi_actionLogProb, advantage, newPi_actionLogProb
         E = newPi_actionLogProb - oldPi_actionLogProb
@@ -190,6 +191,7 @@ class PPO():
         E_clip = torch.where(advantage < 0, torch.clamp(E, min=np.log(1.0-self.clip_param), max=np.log(5) ), E_clip)
         ratio = torch.exp(E_clip)
         policy_loss = -(ratio*advantage).mean()
+        entropy_loss = entropy.mean()
 
         # add all loses
         value_loss = 0.5 * F.mse_loss(real_return, newPi_value)
