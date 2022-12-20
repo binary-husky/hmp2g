@@ -1,16 +1,20 @@
-Contact us: 
-- Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
-- Shijie Wang, CASIA,
-- Min Chen, CASIA,
-- Tianyi Hu, CASIA, hutianyi2021@ia.ac.cn
-- Yifan Xu, CASIA, xuyifan2021@ia.ac.cn
-- Organization：
-- - Institute of Automation, Chinese Academy of Sciences
-- - School of Artificial Intelligence, University of Chinese Academy of Sciences
-- - Yiteam Swarm Intelligent Research Group
+
+# HMP：Hybrid Multi-agent Playground
 
 
-# Introduction
+## Content
+1. [Introduction](#introduction)
+1. [Demo](#demo)
+1. [Structure of HMP](#structure-of-hmp)
+1. [Dependency](#dependency)
+1. [Other READMES](#other-readmes)
+1. [Quick Start](#quick-start)
+1. [Papers Supported by HMP](#papers-supported-by-hmp)
+1. [Contact us](#contact-us)
+
+
+
+## Introduction
 The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
 Unlike any other framework which only isolates the TASKs from the framework, 
 HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
@@ -19,23 +23,27 @@ Any algorithm, from the most straightforward script-AI to sophisticated RL learn
 is abstracted into a module inside ./ALGORITHM/*.
 
 We also put effect to interface all kinds of multi-agent environments,
-including gym, SMAC, air combat, et.al.
-Other frameworks, such as pymarl2, can interface with HMP as well.
+including gym, SMAC, air combat, et.al. These can be found in 
+./MISSION/*.
+
+Other frameworks, such as pymarl2, mappo, can interface with HMP as well.
 The entire HMP can disguise as an RL environment in pymarl2.
 We make it happen by building a particular ALGORITHM module, which
-runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a modified version of pymarl2.
+runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a modified version of pymarl2. The source code of these third-party frameworks are located in ./THIRDPARTY/*.
 
 **Please ```star``` the root Github project. Your encouragement is extremely important to us as researchers: ```https://github.com/binary-husky/hmp2g```**
 
 Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
 
-# Demo
+## Demo
 This resp is frequently updating.
 If any unexpected problem is encountered, 
-please clean the temp files by running ```git checkout master --force && git pull --force && git clean -xfd```.
-If the problem does not go away, do not hesitate to contact us or send an issue!
+please clean the temp files by running
+ ```git checkout master --force && git pull --force && git clean -xfd```
 
-## Unreal-Engine-Based Simulation
+If the problem does not go away, do not hesitate to [contact us](#contact-us) or send an issue!
+
+### 1. Unreal-Engine-Based Simulation
 <div align="center">
 <img src="ZDOCS/examples/uhmap/uhmp_demo.gif" width="300" >
 </div>
@@ -53,7 +61,8 @@ Redirection to another MARL project: Building high efficient multiagent environm
 
 
 
-## Web Demo of DCA (AAAI Paper Version)
+### 2. DCA: Decentralized Collective Assult
+#### Web Demo of DCA (AAAI Paper Version)
 
 ```
 http://cloud.fuqingxu.top:11601/
@@ -62,14 +71,20 @@ http://cloud.fuqingxu.top:11601/
 <img src="ZHECKPOINT/test-50+50/test50.gif" width="300" >
 </div>
 
-## Decentralized Collective Assult (Improved Version, more Difficult Than AAAI Paper Version)
+
+```
+git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
+git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
+```
+
+#### (Improved Version, more Difficult than AAAI Paper Version)
 
 ```
 git pull && python main.py -c ZHECKPOINT/50RL-55opp/test-50RL-55opp.jsonc
 (Also see https://www.bilibili.com/video/BV1vF411M7N9/)
 ```
 
-## Anti-Invasion Interception
+### 3. Anti-Invasion Interception
 <div align="center">
 <img src="ZHECKPOINT/test-aii515/aii.jpg" width="300" >
 </div>
@@ -78,7 +93,7 @@ git pull && python main.py -c ZHECKPOINT/50RL-55opp/test-50RL-55opp.jsonc
 git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip 
 ```
 
-## Hazardous Cargo Transport
+### 4. Hazardous Cargo Transport
 <div align="center">
 <img src="ZHECKPOINT/test-cargo50/cargo50.jpg" width="300" >
 </div>
@@ -87,28 +102,18 @@ git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip
 git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
 ```
 
-## Decentralized Collective Assult (AAAI Paper Version)
-```
-git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
-git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
-```
-
-# Dependency
-We use docker to solve dependency: [SetupDocker](./ZDOCS/setup_docker.md).
-
-Please do not run on WindowsOS (low efficiency), 
-but if you have to, 
-also refer to the last part of [setup_docker](./ZDOCS/setup_docker.md) for pip requirements list. 
 
 
-# Introducing the Structure of HMP
-## HMP's General Framework Structure
+
+
+## Structure of HMP
+### 1. HMP's General Framework Structure
 
 <div align="center">
 <img src="VISUALIZE/md_imgs/simple_framework.jpg" width="500" >
 </div>
 
-## HMP's Config System (How to experiment)
+### 2. HMP's Config System (How to experiment)
 HMP aims to optimize the parameter control experience as a framework for researchers. 
 One configuration file is all that is needed for the config insertion.
 
@@ -133,6 +138,7 @@ Then:
 then use the parameter by ```init_hp_of_some_agent = ScenarioConfig.HP_MAX```.
 - (Step3, Change It !) To override the default value ```HP_MAX=100``` in JSON (e.g., in ```./example_dca.jsonc```), 
 you just need to add a line in the field ```"MISSION.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig"```,
+
 for example:
 ```Jsonc
 {
@@ -180,7 +186,7 @@ If the experiment later produces surprising results,
 you can consistently reproduce it again using this config backup.
 
 
-## Task Runner
+### 3. Task Runner
 Task Runner (```task_runner.py```) only has three lines of important code:
 ``` python
 # line 1
@@ -198,13 +204,24 @@ self.info_runner = self.update_runner(done, obs, reward, info)
 - ```self.update_runner```: Prepare obs (for decision making) and reward (for driving RL algorithms) for the next step.
 
 
-## The Time Sequence of HMP
+### 4. The Time Sequence of HMP
 In general, the HMP task runner can operate two ways:
 - (Deprecated due) self.align_episode = False: threads immediately restart at terminal state, threads do not wait for each other
 - self.align_episode = True: threads pause at terminal state, waiting until all threads terminate, then reset. Please refer to [Hmp Time Sequence](./VISUALIZE/md_imgs/hmp2g_timeline.svg). 
 <div align="center">
 <img src="VISUALIZE/md_imgs/timeline.jpg" width="700" >
 </div>
+
+
+##  Dependency
+We use docker to solve dependency: [SetupDocker](./ZDOCS/setup_docker.md).
+
+Please do not run on WindowsOS (low efficiency), 
+but if you have to, 
+also refer to the last part of [setup_docker](./ZDOCS/setup_docker.md) for pip requirements list. 
+
+## Other READMES
+
 
 
 ## MISSION
@@ -412,7 +429,7 @@ import_path_ref = {
 
 
 
-# Papers Supported by HMP
+##  Papers Supported by HMP
 
 ```
 @article{fu2022concentration,
@@ -447,5 +464,16 @@ import_path_ref = {
 
 
 ```
+
+## Contact us: 
+- Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
+- Shijie Wang, CASIA, wangshijie2020@ia.ac.cn
+- Min Chen, CASIA, chenmin2020@ia.ac.cn
+- Tianyi Hu, CASIA, hutianyi2021@ia.ac.cn
+- Yifan Xu, CASIA, xuyifan2021@ia.ac.cn
+- Organization：
+    - Institute of Automation, Chinese Academy of Sciences
+    - School of Artificial Intelligence, University of Chinese Academy of Sciences
+    - Yiteam Swarm Intelligent Research Group
 
 
