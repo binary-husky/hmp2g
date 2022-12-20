@@ -1,4 +1,5 @@
 # Using pymarl2 as Algorithm
+
 ## step 1: clone hmap code
 ```
 git clone https://github.com/binary-husky/hmp2g.git
@@ -112,4 +113,6 @@ Save following file as ```private_debug.jsonc```:
 ```
 
 Then start training with:
-```python main.py -c private_debug.jsonc```
+```sh
+python main.py -c private_debug.jsonc
+```
