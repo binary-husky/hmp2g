@@ -1,5 +1,7 @@
 # all pip requirements
 
+First of all, python version must >= 3.8, then, use pip to install following packages:
+
 ## Group 1: Common
 ```
 numpy scipy torch gym scikit-learn pygame 
