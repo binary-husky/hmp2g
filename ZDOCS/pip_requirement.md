@@ -1,6 +1,6 @@
 # all pip requirements
 
-## Group 1: 
+## Group 1: Common
 ```
 numpy scipy torch gym scikit-learn pygame 
 ```
@@ -11,22 +11,22 @@ numpy scipy torch gym scikit-learn pygame
 lz4 smac
 ```
 
-## Group 3: visual
+## Group 3: Visual
 ```
 flask waitress colorama matplotlib ipykernel
 ``` 
 
-## Group 4: acc
+## Group 4: Performance
 ```
 numba cython 
 ```
 
-## Group 5: functional
+## Group 5: Functional
 ```
 func_timeout commentjson PyYAML onedrivedownloader redis filelock
 ```
 
-## Group 6: remote and management
+## Group 6: Remote and management
 ```
 paramiko psutil setproctitle sacred
 ```
