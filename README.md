@@ -1,7 +1,7 @@
 
 # HMP：Hybrid Multi-agent Playground
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/binary-husky/hmp2g/issues)
-
+[![Docker Pulls](https://img.shields.io/docker/pulls/fuqingxu/hmp.svg?maxAge=2592000)](https://registry.hub.docker.com/r/fuqingxu/hmp)
 ## Introduction
 The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
 Unlike any other framework which only isolates the TASKs from the framework, 
