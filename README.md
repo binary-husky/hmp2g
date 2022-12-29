@@ -1,5 +1,25 @@
 
 # HMP：Hybrid Multi-agent Playground
+## Introduction
+The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
+Unlike any other framework which only isolates the TASKs from the framework, 
+HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
+
+Any algorithm, from the most straightforward script-AI to sophisticated RL learner,
+is abstracted into a module inside ./ALGORITHM/*.
+
+We also put effect to interface all kinds of multi-agent environments,
+including gym, SMAC, air combat, et.al. These can be found in 
+./MISSION/*.
+
+Other frameworks, such as pymarl2, mappo, can interface with HMP as well.
+The entire HMP can disguise as an RL environment in pymarl2.
+We make it happen by building a particular ALGORITHM module, which
+runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a modified version of pymarl2. The source code of these third-party frameworks are located in ./THIRDPARTY/*.
+
+**Please ```star``` the root Github project. Your encouragement is extremely important to us as researchers: ```https://github.com/binary-husky/hmp2g```**
+
+Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
 
 ## Contact us: 
 - Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
@@ -29,26 +49,7 @@
 
 
 
-## Introduction
-The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
-Unlike any other framework which only isolates the TASKs from the framework, 
-HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
 
-Any algorithm, from the most straightforward script-AI to sophisticated RL learner,
-is abstracted into a module inside ./ALGORITHM/*.
-
-We also put effect to interface all kinds of multi-agent environments,
-including gym, SMAC, air combat, et.al. These can be found in 
-./MISSION/*.
-
-Other frameworks, such as pymarl2, mappo, can interface with HMP as well.
-The entire HMP can disguise as an RL environment in pymarl2.
-We make it happen by building a particular ALGORITHM module, which
-runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a modified version of pymarl2. The source code of these third-party frameworks are located in ./THIRDPARTY/*.
-
-**Please ```star``` the root Github project. Your encouragement is extremely important to us as researchers: ```https://github.com/binary-husky/hmp2g```**
-
-Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
 
 ## Demo
 This resp is frequently updating.
