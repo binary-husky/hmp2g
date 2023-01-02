@@ -105,10 +105,22 @@ class MultiAgentEnv(gym.Env):
             done_n.append(self._get_done(agent))
             info_n['n'].append(self._get_info(agent))
 
-
+        done = any(done_n)
         reward_n = np.array(reward_n)
         reward_t = np.array([reward_n[self.invader_uid].mean(), reward_n[self.agent_uid].mean()])
-        info = {'win':info_n['n'][0]['is_success']}
+        win = info_n['n'][0]['is_success']
+
+        if done:
+            # [队伍1：脚本ai, 队伍2：RL算法排名]
+            if win: 
+                # [脚本规则排名第2, RL算法排名第1]
+                team_ranking = [1, 0]
+            else:
+                # [脚本规则排名第1, RL算法排名第2]
+                team_ranking = [0, 1]
+            info = {'win':win,'team_ranking':team_ranking}
+        else:
+            info = {}
         return np.array(obs_n), reward_t, done_n, info
 
     def reset(self):

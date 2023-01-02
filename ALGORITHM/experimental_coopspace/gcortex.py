@@ -3,39 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
-from torch.distributions.multivariate_normal import MultivariateNormal
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor
-from ALGORITHM.common.norm import DynamicNorm
-
-
-
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname ==  'Conv':
-        assert False
-    elif classname == 'GNet':
-        return
-    elif classname == 'DynamicNorm':
-        return
-    elif classname == 'Sequential':
-        return
-    elif classname == 'ModuleDict':
-        return
-    elif classname ==  'MultiHeadAttention':
-        return
-    elif classname ==  'ReLU':
-        m.inplace=True
-    elif classname ==  'Py_Dynamic_Norm':
-        return
-    elif classname ==  'Linear':
-        nn.init.orthogonal_(m.weight.data)
-        if m.bias is not None: m.bias.data.fill_(0)
-    elif classname == 'LinearFinal':
-        nn.init.orthogonal_(m.weight.data, gain=0.01)
-        m.bias.data.fill_(0)
-    else:
-        assert False, ('how to handle the initialization of this class? ', classname)
-
+from ALGORITHM.common.norm import DynamicNormFix as DynamicNorm
+from ALGORITHM.common.net_manifest import weights_init
 
 
 
@@ -43,7 +13,7 @@ def weights_init(m):
 
 class GNet(nn.Module):
 
-    def __init__(self, num_agents, num_entities, basic_vec_len, hidden_dim=128):
+    def __init__(self, num_agents, num_entities, basic_vec_len, hidden_dim=32):
         from .reinforce_foundation import CoopAlgConfig
         super().__init__()
         n_cluster = CoopAlgConfig.g_num
@@ -90,21 +60,18 @@ class GNet(nn.Module):
         cluster_emb_dim = _n_cluster              +  n_agent           +  n_entity
 
         self.cluster_enter_encoder = nn.Sequential(
-            # Py_Dynamic_Norm(cluster_emb_dim, only_for_last_dim=True),
             nn.Linear(cluster_emb_dim, h_dim),
             activation_func(),
             nn.Linear(h_dim, h_dim)
         )
 
         self.entity_enter_encoder = nn.Sequential(
-            # Py_Dynamic_Norm(entity_emb_dim, only_for_last_dim=True),
             nn.Linear(entity_emb_dim, h_dim),
             activation_func(),
             nn.Linear(h_dim, h_dim)
         )
 
         self.agent_enter_encoder = nn.Sequential(
-            # Py_Dynamic_Norm(agent_emb_dim, only_for_last_dim=True),
             nn.Linear(agent_emb_dim, h_dim),
             activation_func(),
             nn.Linear(h_dim, h_dim)
@@ -129,15 +96,15 @@ class GNet(nn.Module):
 
 
         self.downsample = nn.ModuleDict({
-            'top_downsample': nn.Linear(h_dim * 2, h_dim // 2),
+            'top_downsample': nn.Linear(h_dim * 2, h_dim),
             'top_nonlin':   nn.Sequential(
-                                nn.Linear(_n_cluster * h_dim // 2, h_dim),
+                                nn.Linear(_n_cluster * h_dim, h_dim),
                                 activation_func(),
                                 nn.Linear(h_dim, h_dim)
                             ),
-            'bottom_downsample': nn.Linear(h_dim * 2, h_dim // 2),
+            'bottom_downsample': nn.Linear(h_dim * 2, h_dim),
             'bottom_nonlin':   nn.Sequential(
-                                nn.Linear(_n_cluster * h_dim // 2, h_dim),
+                                nn.Linear(_n_cluster * h_dim, h_dim),
                                 activation_func(),
                                 nn.Linear(h_dim, h_dim)
                             ),
@@ -152,10 +119,10 @@ class GNet(nn.Module):
                             nn.Linear(h_dim, h_dim)
                         ),
             'downsample':nn.Sequential(
-                            nn.Linear(h_dim, h_dim // 4),
+                            nn.Linear(h_dim, h_dim // 2),
                         ),
             'nonlin'    :nn.Sequential(
-                            nn.Linear(_n_cluster * h_dim // 4, h_dim),
+                            nn.Linear(_n_cluster * h_dim // 2, h_dim),
                             activation_func(),
                             nn.Linear(h_dim, 1)
                         ),
@@ -168,10 +135,10 @@ class GNet(nn.Module):
                             nn.Linear(h_dim, h_dim)
                         ),
             'downsample':nn.Sequential(
-                            nn.Linear(h_dim, h_dim // 4),
+                            nn.Linear(h_dim, h_dim // 2),
                         ),
             'nonlin'    :nn.Sequential(
-                            nn.Linear(_n_cluster * h_dim // 4, h_dim),
+                            nn.Linear(_n_cluster * h_dim // 2, h_dim),
                             activation_func(),
                             nn.Linear(h_dim, 1)
                         ),
@@ -179,27 +146,27 @@ class GNet(nn.Module):
 
         self.fifo_net_top = nn.ModuleDict({
             'INet': nn.Sequential(
-                nn.Linear(TopNetDim['I_I'], h_dim // 2),
+                nn.Linear(TopNetDim['I_I'], h_dim),
                 activation_func(),
-                LinearFinal(h_dim // 2, TopNetDim['I_O'])
+                LinearFinal(h_dim, TopNetDim['I_O'])
              ),
             'ONet': nn.Sequential(
-                nn.Linear(TopNetDim['O_I'], h_dim // 2),
+                nn.Linear(TopNetDim['O_I'], h_dim),
                 activation_func(),
-                LinearFinal(h_dim // 2, TopNetDim['O_O'])
+                LinearFinal(h_dim, TopNetDim['O_O'])
             )
         })
 
         self.fifo_net_bottom = nn.ModuleDict({
             'INet': nn.Sequential(
-                nn.Linear(BottomNetDim['I_I'], h_dim // 2),
+                nn.Linear(BottomNetDim['I_I'], h_dim),
                 activation_func(),
-                LinearFinal(h_dim // 2, BottomNetDim['I_O'])
+                LinearFinal(h_dim, BottomNetDim['I_O'])
              ),
             'ONet': nn.Sequential(
-                nn.Linear(BottomNetDim['O_I'], h_dim // 2),
+                nn.Linear(BottomNetDim['O_I'], h_dim),
                 activation_func(),
-                LinearFinal(h_dim // 2, BottomNetDim['O_O'])
+                LinearFinal(h_dim, BottomNetDim['O_O'])
             )
         })
 

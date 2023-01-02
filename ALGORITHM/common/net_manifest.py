@@ -14,6 +14,7 @@ def weights_init(m):
         'Concentration':None,
         'ConcentrationHete':None,
         'Pnet':None,
+        'GNet':None,
         'Sequential':None,
         'DataParallel':None,
         'Tanh':None,

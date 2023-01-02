@@ -333,7 +333,7 @@ class Scenario(BaseScenario):
             REWARD_WHEN_TRACKED_BY_N = 3
             WIN_REWARD = 1
 
-            for invader_index, invader in enumerate(self.invaders):
+            for _, invader in enumerate(self.invaders):
                 if len(invader.tracked_by) >= REWARD_WHEN_TRACKED_BY_N and (not invader.intercepted):
                     invader.intercepted = True
                     hunter_reward += HUNT_INVDR_SUCCESSFUL_REWARD
@@ -464,7 +464,8 @@ class Scenario(BaseScenario):
 
 
         done = win_cond or loss_cond
-        if done:  assert loss_cond != win_cond
+        if done:  
+            assert loss_cond != win_cond
 
         if agent.iden==0 and self.show_off and win_cond:
             print('hunt success')
