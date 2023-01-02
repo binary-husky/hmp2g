@@ -1,11 +1,9 @@
 # cython: language_level=3
-from config import GlobalConfig
 import numpy as np
-from numpy.core.numeric import indices
 from ALGORITHM.common.traj import TRAJ_BASE
 import copy
 from UTIL.colorful import *
-from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_softmax, scatter_with_nan
+from UTIL.tensor_ops import my_view, repeat_at, gather_righthand
 
 class trajectory(TRAJ_BASE):
     dead_mask_check = True  # confirm mask ok
@@ -33,18 +31,23 @@ class trajectory(TRAJ_BASE):
         # deprecated if nothing in it
         p_valid = agent_alive.any(axis=-1)
         p_invalid = ~p_valid
-        assert p_valid[-1] == True
+        is_fully_valid_traj = (p_valid[-1] == True)
+        # assert p_valid[-1] == True, 如果有三只队伍，很有可能出现一只队伍全体阵亡，但游戏仍未结束的情况
         if p_invalid.all(): #invalid traj
             self.deprecated_flag = True
             return
-        # adjust reward position
-        reward = TJ('reward')
-        for i in reversed(range(self.time_pointer)):
-            if p_invalid[i] and i != 0: # invalid, push reward forward
-                reward[i-1] += reward[i]; reward[i] = np.nan
-        setattr(self, 'reward', reward)
+        if not is_fully_valid_traj:
+            # adjust reward position if not fully valid
+            reward = TJ('reward')
+            for i in reversed(range(self.time_pointer)):
+                if p_invalid[i] and i != 0: # invalid, push reward forward
+                    reward[i-1] += reward[i]; reward[i] = np.nan
+            setattr(self, 'reward', reward)
         # clip NaN
         for key in self.key_dict: setattr(self, key, TJ(key)[p_valid])
+        if not is_fully_valid_traj:
+            # reset time pointer
+            self.time_pointer = p_valid.sum()
         # all done
         return
 
@@ -96,7 +99,7 @@ class trajectory(TRAJ_BASE):
 
         # ! Use GAE to calculate return
         if self.alg_cfg.use_policy_resonance:
-            self.gae_finalize_return(reward_key='reward', value_key='BLA_value_all_level', new_return_name='return')
+            self.gae_finalize_return_pr(reward_key='reward', value_key='BAL_value_all_level', new_return_name='BAL_return_all_level')
         else:
             self.gae_finalize_return(reward_key='reward', value_key='value', new_return_name='return')
         return
@@ -107,15 +110,7 @@ class trajectory(TRAJ_BASE):
         tau = self.alg_cfg.tau
         # ------- -------------- -------
         rewards = getattr(self, reward_key)
-        if self.alg_cfg.use_policy_resonance:
-            BLA_value_all_level = getattr(self, value_key)
-            # how to merge?
-            self.value = BLA_value_all_level[:, :, np.array(self.alg_cfg.pg_target_distribute)].mean(-1, keepdims=True)
-            value = self.value
-            assert value.shape[-1] == 1
-            # how to merge BLA_value_all_level ?
-        else:
-            value = getattr(self, value_key)
+        value = getattr(self, value_key)
         # ------- -------------- -------
         length = rewards.shape[0]
         assert rewards.shape[0]==value.shape[0]
@@ -137,27 +132,52 @@ class trajectory(TRAJ_BASE):
                 gae = value_preds_delta + gamma * tau * gae
             returns[step] = gae + value[step]
 
+    def gae_finalize_return_pr(self, reward_key, value_key, new_return_name):
+        # ------- gae parameters -------
+        gamma = self.alg_cfg.gamma 
+        tau = self.alg_cfg.tau
+        # ------- -------------- -------
+        BAL_value_all_level = copy.deepcopy(getattr(self, value_key))
+        # reshape to (batch, agent*distribution_precision, 1)
+        value = my_view(BAL_value_all_level, [0, -1, 1])
+        # ------- ------- reshape reward ------- -------
+        rewards_cp = copy.deepcopy(getattr(self, reward_key))
+        # if dimension not aligned
+        if rewards_cp.ndim == value.ndim-1: rewards_cp = np.expand_dims(rewards_cp, -1)
+        assert rewards_cp.shape[-1] == 1
+        n_agent = rewards_cp.shape[-2]
+        assert BAL_value_all_level.shape[-2] == n_agent
+        assert BAL_value_all_level.shape[-1] == self.alg_cfg.distribution_precision
+        rewards_cp = repeat_at(rewards_cp.squeeze(-1), -1, self.alg_cfg.distribution_precision)
+        rewards_cp = my_view(rewards_cp, [0, -1, 1])
+        # ------- -------------- -------
+        length = rewards_cp.shape[0]
+        assert rewards_cp.shape[0]==value.shape[0]
+        # ------- -------------- -------
+        returns = np.zeros_like(value)
+        boot_strap = 0 if not self.need_reward_bootstrap else self.boot_strap_value['bootstrap_'+value_key]
+        for step in reversed(range(length)):
+            if step==(length-1): # 最后一帧
+                value_preds_delta = rewards_cp[step] + gamma * boot_strap      - value[step]
+                gae = value_preds_delta
+            else:
+                value_preds_delta = rewards_cp[step] + gamma * value[step + 1] - value[step]
+                gae = value_preds_delta + gamma * tau * gae
+            returns[step] = gae + value[step]
+        # ------- -------------- -------
+        returns = my_view(returns, [0, n_agent, self.alg_cfg.distribution_precision])   # BAL_return_all_level
+        setattr(self, new_return_name, returns)
+        self.key_dict.append(new_return_name)
 
+        
+        def select_value_level(BAL_all_level, randl):
+            n_agent = BAL_all_level.shape[1]
+            tmp_index = np.expand_dims(repeat_at(randl, -1, n_agent), -1)
 
+            return gather_righthand(src=BAL_all_level, index=tmp_index, check=False)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        self.value_selected = select_value_level(BAL_all_level=self.BAL_value_all_level, randl=self.randl)
+        self.return_selected = select_value_level(BAL_all_level=self.BAL_return_all_level, randl=self.randl)
 
 
 '''
@@ -238,7 +258,7 @@ class BatchTrajManager(TrajManagerBase):
         assert self._traj_lock_buf is None
         assert '_DONE_' in traj_frag
         assert '_SKIP_' in traj_frag
-        self.batch_update(traj_frag=traj_frag)
+        self.batch_update(traj_frag=traj_frag)  # call parent's batch_update()
         return
 
     def train_and_clear_traj_pool(self):

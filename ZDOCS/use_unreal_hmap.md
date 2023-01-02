@@ -10,8 +10,10 @@ download_client_binary_on_platform(
     # desired_path="./UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.exe", 
     desired_version="3.5", 
     is_render_client=True,
-    platform="Windows",
-    # platform="Linux",
+    platform="Linux",
+    # platform="Windows",
+
+    
 )
 ```
 

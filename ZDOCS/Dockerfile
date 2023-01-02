@@ -86,21 +86,21 @@ RUN $useProxyNetwork pip install torch --extra-index-url https://download.pytorc
 RUN $useProxyNetwork pip install pygame cmake redis numba
 RUN $useProxyNetwork pip install git+https://github.com/oxwhirl/smac.git
 
-# download and extract UHMAP component
-WORKDIR /home/hmp
-RUN $useProxyNetwork git clone https://github.com/binary-husky/uhmap-visual-tool.git
-WORKDIR /home/hmp/uhmap-visual-tool/
-RUN $useProxyNetwork python linux_deploy.py
-RUN $useProxyNetwork python linux_deploy_starcraft_all_versions.py
-# add execute mod to starcraft II (two versions)
-RUN chmod +x /home/hmp/StarCraftIII/Version2410/StarCraftII/Versions/Base75689/ 
-RUN chmod +x /home/hmp/StarCraftIII/Versions/Base69232/SC2_x64
+# # download and extract UHMAP component
+# WORKDIR /home/hmp
+# RUN $useProxyNetwork git clone https://github.com/binary-husky/uhmap-visual-tool.git
+# WORKDIR /home/hmp/uhmap-visual-tool/
+# RUN $useProxyNetwork python linux_deploy.py
+# RUN $useProxyNetwork python linux_deploy_starcraft_all_versions.py
+# # add execute mod to starcraft II (two versions)
+# RUN chmod +x /home/hmp/StarCraftIII/Version2410/StarCraftII/Versions/Base75689/ 
+# RUN chmod +x /home/hmp/StarCraftIII/Versions/Base69232/SC2_x64
 
-RUN mv /home/hmp/uhmap-visual-tool/UnrealEngine/home/hmp/*  /home/hmp
+# RUN mv /home/hmp/uhmap-visual-tool/UnrealEngine/home/hmp/*  /home/hmp
 
 # download UHMAP main framwork
 WORKDIR /home/hmp
-RUN $useProxyNetwork git clone https://github.com/binary-husky/hmp2g.git -b multiteam
+RUN $useProxyNetwork git clone https://github.com/binary-husky/hmp2g.git
 WORKDIR /home/hmp/hmp2g
 # RUN python main.py -c example.jsonc
 
