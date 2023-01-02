@@ -477,7 +477,10 @@ class DrawProcess(Process):
             if len(buff_list) == 0: break
             buff = buff_list.pop(0)
             if (buff=='>>rec_show\n') and ('>>rec_show\n' in buff_list): continue # skip
-            self.process_cmd(buff)
+            try:
+                self.process_cmd(buff)
+            except:
+                print亮红(f'[mcom.py] We have encountered error processing command: {buff}')
 
         #     # print('成功处理指令:', buff)
 

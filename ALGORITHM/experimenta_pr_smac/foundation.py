@@ -2,10 +2,11 @@ import os, time, torch, shutil
 import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
-from ALGORITHM.common.traj_gae import BatchTrajManager
+from UTIL.tensor_ops import __hash__
 from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 from ALGORITHM.common.onfly_config import ConfigOnFly
 from UTIL.tensor_ops import __hash__, repeat_at
+from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -56,11 +57,13 @@ class AlgorithmConfig:
 
     fall_back_to_small_net = False
 
-    distribution_precision = 10
-    pg_target_distribute = [0,1,2,3,4,5]
-    ct_target_distribute = [0,1,2,3,4,5]
+    distribution_precision = 8
+    # pg_target_distribute = [0,1,2,3,4,5]
+    target_distribute = [0]
     ConfigOnTheFly = True
 
+    BlockInvalidPg = True
+    advantage_norm = True
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -95,7 +98,9 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         self.policy = Net(rawob_dim=rawob_dim, state_dim=self.state_dim, n_action=n_actions, n_agent=n_agent, stage_planner=self.stage_planner)
         self.policy = self.policy.to(self.device)
 
+        # initialize optimizer and trajectory (batch) manager
         from .ppo import PPO
+        from ALGORITHM.common.traj_gae import BatchTrajManager
         self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv)
         self.batch_traj_manager = BatchTrajManager(
             n_env=n_thread, traj_limit=int(self.ScenarioConfig.MaxEpisodeStep),
@@ -134,10 +139,11 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         state = StateRecall['state'] if 'state' in StateRecall else None
         eprsn = StateRecall['eprsn'] if 'eprsn' in StateRecall else None
         alive = StateRecall['alive'] if 'alive' in StateRecall else None
+        randl = StateRecall['randl'] if 'randl' in StateRecall else None
 
         with torch.no_grad():
             action, BAL_value_all_level, action_log_prob = self.policy.act(
-                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
+                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn, randl=randl)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
@@ -146,6 +152,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
             "actionLogProb": action_log_prob,
             "obs":           obs,
             "alive":         alive,
+            "randl":         randl,
             "eprsn":         eprsn,
             "state":         state,
             "action":        action,
@@ -154,6 +161,8 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         # deal with rollout later when the reward is ready, leave a hook as a callback here
         if not test_mode: StateRecall['_hook_'] = self.commit_traj_frag(traj_framefrag, req_hook = True)
         return action.copy(), StateRecall
+
+
     def interact_with_env(self, StateRecall):
         '''
             Interfacing with marl, standard method that you must implement
@@ -177,6 +186,8 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
             self.batch_traj_manager.train_and_clear_traj_pool()
             self.stage_planner.update_plan()
             if AlgorithmConfig.ConfigOnTheFly: self._config_on_fly()
+
+
     '''
         Get event from hmp task runner, save model now!
     '''

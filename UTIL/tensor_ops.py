@@ -39,11 +39,13 @@ class ConfigCache(object):
 
 cuda_cfg = ConfigCache()
 
+@lru_cache
 def pt_inf():
     # if not cuda_cfg.init: cuda_cfg.read_cfg()
     pt_dtype = torch.float64 if cuda_cfg.use_float64 else torch.float32
     return torch.tensor(np.inf, dtype=pt_dtype, device=cuda_cfg.device)
 
+@lru_cache
 def pt_nan():
     # if not cuda_cfg.init: cuda_cfg.read_cfg()
     pt_dtype = torch.float64 if cuda_cfg.use_float64 else torch.float32
