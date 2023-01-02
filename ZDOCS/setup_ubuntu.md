@@ -1,10 +1,10 @@
-# 1. install docker | 安装 docker
+# 1. install docker 
 ```
 sudo apt update
 sudo apt install docker docker.io curl
 ```
 
-# 2. intsall nvidia-runtime | 安装 nvidia-runtime
+# 2. intsall nvidia-runtime 
 
 ``` sh
 # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#installing-on-ubuntu-and-debian
@@ -31,6 +31,6 @@ sudo systemctl restart docker
 ```
 
 
-# 3. Download docker image and open it | 下载并打开HMAP的容器环境
+# 3. Download docker image and open it 
 
-Please read [SetupDocker](./setup_docker.md)
+In this part, please read [SetupDocker](./setup_docker.md)

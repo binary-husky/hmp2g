@@ -27,16 +27,14 @@
       "MaxEpisodeStep": 100,
       "StepGameTime": 0.5,
       "StateProvided": false,
-      "render": true, // note: random seed has different impact on renderer and server
+      "render": false, // note: random seed has different impact on renderer and server
       "UElink2editor": false,
       "HeteAgents": true,
       "UnrealLevel": "UhmapWaterdrop",
       "SubTaskSelection": "UhmapWaterdrop",
-      // "UhmapRenderExe": "./../../WindowsNoEditor/UHMP.exe",
-      // "UhmapServerExe": "./../../WindowsServer/UHMPServer.exe",
-      "UhmapVersion": "2.4",
-      "UhmapRenderExe": "../WindowsNoEditor/UHMP.exe",
-      "UhmapServerExe": "../WindowsServer/UHMPServer.exe",
+      "UhmapVersion":"3.5",
+      "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxNoEditor/UHMP.sh",
+      "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.5/LinuxServer/UHMPServer.sh",
       "TimeDilation": 64, // simulation time speed up, larger is faster
       "TEAM_NAMES": [
         "ALGORITHM.ppo_ma.foundation->ReinforceAlgorithmFoundation",

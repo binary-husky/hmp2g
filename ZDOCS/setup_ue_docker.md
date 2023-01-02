@@ -1,4 +1,7 @@
-# start up ue docker container | 这个docker额外带有虚幻引擎，体积有点大
+# Start up UE Docker Container | 
+Warning! Unreal engine is included in this docker, 500GB disk space is needed.
+
+
 ```sh
 # 检查docker是否可用 （如果已经身处某个docker容器内，则docker不可用，请找到宿主系统，然后再运行以下命令）
 sudo docker ps
