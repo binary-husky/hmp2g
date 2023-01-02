@@ -64,7 +64,7 @@ class TRAJ_BASE():
     def init_track(self, key, first_content):
         content = first_content
         self.check_type_shape(key, first_content)
-        assert isinstance(content, np.ndarray) or isinstance(content, float), (key, content.__class__)
+        assert isinstance(content, np.ndarray) or isinstance(content, np.ScalarType), (key, content.__class__)
         tensor_size = ((self.traj_limit,) + tuple(content.shape))
         set_item = np.zeros(shape=tensor_size, dtype=content.dtype)
         set_item[:] = np.nan  if np.issubdtype(content.dtype, np.floating) else 0

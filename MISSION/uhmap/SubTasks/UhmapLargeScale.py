@@ -126,7 +126,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         obs_arr = RawObsArray(key='Agent')
 
         if not hasattr(self, "uid_binary"):
-            self.uid_binary = self.get_binary_array(np.arange(self.n_agents), 10)
+            self.uid_binary = self.get_binary_array(np.arange( max( self.n_agents, len(self.key_obj) )   ), 10)
 
         for i, agent in enumerate(self.agents):
             assert agent.location is not None

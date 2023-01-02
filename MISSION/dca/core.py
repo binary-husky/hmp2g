@@ -9,6 +9,7 @@ except:
 from scipy.optimize import linear_sum_assignment
 from scipy.cluster.vq import kmeans2
 from .cheat_script_ai import CheatScriptAI
+from .collective_assult_parallel_run import ScenarioConfig
 from .cython_func import laser_hit_improve3
 # action of the agent
 
@@ -68,8 +69,8 @@ class Agent(Entity):
         self.hit = False        # in last time
         self.wasHit = False
         ## shooting cone's radius and width (in radian)
-        self.shootRad = 0.4 # default value (same for guards and attackers, can be changed in collective_assult_env)
-        self.shootWin = np.pi/4
+        self.shootBaseRadius = ScenarioConfig.agent_shoot_base_radius # default value (same for guards and attackers, can be changed in collective_assult_env)
+        self.shootWin = ScenarioConfig.agent_shoot_win
         self.alive = True   # alive/dead
         self.justDied = False   # helps compute reward for agent when it just died
         self.prevDist = None
@@ -245,7 +246,7 @@ class World(CheatScriptAI):
                 for b, entity_b in enumerate(self.alive_agents):
                     if entity.attacker == entity_b.attacker: continue # both attacker or both defender
 
-                    fanRadius  = entity.shootRad*entity.terrain
+                    fanRadius  = entity.shootBaseRadius*entity.terrain
                     fanOpenRad = entity.shootWin
                     fanDirRad  = entity.atk_rad
                     hit__4 = laser_hit_improve3(
@@ -313,11 +314,11 @@ class World(CheatScriptAI):
         return -Z
 
 
-    #  fanRadius = agent.shootRad*agent.terrain
+    #  fanRadius = agent.shootBaseRadius*agent.terrain
     #  fanOpenRad = agent.shootWin
     #  fanDirRad = agent.atk_rad
     def get_tri_pts_arr(self, agent):
-        max_fire_range = agent.shootRad
+        max_fire_range = agent.shootBaseRadius
         terrain = agent.terrain
         # assert terrain > 0.7 and terrain <= 1.2, (terrain, 'overflow')
         fire_range_fix = max_fire_range*terrain

@@ -34,25 +34,27 @@ class ScenarioConfig(object):
         (As the name indicated, ChainVars will change WITH vars it 'chained_with' during config injection)
         (please see UTIL.config_args to find out how this advanced trick works out.)
     '''
-    num_guards = 50
-    num_attackers = 50
-    size = 5.0 # 10*10
-    num_steps = 180
+    num_guards = 50 # number of agents  (0, 150)
+    num_attackers = 50  # number of opponents  (0, 150)
+    agent_acc = 3.0 # agent acc (0.01, 10)
+    agent_max_speed = 1.0 # agent max speed (0.01, 10)
+    agent_max_rot = 0.17 # agent max rot  (0.01, 10)
+    agent_shoot_base_radius = 0.4  #  agent shoot base radius (0.01, 10)
+    agent_shoot_win = np.pi/4  # agent shoot win  (np.pi/10000, np.pi/1)
+    random_jam_prob = 0.0   # environment interference level (0,1)
+    introduce_terrain = False   # enable terrain (true/false)
+    terrain_parameters = [0, 0] # terrain parameters (0~1, 0~1)
+    MaxEpisodeStep = 180    # time limit (100, 200)
+    init_distance = 4  # init distance (1, 8)
+    enable_attacker_fluctuation = False  # enable attacker fluctuation
+    attacker_fluctuation = 20  # attacker fluctuation [0, num_attackers)
 
-    random_jam_prob = 0.0
-    introduce_terrain = False
-    terrain_parameters = [0, 0]
 
-    MaxEpisodeStep = 180
-    MaxEpisodeStep_cv = ChainVar(lambda num_steps:num_steps, chained_with=['num_steps'])
-
-    init_distance = 4  # 5-2,5+2
+    size = 5.0 # 
     render = False
     render_with_unity = False
     render_ip_with_unity = '127.0.0.1:11088'
 
-    episode_limit = num_steps
-    episode_limit_cv = ChainVar(lambda num_steps:num_steps, chained_with=['num_steps'])
 
     map_ = 'default'
     benchmark = False
@@ -100,13 +102,13 @@ class ScenarioConfig(object):
  
 def make_collective_assult_env(env_id, rank):
     # scenario = gym.make('collective_assult-v1')
-    from .envs.collective_assult_env import collective_assultEnvV1
+    from .collective_assult_env import collective_assultEnvV1
     scenario = collective_assultEnvV1( numguards=ScenarioConfig.num_guards, 
                                 numattackers = ScenarioConfig.num_attackers, 
                                 size=ScenarioConfig.size)
     # create world
     world = scenario.world
-    world.max_time_steps = ScenarioConfig.num_steps
+    world.max_time_steps = ScenarioConfig.MaxEpisodeStep
     # create multiagent environment
     if ScenarioConfig.benchmark:
         env = collective_assultGlobalEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data, id=rank)
@@ -462,7 +464,7 @@ class collective_assultGlobalEnv(gym.Env):
                 # label_bgcolor='Black', if self.s_cfg.Terrain_DEBUG:
                 ro_x=0, ro_y=0, ro_z=agent.atk_rad, 
                 label='',
-                # label='T %.3f, R %.3f'%(agent.terrain, agent.shootRad*agent.terrain), if self.s_cfg.Terrain_DEBUG:
+                # label='T %.3f, R %.3f'%(agent.terrain, agent.shootBaseRadius*agent.terrain), if self.s_cfg.Terrain_DEBUG:
                 label_color='white', attack_range=0, opacity=1)
             self.threejs_bridge.v2dx(
                 'box|%d|%s|%.3f'%(agent.iden+500, base_color, size),
@@ -491,7 +493,7 @@ class collective_assultGlobalEnv(gym.Env):
                     dis = np.linalg.norm(red_agent.pos - blue_agent.pos)
 
 
-                    if dis <= blue_agent.shootRad*blue_agent.terrain:
+                    if dis <= blue_agent.shootBaseRadius*blue_agent.terrain:
                         self.threejs_bridge.发送线条(
                             'simple|2000%s|MidnightBlue|0.03'%(str(blue_agent.iden)+'-'+str(red_agent.iden)), # 填入核心参量： “simple|线条的唯一ID标识|颜色|整体大小”
                             x_arr=np.array([blue_agent.pos[0],          red_agent.pos[0],        ]),   # 曲线的x坐标列表
@@ -513,9 +515,9 @@ class collective_assultGlobalEnv(gym.Env):
                             'cone|%d|%s|%.3f'%(agent.iden, color, size),
                             x, y, (agent.terrain-1)*show_lambda, label_bgcolor='Black',
                             ro_x=0, ro_y=0, ro_z=agent.atk_rad,  # Euler Angle y-x-z
-                            label='T %.3f, R %.3f, D %.3f'%(agent.terrain, agent.shootRad*agent.terrain, dis), label_color='white', attack_range=0, opacity=1)
+                            label='T %.3f, R %.3f, D %.3f'%(agent.terrain, agent.shootBaseRadius*agent.terrain, dis), label_color='white', attack_range=0, opacity=1)
 
-                    if dis <= red_agent.shootRad*red_agent.terrain:
+                    if dis <= red_agent.shootBaseRadius*red_agent.terrain:
                         self.threejs_bridge.发送线条(
                             'simple|3000%s|Pink|0.03'%(str(red_agent.iden)+'-'+str(blue_agent.iden)), # 填入核心参量： “simple|线条的唯一ID标识|颜色|整体大小”
                             x_arr=np.array([red_agent.pos[0],           blue_agent.pos[0],        ]),   # 曲线的x坐标列表
@@ -537,7 +539,7 @@ class collective_assultGlobalEnv(gym.Env):
                             'cone|%d|%s|%.3f'%(agent.iden, color, size),
                             x, y, (agent.terrain-1)*show_lambda, label_bgcolor='Black',
                             ro_x=0, ro_y=0, ro_z=agent.atk_rad,  # Euler Angle y-x-z
-                            label='T %.3f, R %.3f, D %.3f'%(agent.terrain, agent.shootRad*agent.terrain, dis), label_color='white', attack_range=0, opacity=1)
+                            label='T %.3f, R %.3f, D %.3f'%(agent.terrain, agent.shootBaseRadius*agent.terrain, dis), label_color='white', attack_range=0, opacity=1)
 
         self.threejs_bridge.v2d_show()
 

@@ -236,10 +236,10 @@ class CheatScriptAI():
                 #     # old way
                 #     # 计算各跟随者的打击角度，向打击范围内，距离最近的对手方向射击
                 #     for guard_i, guard_agent in enumerate(guard_agents_alive):
-                #         if (agent.pos[0] - agent.shootRad) <= guard_agent.pos[0] <= (
-                #                 agent.pos[0] + agent.shootRad) and (
-                #                 agent.pos[1] - agent.shootRad) <= guard_agent.pos[1]  <= (
-                #                 agent.pos[1] + agent.shootRad):
+                #         if (agent.pos[0] - agent.shootBaseRadius) <= guard_agent.pos[0] <= (
+                #                 agent.pos[0] + agent.shootBaseRadius) and (
+                #                 agent.pos[1] - agent.shootBaseRadius) <= guard_agent.pos[1]  <= (
+                #                 agent.pos[1] + agent.shootBaseRadius):
                 #             relative_to_guard = guard_agent.pos - agent.pos
                 #             theta_patrol = np.arctan2(relative_to_guard[1], relative_to_guard[0])
                 #             if theta_patrol < 0: theta_patrol += 2 * np.pi

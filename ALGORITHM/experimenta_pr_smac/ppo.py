@@ -1,16 +1,13 @@
-import torch, math
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
-from random import randint, sample
-from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from UTIL.colorful import *
-from UTIL.tensor_ops import _2tensor, __hash__, repeat_at, _2cpu2numpy
-from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
+from UTIL.tensor_ops import _2tensor, __hash__
 from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
-from .ppo_sampler import TrajPoolSampler
+from ALGORITHM.common.ppo_sampler import TrajPoolSampler
 
 
 class PPO():
@@ -25,11 +22,14 @@ class PPO():
         self.max_grad_norm = ppo_config.max_grad_norm
         self.add_prob_loss = ppo_config.add_prob_loss
         self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
+        self.BlockInvalidPg = ppo_config.BlockInvalidPg
+        self.advantage_norm = ppo_config.advantage_norm
         self.lr = ppo_config.lr
         self.extral_train_loop = ppo_config.extral_train_loop
+        self.policy_and_critic = policy_and_critic
         self.all_parameter = list(policy_and_critic.named_parameters())
-        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
-        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
+        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name)]
+        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name)]
         # self.ae_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AE_' in p_name]
         # 检查剩下是是否全都是不需要训练的参数
         remove_exists = lambda LA,LB: list(set(LA).difference(set(LB)))
@@ -39,13 +39,13 @@ class PPO():
         # res = remove_exists(res, self.ae_parameter)
         for p_name, p in res:   
             assert not p.requires_grad, ('a parameter must belong to either CriTic or AcTor, unclassified parameter:',p_name)
-        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if (('ct_' in p_name) or ('CT_' in p_name)) and (('at_' in p_name) or ('AT_' in p_name))]
+        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name) and ('at_' in p_name)]
         assert len(self.cross_parameter)==0,('a parameter must belong to either CriTic or AcTor, not both')
         # 不再需要参数名
-        self.at_parameter = [p for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
+        self.at_parameter = [p for p_name, p in self.all_parameter if 'at_' in p_name]
         self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)
 
-        self.ct_parameter = [p for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
+        self.ct_parameter = [p for p_name, p in self.all_parameter if 'ct_' in p_name]
         self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
         # self.ae_parameter = [p for p_name, p in self.all_parameter if 'AE_' in p_name]
         # self.ae_optimizer = optim.Adam(self.ae_parameter, lr=self.lr*100.0) #(self.lr)
@@ -65,29 +65,25 @@ class PPO():
 
     def train_on_traj(self, traj_pool, task):
         with self.gpu_share_unit:
-            self.train_on_traj_(traj_pool, task) 
-
-        # while True:
-        #     try:
-
-        #         break # 运行到这说明显存充足
-        #     except RuntimeError:
-        #         if self.prevent_batchsize_oom:
-        #             if TrajPoolSampler.MaxSampleNum[-1] < 0:
-        #                 TrajPoolSampler.MaxSampleNum.pop(-1)
-                        
-        #             assert TrajPoolSampler.MaxSampleNum[-1]>0
-        #             TrajPoolSampler.MaxSampleNum[-1] = -1
-
-        #             print亮红('Insufficient gpu memory, using previous sample size !')
-        #         else:
-        #             raise Exception
-        #     torch.cuda.empty_cache()
+            self.train_on_traj_(traj_pool, task)
 
     def train_on_traj_(self, traj_pool, task):
-
         ppo_valid_percent_list = []
-        sampler = TrajPoolSampler(n_div=self.n_div, traj_pool=traj_pool, flag=task, prevent_batchsize_oom=self.prevent_batchsize_oom)
+        sampler = TrajPoolSampler(
+            n_div=self.n_div, 
+            traj_pool=traj_pool, 
+            flag=task, 
+            req_dict=[
+                'obs', 'state', 'eprsn', 'randl', 'action', 'actionLogProb', 
+                'value_selected', 'return_selected',
+                'BAL_return_all_level', 'reward', 'threat', 'BAL_value_all_level'], 
+            return_rename='return_selected',
+            value_rename='value_selected',
+            advantage_rename='advantage_selected',
+            prevent_batchsize_oom=False, 
+            advantage_norm = self.advantage_norm,
+            mcv=None
+        )
         assert self.n_div == len(sampler)
         for e in range(self.ppo_epoch):
             # print亮紫('pulse')
@@ -141,23 +137,42 @@ class PPO():
 
 
     def establish_pytorch_graph(self, flag, sample, n):
+        # req_dict=[
+        #     'obs', 'state', 'eprsn', 'randl', 'action', 'actionLogProb', 
+        #     'value_selected', 'return_selected',
+        #     'BAL_return_all_level', 'reward', 'threat', 'BAL_value_all_level'], 
+        # return_rename='return_selected',
+        # value_rename='value_selected',
+        # advantage_rename='advantage_selected',
         obs = _2tensor(sample['obs'])
         state = _2tensor(sample['state']) if 'state' in sample else None
-        advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
-        real_value = _2tensor(sample['return'])
         real_threat = _2tensor(sample['threat'])
         avail_act = _2tensor(sample['avail_act']) if 'avail_act' in sample else None
         eprsn = _2tensor(sample['eprsn']) if 'eprsn' in sample else None
+        randl = _2tensor(sample['randl']) if 'randl' in sample else None
 
-        batchsize = advantage.shape[0]#; print亮紫(batchsize)
+        # BAL_advantage_all_level = _2tensor(sample['BAL_advantage_all_level'])
+        # BAL_return_all_level = _2tensor(sample['BAL_return_all_level'])
+
+        # def select_value_level(BAL_all_level, randl):
+        #     n_agent = BAL_all_level.shape[1]
+        #     tmp_index = repeat_at(randl, -1, n_agent).unsqueeze(-1)
+        #     return gather_righthand(src=BAL_all_level, index=tmp_index, check=False)
+
+        # advantage = select_value_level(BAL_all_level=BAL_advantage_all_level, randl=randl)
+        # real_return = select_value_level(BAL_all_level=BAL_return_all_level, randl=randl)
+
+        real_return = _2tensor(sample['return_selected'])
+        advantage = _2tensor(sample['advantage_selected'])
+
+        batch_agent_size_raw = advantage.shape[0]*advantage.shape[1]
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
         newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
-            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn)
-        entropy_loss = entropy.mean()
+            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn, randl=randl)
 
         if self.use_conc_net:
             # threat approximation
@@ -165,18 +180,26 @@ class PPO():
             filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
             threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
 
-        # dual clip ppo core
+        # remove the Non-PR agents' policy
+        no_pr = ~eprsn
+        oldPi_actionLogProb = oldPi_actionLogProb[no_pr]
+        advantage = advantage[no_pr]
+        newPi_actionLogProb = newPi_actionLogProb[no_pr]
+        entropy = entropy[no_pr]
+        batch_agent_size = advantage.shape[0]
+        # dual clip ppo core: input oldPi_actionLogProb, advantage, newPi_actionLogProb
         E = newPi_actionLogProb - oldPi_actionLogProb
         E_clip = torch.zeros_like(E)
         E_clip = torch.where(advantage > 0, torch.clamp(E, max=np.log(1.0+self.clip_param)), E_clip)
         E_clip = torch.where(advantage < 0, torch.clamp(E, min=np.log(1.0-self.clip_param), max=np.log(5) ), E_clip)
         ratio = torch.exp(E_clip)
         policy_loss = -(ratio*advantage).mean()
+        entropy_loss = entropy.mean()
 
         # add all loses
-        value_loss = 0.5 * F.mse_loss(real_value, newPi_value)
+        value_loss = 0.5 * F.mse_loss(real_return, newPi_value)
         if 'motivation value' in others:
-            value_loss += 0.5 * F.mse_loss(real_value, others['motivation value'])
+            value_loss += 0.5 * F.mse_loss(real_return, others['motivation value'])
 
         AT_net_loss = policy_loss -entropy_loss*self.entropy_coef
         if self.use_conc_net:
@@ -188,8 +211,8 @@ class PPO():
 
         ppo_valid_percent = ((E_clip == E).int().sum()/batch_agent_size)
 
-        nz_mask = real_value!=0
-        value_loss_abs = (real_value[nz_mask] - newPi_value[nz_mask]).abs().mean()
+        nz_mask = real_return!=0
+        value_loss_abs = (real_return[nz_mask] - newPi_value[nz_mask]).abs().mean()
         others = {
             # 'Policy loss':              policy_loss,
             # 'Entropy loss':             entropy_loss,

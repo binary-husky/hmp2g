@@ -17,7 +17,7 @@ class PolicyRsnConfig:
 class StagePlanner:
     def __init__(self, n_agent, mcv) -> None:
         if AlgorithmConfig.use_policy_resonance:
-            self.resonance_active = False
+            self.resonance_active = True
             self.yita = 0
             self.yita_min_prob = PolicyRsnConfig.yita_min_prob
         self.freeze_body = False
@@ -43,30 +43,31 @@ class StagePlanner:
         return self.mapPrNum2LevelLs[j]
 
     def n_pr_distribution(self, n_thread, n_agent):
-        # low = np.array(AlgorithmConfig.ct_target_distribute).min()
-        # high = np.array(AlgorithmConfig.ct_target_distribute).max()+1
+        # low = np.array(AlgorithmConfig.target_distribute).min()
+        # high = np.array(AlgorithmConfig.target_distribute).max()+1
         # lv = np.random.randint(low=low, high=high, size=n_thread)
-        lv = np.random.choice(AlgorithmConfig.ct_target_distribute, n_thread, replace=True)
+        randl = np.random.choice(AlgorithmConfig.target_distribute, n_thread, replace=True)
         # lv = np.random.randint(low=0, high=AlgorithmConfig.distribution_precision, size=n_thread)
         # lv = np.random.randint(low=0, high=1, size=n_thread)
 
-        npr = np.array(list(map(self.mapLevel2PrNum, lv)))
+        npr = np.array(list(map(self.mapLevel2PrNum, randl)))
         # check = np.array(list(map(self.mapPrNum2Level, npr)))
         # assert (check==lv).all()
 
-        return npr
+        return npr, randl
 
     def uprate_eprsn(self, n_thread):
         """
             共鸣组合的生成
         """
         # eprsn_yita = self.yita
-        n_pr_agent = self.n_pr_distribution(n_thread, self.n_agent) # np.random.rand(n_thread) < eprsn_yita
+        n_pr_agent, randl = self.n_pr_distribution(n_thread, self.n_agent) # np.random.rand(n_thread) < eprsn_yita
         self.eprsn = []
         for n_pr in n_pr_agent: 
             self.eprsn.append(self.generate_random_n_hot_vector(vlength=self.n_agent, n=int(n_pr)))
         self.eprsn = np.stack(self.eprsn)
-        return self.eprsn
+        self.randl = randl
+        return self.eprsn, self.randl
 
     def generate_random_n_hot_vector(self, vlength, n):
         pick = np.random.choice(vlength, n, replace=False)

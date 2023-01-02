@@ -1,15 +1,16 @@
 import time, gym
 import numpy as np
 from UTIL.tensor_ops import my_view
-from ..core import World, Agent
+from .core import World, Agent
 
 class collective_assultEnvV1(gym.Env):  
     metadata = {'render.modes': ['human']}   
     def __init__(self,numguards =5, numattackers = 5, size=1.0):
-        from ..collective_assult_parallel_run import ScenarioConfig
+        from .collective_assult_parallel_run import ScenarioConfig
         self.init_dis = ScenarioConfig.init_distance
         self.half_death_reward = ScenarioConfig.half_death_reward
         self.random_jam_prob = ScenarioConfig.random_jam_prob
+        self.ScenarioConfig = ScenarioConfig
         self.world = World() 
         self.world.wall_pos=[-1*size,1*size,-1*size,1*size]
         self.world.init_box=[-1*5,1*5,-1*5,1*5]
@@ -31,9 +32,9 @@ class collective_assultEnvV1(gym.Env):
             agent.silent = True
             agent.bullets_is_limited = False #
             agent.attacker = False if i < self.world.numGuards else True
-            agent.accel = 3  ## guard
-            agent.max_speed = 1.0   #
-            agent.max_rot = 0.17 ## a
+            agent.accel = ScenarioConfig.agent_acc  ## guard
+            agent.max_speed = ScenarioConfig.agent_max_speed  #
+            agent.max_rot = ScenarioConfig.agent_max_rot ## a
             agent.action_callback = self.action_callback if agent.attacker else None #
 
         self.viewers = [None]
@@ -64,6 +65,18 @@ class collective_assultEnvV1(gym.Env):
         self.world.init_theta = theta
         rotate = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
 
+        init_exclude_attacker = []
+        def gen_exclude_list(max, fluct):
+            n_attacker = np.random.randint(
+                low=(max-fluct), 
+                high=(max+1))
+            init_exclude_attacker = np.random.choice(np.arange(max), size=max-n_attacker, replace=False).tolist()
+            return init_exclude_attacker
+
+        if self.ScenarioConfig.enable_attacker_fluctuation:
+            init_exclude_attacker = gen_exclude_list(max=self.ScenarioConfig.num_attackers, fluct=self.ScenarioConfig.attacker_fluctuation)
+
+        cnt_n_attacker = 0
         for i, agent in enumerate(self.world.agents):
             agent.alive = True
             agent.color = np.array([0.0, 1.0, 0.0]) if not agent.attacker else np.array([1.0, 0.0, 0.0])
@@ -93,6 +106,11 @@ class collective_assultEnvV1(gym.Env):
                     agent.pos = centering + (agent.pos-centering)*ratio
 
                 agent.pos = np.dot(agent.pos, rotate.T)
+                if cnt_n_attacker in init_exclude_attacker:
+                    agent.alive = False
+                    agent.wasHitBy = None
+                cnt_n_attacker += 1
+                agent.terrain = np.nan
 
             else:
                 #随机初始化位置

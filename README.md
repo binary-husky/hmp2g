@@ -1,5 +1,27 @@
 
 # HMP：Hybrid Multi-agent Playground
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/binary-husky/hmp2g/issues)
+[![Docker Pulls](https://img.shields.io/docker/pulls/fuqingxu/hmp.svg?maxAge=2592000)](https://registry.hub.docker.com/r/fuqingxu/hmp)
+## Introduction
+The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
+Unlike any other framework which only isolates the TASKs from the framework, 
+HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
+
+Any algorithm, from the most straightforward script-AI to sophisticated RL learner,
+is abstracted into a module inside ./ALGORITHM/*.
+
+We also put effect to interface all kinds of multi-agent environments,
+including gym, SMAC, air combat, et.al. These can be found in 
+./MISSION/*.
+
+Other frameworks, such as pymarl2, mappo, can interface with HMP as well.
+The entire HMP can disguise as an RL environment in pymarl2.
+We make it happen by building a particular ALGORITHM module, which
+runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a modified version of pymarl2. The source code of these third-party frameworks are located in ./THIRDPARTY/*.
+
+**Please ```star``` the root Github project. Your encouragement is extremely important to us as researchers: ```https://github.com/binary-husky/hmp2g```**
+
+Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
 
 ## Contact us: 
 - Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
@@ -29,26 +51,7 @@
 
 
 
-## Introduction
-The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
-Unlike any other framework which only isolates the TASKs from the framework, 
-HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
 
-Any algorithm, from the most straightforward script-AI to sophisticated RL learner,
-is abstracted into a module inside ./ALGORITHM/*.
-
-We also put effect to interface all kinds of multi-agent environments,
-including gym, SMAC, air combat, et.al. These can be found in 
-./MISSION/*.
-
-Other frameworks, such as pymarl2, mappo, can interface with HMP as well.
-The entire HMP can disguise as an RL environment in pymarl2.
-We make it happen by building a particular ALGORITHM module, which
-runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a modified version of pymarl2. The source code of these third-party frameworks are located in ./THIRDPARTY/*.
-
-**Please ```star``` the root Github project. Your encouragement is extremely important to us as researchers: ```https://github.com/binary-husky/hmp2g```**
-
-Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
 
 ## Demo
 This resp is frequently updating.
@@ -155,13 +158,12 @@ Then:
 - (Step2, Use It !) Anywhere you want to use the ```HP_MAX```, first ```from xxx.collective_assult_parallel_run import ScenarioConfig```,
 then use the parameter by ```init_hp_of_some_agent = ScenarioConfig.HP_MAX```.
 - (Step3, Change It !) To override the default value ```HP_MAX=100``` in JSON (e.g., in ```./example_dca.jsonc```), 
-you just need to add a line in the field ```"MISSION.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig"```,
-
+you just need to add a line in the field ```"MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig"```,
 for example:
 ```Jsonc
 {
     ...... (other field)
-    "MISSION.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
         "HP_MAX": 222,  # <------ add this!
         "random_jam_prob": 0.05,    # (other config override in ScenarioConfig)
         ......

@@ -4,6 +4,7 @@ from UTIL.colorful import *
 from .net import Net
 from config import GlobalConfig
 from UTIL.tensor_ops import __hash__, repeat_at
+from ALGORITHM.common.traj_gae import BatchTrajManager
 
 class AlgorithmConfig:  
     '''
@@ -54,6 +55,8 @@ class AlgorithmConfig:
     alternative_critic = False
     ignore_test_mode = False
 
+    use_policy_resonance = False
+
 class ReinforceAlgorithmFoundation(object):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         self.n_thread = n_thread
@@ -81,7 +84,6 @@ class ReinforceAlgorithmFoundation(object):
         self.AvgRewardAgentWise = alg_config.TakeRewardAsUnity
         from .ppo import PPO
         self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv)
-        from .trajectory import BatchTrajManager
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread, traj_limit=int(ScenarioConfig.MaxEpisodeStep), 
                                                    trainer_hook=self.trainer.train_on_traj)
         self.load_checkpoint = AlgorithmConfig.load_checkpoint

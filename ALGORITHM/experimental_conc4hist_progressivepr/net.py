@@ -1,20 +1,15 @@
-import math
 import torch,time,random
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions.categorical import Categorical
-from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn.modules.linear import Linear
-from ALGORITHM.common.attention import MultiHeadAttention
 from ALGORITHM.common.norm import DynamicNormFix
-from ALGORITHM.common.attention import SimpleAttention
 from ALGORITHM.common.conc import Concentration
-from ALGORITHM.common.mlp import LinearFinal, SimpleMLP, ResLinear
+from ALGORITHM.common.mlp import LinearFinal
 from ALGORITHM.common.net_manifest import weights_init
 from ALGORITHM.common.logit2act import Logit2Act
 from .ccategorical import CCategorical
-from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, __hash__, __hashn__, pad_at_dim
-from UTIL.tensor_ops import repeat_at, one_hot_with_nan, gather_righthand, pt_inf
+from UTIL.tensor_ops import repeat_at, Args2tensor_Return2numpy, Args2tensor, __hash__, __hashn__, _2tensor, gather_righthand
 
 
 
@@ -34,12 +29,12 @@ class Net(Logit2Act, nn.Module):
 
         self.use_normalization = AlgorithmConfig.use_normalization
         self.n_focus_on = AlgorithmConfig.n_focus_on
-        self.dual_conc = AlgorithmConfig.dual_conc
-        self.n_entity_placeholder = AlgorithmConfig.n_entity_placeholder
+        self.n_entity_placeholder = 24
         self.stage_planner = stage_planner
         self.ccategorical = CCategorical(stage_planner)
         self.use_policy_resonance = AlgorithmConfig.use_policy_resonance
-        h_dim = AlgorithmConfig.net_hdim
+        self.distribution_precision = AlgorithmConfig.distribution_precision
+        h_dim = 16
         self.state_dim = state_dim
 
         self.n_action = n_action
@@ -51,28 +46,22 @@ class Net(Logit2Act, nn.Module):
 
         self.AT_obs_encoder = nn.Sequential(nn.Linear(rawob_dim, h_dim), nn.ReLU(inplace=True), nn.Linear(h_dim, h_dim))
 
-        if self.dual_conc:
-            self.MIX_conc_core_f = Concentration(
-                            n_focus_on=self.n_focus_on-1, h_dim=h_dim, 
-                            skip_connect=True, 
-                            skip_connect_dim=rawob_dim)
-            self.MIX_conc_core_h = Concentration(
-                            n_focus_on=self.n_focus_on, h_dim=h_dim, 
-                            skip_connect=True, 
-                            skip_connect_dim=rawob_dim)
-        else:
-            self.MIX_conc_core = Concentration(
-                            n_focus_on=self.n_focus_on, h_dim=h_dim, 
-                            skip_connect=True, 
-                            skip_connect_dim=rawob_dim)
- 
-        tmp_dim = h_dim if not self.dual_conc else h_dim*2
+        self.MIX_conc_core_f = Concentration(
+                        n_focus_on=self.n_focus_on-1, h_dim=h_dim, 
+                        skip_connect=True, 
+                        skip_connect_dim=rawob_dim)
+        self.MIX_conc_core_h = Concentration(
+                        n_focus_on=self.n_focus_on, h_dim=h_dim, 
+                        skip_connect=True, 
+                        skip_connect_dim=rawob_dim)
+
+        tmp_dim = h_dim*2
         self.CT_get_value = nn.Sequential(
-            Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
+            Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),
             Linear(h_dim, self.distribution_precision)
         )
         self.CT_get_threat = nn.Sequential(
-            Linear(tmp_dim+state_dim, h_dim), nn.ReLU(inplace=True),
+            Linear(tmp_dim, h_dim), nn.ReLU(inplace=True),
             Linear(h_dim, 1)
         )
 
@@ -110,7 +99,6 @@ class Net(Logit2Act, nn.Module):
         others = {}
         if self.use_normalization:
             obs = self._batch_norm(obs)
-            state = self._state_batch_norm(state)
         mask_dead = torch.isnan(obs).any(-1)    # find dead agents
         obs = torch.nan_to_num_(obs, 0)         # replace dead agents' obs, from NaN to 0
         v = self.AT_obs_encoder(obs)
@@ -129,10 +117,9 @@ class Net(Logit2Act, nn.Module):
 
         # motivation encoding fusion
         n_agent = vh_M.shape[-2]
-        state_cp = repeat_at(state, -2, n_agent)
 
         # eprsn_cp = repeat_at(eprsn.sum(-1, keepdim=True)/n_agent, -2, n_agent)
-        v_M_fuse = torch.cat((vf_M, vh_M, state_cp), dim=-1)
+        v_M_fuse = torch.cat((vf_M, vh_M), dim=-1)
 
         # motivation objectives
         BAL_value_all_level = self.CT_get_value(v_M_fuse)   # BAL
@@ -165,3 +152,14 @@ class Net(Logit2Act, nn.Module):
     def evaluate_actions(self, *args, **kargs):
         return self._act(*args, **kargs, eval_mode=True)
 
+    def select_value_level(self, BAL_value_all_level, eprsn, n_agent):
+        def get_lv(eprsn):
+            with torch.no_grad():
+                asum = eprsn.sum(-1).cpu().numpy()
+                lv = np.array(list(map(self.stage_planner.mapPrNum2Level, asum)))
+                lv = _2tensor(lv).long()
+                return repeat_at(lv, -1, n_agent).unsqueeze(-1)
+        lv = get_lv(eprsn)
+        value = gather_righthand(src=BAL_value_all_level, index=lv, check=False)
+        return value
+    

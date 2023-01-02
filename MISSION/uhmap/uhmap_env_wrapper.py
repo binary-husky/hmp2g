@@ -343,7 +343,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             print('restarting simutation')
             self.terminate_simulation()
             self.simulation_life = self.max_simulation_life
-            self.activate_simulation(self.id, find_port=False)
+            self.activate_simulation(self.id, find_port=True)
 
     def sleep(self):
         self.simulation_life = -1

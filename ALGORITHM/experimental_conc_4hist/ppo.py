@@ -1,4 +1,4 @@
-import torch, math
+import torch, math  # v
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -6,19 +6,131 @@ import numpy as np
 from random import randint, sample
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from UTIL.colorful import *
-from UTIL.tensor_ops import _2tensor, __hash__, repeat_at, _2cpu2numpy
+from UTIL.tensor_ops import _2tensor, _2cpu2numpy, repeat_at
 from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
 from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
-from .ppo_sampler import TrajPoolSampler
 
+class TrajPoolSampler():
+    def __init__(self, n_div, traj_pool, flag, prevent_batchsize_oom=False):
+        self.n_pieces_batch_division = n_div
+        self.prevent_batchsize_oom = prevent_batchsize_oom    
+
+        if self.prevent_batchsize_oom:
+            assert self.n_pieces_batch_division==1, ('?')
+
+        self.num_batch = None
+        self.container = {}
+        self.warned = False
+        assert flag=='train'
+        req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'eprsn', 'value']
+        req_dict_rename = req_dict
+        return_rename = "return"
+        value_rename =  "value"
+        advantage_rename = "advantage"
+        # replace 'obs' to 'obs > xxxx'
+        for key_index, key in enumerate(req_dict):
+            key_name =  req_dict[key_index]
+            key_rename = req_dict_rename[key_index]
+            if not hasattr(traj_pool[0], key_name):
+                real_key_list = [real_key for real_key in traj_pool[0].__dict__ if (key_name+'>' in real_key)]
+                assert len(real_key_list) > 0, ('check variable provided!', key,key_index)
+                for real_key in real_key_list:
+                    mainkey, subkey = real_key.split('>')
+                    req_dict.append(real_key)
+                    req_dict_rename.append(key_rename+'>'+subkey)
+        self.big_batch_size = -1  # vector should have same length, check it!
+        
+        # load traj into a 'container'
+        for key_index, key in enumerate(req_dict):
+            key_name =  req_dict[key_index]
+            key_rename = req_dict_rename[key_index]
+            if not hasattr(traj_pool[0], key_name): continue
+            set_item = np.concatenate([getattr(traj, key_name) for traj in traj_pool], axis=0)
+            if not (self.big_batch_size==set_item.shape[0] or (self.big_batch_size<0)):
+                print('error')
+            assert self.big_batch_size==set_item.shape[0] or (self.big_batch_size<0), (key,key_index)
+            self.big_batch_size = set_item.shape[0]
+            self.container[key_rename] = set_item    # 指针赋值
+
+        # normalize advantage inside the batch
+        self.container[advantage_rename] = self.container[return_rename] - self.container[value_rename]
+        self.container[advantage_rename] = ( self.container[advantage_rename] - self.container[advantage_rename].mean() ) / (self.container[advantage_rename].std() + 1e-5)
+        # size of minibatch for each agent
+        self.mini_batch_size = math.ceil(self.big_batch_size / self.n_pieces_batch_division)  
+
+    def __len__(self):
+        return self.n_pieces_batch_division
+
+    def reset_and_get_iter(self):
+        if not self.prevent_batchsize_oom:
+            self.sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
+        else:
+            if not hasattr(TrajPoolSampler,'MaxSampleNum'):
+                print('第一次初始化')
+                TrajPoolSampler.MaxSampleNum = [self.big_batch_size, ]
+                max_n_sample = self.big_batch_size
+            elif TrajPoolSampler.MaxSampleNum[-1] > 0:
+                TrajPoolSampler.MaxSampleNum.append(self.big_batch_size)
+                max_n_sample = self.big_batch_size
+            else:
+                assert TrajPoolSampler.MaxSampleNum[-2] > 0
+                max_n_sample = TrajPoolSampler.MaxSampleNum[-2]
+
+            n_sample = min(self.big_batch_size, max_n_sample)
+                    
+            if not hasattr(self,'reminded'):
+                self.reminded = True
+                print('droping %.1f percent samples..'%((self.big_batch_size-n_sample)/self.big_batch_size*100))
+            self.sampler = BatchSampler(SubsetRandomSampler(range(n_sample)), n_sample, drop_last=False)
+
+        for indices in self.sampler:
+            selected = {}
+            for key in self.container:
+                selected[key] = self.container[key][indices]
+            for key in [key for key in selected if '>' in key]:
+                # 重新把子母键值组合成二重字典
+                mainkey, subkey = key.split('>')
+                if not mainkey in selected: selected[mainkey] = {}
+                selected[mainkey][subkey] = selected[key]
+                del selected[key]
+            yield selected
+
+def est_check(x, y):
+    import random
+    y = y.flatten()
+    x = x.flatten()
+    size = y.shape[0]
+    index = list(range(size))
+    random.shuffle(index)
+    index = index[:500]
+    xsub = y[index]
+    new_index = ~torch.isnan(xsub)
+    
+    final = []
+    t = xsub.max()
+    for i in range(15):
+        if new_index.any():
+            t = xsub[torch.where(new_index)[0][0]]
+            final.append(index[torch.where(new_index)[0][0]])
+            new_index = new_index & (xsub!=t)
+        else:
+            break
+    
+    x_ = x[final]
+    y_ = y[final]
+    s = torch.argsort(y_)
+    y_ = y_[s]
+    x_ = x_[s]
+    print(x_.detach().cpu().numpy())
+    print(y_.detach().cpu().numpy())
+    return
 
 class PPO():
     def __init__(self, policy_and_critic, ppo_config, mcv=None):
         self.policy_and_critic = policy_and_critic
         self.clip_param = ppo_config.clip_param
         self.ppo_epoch = ppo_config.ppo_epoch
-        self.use_conc_net = ppo_config.use_conc_net
         self.n_pieces_batch_division = ppo_config.n_pieces_batch_division
         self.value_loss_coef = ppo_config.value_loss_coef
         self.entropy_coef = ppo_config.entropy_coef
@@ -26,10 +138,9 @@ class PPO():
         self.add_prob_loss = ppo_config.add_prob_loss
         self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
         self.lr = ppo_config.lr
-        self.extral_train_loop = ppo_config.extral_train_loop
         self.all_parameter = list(policy_and_critic.named_parameters())
-        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
-        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
+        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AT_' in p_name]
+        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'CT_' in p_name]
         # self.ae_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AE_' in p_name]
         # 检查剩下是是否全都是不需要训练的参数
         remove_exists = lambda LA,LB: list(set(LA).difference(set(LB)))
@@ -39,13 +150,14 @@ class PPO():
         # res = remove_exists(res, self.ae_parameter)
         for p_name, p in res:   
             assert not p.requires_grad, ('a parameter must belong to either CriTic or AcTor, unclassified parameter:',p_name)
-        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if (('ct_' in p_name) or ('CT_' in p_name)) and (('at_' in p_name) or ('AT_' in p_name))]
+
+        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('CT_' in p_name) and ('AT_' in p_name)]
         assert len(self.cross_parameter)==0,('a parameter must belong to either CriTic or AcTor, not both')
         # 不再需要参数名
-        self.at_parameter = [p for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
+        self.at_parameter = [p for p_name, p in self.all_parameter if 'AT_' in p_name]
         self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)
 
-        self.ct_parameter = [p for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
+        self.ct_parameter = [p for p_name, p in self.all_parameter if 'CT_' in p_name]
         self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
         # self.ae_parameter = [p for p_name, p in self.all_parameter if 'AE_' in p_name]
         # self.ae_optimizer = optim.Adam(self.ae_parameter, lr=self.lr*100.0) #(self.lr)
@@ -66,23 +178,6 @@ class PPO():
     def train_on_traj(self, traj_pool, task):
         with self.gpu_share_unit:
             self.train_on_traj_(traj_pool, task) 
-
-        # while True:
-        #     try:
-
-        #         break # 运行到这说明显存充足
-        #     except RuntimeError:
-        #         if self.prevent_batchsize_oom:
-        #             if TrajPoolSampler.MaxSampleNum[-1] < 0:
-        #                 TrajPoolSampler.MaxSampleNum.pop(-1)
-                        
-        #             assert TrajPoolSampler.MaxSampleNum[-1]>0
-        #             TrajPoolSampler.MaxSampleNum[-1] = -1
-
-        #             print亮红('Insufficient gpu memory, using previous sample size !')
-        #         else:
-        #             raise Exception
-        #     torch.cuda.empty_cache()
 
     def train_on_traj_(self, traj_pool, task):
 
@@ -142,7 +237,7 @@ class PPO():
 
     def establish_pytorch_graph(self, flag, sample, n):
         obs = _2tensor(sample['obs'])
-        state = _2tensor(sample['state']) if 'state' in sample else None
+        state = None
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
@@ -159,11 +254,25 @@ class PPO():
             state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn)
         entropy_loss = entropy.mean()
 
-        if self.use_conc_net:
-            # threat approximation
-            SAFE_LIMIT = 8
-            filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
-            threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
+        # threat approximation
+        SAFE_LIMIT = 8
+        filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
+        threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
+
+        # remove the Non-PR agents' policy
+        no_pr = ~eprsn
+        oldPi_actionLogProb = oldPi_actionLogProb[no_pr]
+        advantage = advantage[no_pr]
+        newPi_actionLogProb = newPi_actionLogProb[no_pr]
+        batch_agent_size = advantage.shape[0]
+
+        # probs_loss (should be turn off now)
+        n_actions = probs.shape[-1]
+        if self.add_prob_loss: assert n_actions <= 15  # 
+        penalty_prob_line = (1/n_actions)*0.12
+        probs_loss = (penalty_prob_line - torch.clamp(probs, min=0, max=penalty_prob_line)).mean()
+        if not self.add_prob_loss:
+            probs_loss = torch.zeros_like(probs_loss)
 
         # dual clip ppo core
         E = newPi_actionLogProb - oldPi_actionLogProb
@@ -178,11 +287,9 @@ class PPO():
         if 'motivation value' in others:
             value_loss += 0.5 * F.mse_loss(real_value, others['motivation value'])
 
-        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef
-        if self.use_conc_net:
-            CT_net_loss = value_loss * 1.0 + threat_loss * 0.1 # + friend_threat_loss*0.01
-        else:
-            CT_net_loss = value_loss * 1.0
+        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef # + probs_loss*20
+        CT_net_loss = value_loss * 1.0 + threat_loss * 0.1 # + friend_threat_loss*0.01
+        # AE_new_loss = ae_loss * 1.0
 
         loss_final =  AT_net_loss + CT_net_loss  # + AE_new_loss
 
@@ -196,7 +303,7 @@ class PPO():
             'Value loss Abs':           value_loss_abs,
             # 'friend_threat_loss':       friend_threat_loss,
             'PPO valid percent':        ppo_valid_percent,
-            # 'threat loss':              threat_loss,
+            'threat loss':              threat_loss,
             # 'Auto encoder loss':        ae_loss,
             'CT_net_loss':              CT_net_loss,
             'AT_net_loss':              AT_net_loss,

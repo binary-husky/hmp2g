@@ -23,12 +23,10 @@ class TrajPoolSampler():
         self.container = {}
         self.warned = False
         assert flag=='train'
-        # req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'avail_act', 'value']
-        # req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'avail_act', 'state_value']
-        req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
-        req_dict_rename = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
+        req_dict =        ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'eprsn', 'value']
+        req_dict_rename = req_dict
         return_rename = "return"
-        value_rename =  "state_value"
+        value_rename =  "value"
         advantage_rename = "advantage"
         # replace 'obs' to 'obs > xxxx'
         for key_index, key in enumerate(req_dict):
@@ -140,8 +138,6 @@ class PPO():
         self.add_prob_loss = ppo_config.add_prob_loss
         self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
         self.lr = ppo_config.lr
-        self.extral_train_loop = ppo_config.extral_train_loop
-        self.turn_off_threat_est = ppo_config.turn_off_threat_est
         self.all_parameter = list(policy_and_critic.named_parameters())
         self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AT_' in p_name]
         self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'CT_' in p_name]
@@ -170,7 +166,6 @@ class PPO():
         # 轮流训练式
         self.mcv = mcv
         self.ppo_update_cnt = 0
-        self.loss_bias =  ppo_config.balance
         self.batch_size_reminder = True
         self.trivial_dict = {}
 
@@ -181,25 +176,8 @@ class PPO():
         self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party)
 
     def train_on_traj(self, traj_pool, task):
-        ratio = 1.0
-        while True:
-            try:
-                with self.gpu_share_unit:
-                    self.train_on_traj_(traj_pool, task) 
-                break # 运行到这说明显存充足
-            except RuntimeError:
-                if self.prevent_batchsize_oom:
-                    if TrajPoolSampler.MaxSampleNum[-1] < 0:
-                        TrajPoolSampler.MaxSampleNum.pop(-1)
-                        
-                    assert TrajPoolSampler.MaxSampleNum[-1]>0
-                    TrajPoolSampler.MaxSampleNum[-1] = -1
-
-                    print亮红('Insufficient gpu memory, using previous sample size !')
-                else:
-                    self.n_div += 1
-                    print亮红('显存不足！ 切分样本, 当前n_div: %d'%self.n_div)
-            torch.cuda.empty_cache()
+        with self.gpu_share_unit:
+            self.train_on_traj_(traj_pool, task) 
 
     def train_on_traj_(self, traj_pool, task):
 
@@ -259,30 +237,35 @@ class PPO():
 
     def establish_pytorch_graph(self, flag, sample, n):
         obs = _2tensor(sample['obs'])
+        state = None
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
         real_value = _2tensor(sample['return'])
         real_threat = _2tensor(sample['threat'])
         avail_act = _2tensor(sample['avail_act']) if 'avail_act' in sample else None
+        eprsn = _2tensor(sample['eprsn']) if 'eprsn' in sample else None
 
         batchsize = advantage.shape[0]#; print亮紫(batchsize)
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
-        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, eval_actions=action, test_mode=False, avail_act=avail_act)
+        newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
+            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn)
         entropy_loss = entropy.mean()
 
-
         # threat approximation
-        SAFE_LIMIT = 11
+        SAFE_LIMIT = 8
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
-        if self.turn_off_threat_est: 
-            # print('清空threat_loss')
-            threat_loss = 0
-        # if n==14: est_check(x=others['threat'][filter], y=real_threat[filter])
-        
+
+        # remove the Non-PR agents' policy
+        no_pr = ~eprsn
+        oldPi_actionLogProb = oldPi_actionLogProb[no_pr]
+        advantage = advantage[no_pr]
+        newPi_actionLogProb = newPi_actionLogProb[no_pr]
+        batch_agent_size = advantage.shape[0]
+
         # probs_loss (should be turn off now)
         n_actions = probs.shape[-1]
         if self.add_prob_loss: assert n_actions <= 15  # 
@@ -326,64 +309,7 @@ class PPO():
             'AT_net_loss':              AT_net_loss,
             # 'AE_new_loss':              AE_new_loss,
         }
-        # print('ae_loss',ae_loss)
 
 
         return loss_final, others
-
-
-
-    def debug_pytorch_graph(self, flag, sample, n):
-
-
-        def mybuild_loss(flag, sample, n):
-            obs = _2tensor(sample['obs'])
-            advantage = _2tensor(sample['advantage'])
-            action = _2tensor(sample['action'])
-            oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
-            real_value = _2tensor(sample['return'])
-            real_threat = _2tensor(sample['threat'])
-            batchsize = advantage.shape[0]
-            batch_agent_size = advantage.shape[0]*advantage.shape[1]
-            assert flag == 'train'
-            newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, action=action, test_mode=False)
-            entropy_loss = entropy.mean()
-            # threat approximation
-            SAFE_LIMIT = 11
-            filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
-            threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
-            if n%20 == 0: est_check(x=others['threat'][filter], y=real_threat[filter])
-            value_loss = 0.5 * F.mse_loss(real_value, newPi_value)
-            nz_mask = real_value!=0
-            value_loss_abs = (real_value[nz_mask] - newPi_value[nz_mask]).abs().mean()
-
-            CT_net_loss = threat_loss * 0.1 + value_loss * 1.0
-            loss_final = CT_net_loss # + AT_net_loss + AE_new_loss # + 
-            others = {
-                'Value loss Abs':           value_loss_abs,
-                'threat loss':              threat_loss,
-                'CT_net_loss':              CT_net_loss,
-            }
-            return loss_final, others
-
-        def step(loss_final, step):
-            self.at_optimizer.zero_grad()
-            self.ct_optimizer.zero_grad()
-            # self.ae_optimizer.zero_grad()
-            loss_final.backward()
-            self.at_optimizer.step()
-            self.ct_optimizer.step()
-            # self.ae_optimizer.step()
-
-        for t in range(16):
-            self.trivial_dict = {}
-            loss_final, others = mybuild_loss(flag, sample, t)
-            self.log_trivial(dictionary=others)
-            others = None
-            
-            step(loss_final, t)
-            self.log_trivial_finalize(print=False)
-
-
-
 
