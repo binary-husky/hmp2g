@@ -59,11 +59,11 @@ class AlgorithmConfig:
 
     distribution_precision = 8
     # pg_target_distribute = [0,1,2,3,4,5]
-    target_distribute = [0,1,2,3,4,5]
+    target_distribute = [0]
     ConfigOnTheFly = True
 
     BlockInvalidPg = True
-
+    advantage_norm = True
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):

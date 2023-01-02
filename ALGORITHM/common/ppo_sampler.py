@@ -21,10 +21,12 @@ class TrajPoolSampler():
             value_rename,
             advantage_rename,
             prevent_batchsize_oom=False, 
+            advantage_norm=True,
             mcv=None):
         self.n_pieces_batch_division = n_div
         self.prevent_batchsize_oom = prevent_batchsize_oom    
         self.mcv = mcv
+        self.advantage_norm = advantage_norm
         if self.prevent_batchsize_oom:
             assert self.n_pieces_batch_division==1, 'self.n_pieces_batch_division should be 1'
 
@@ -63,7 +65,8 @@ class TrajPoolSampler():
 
         # normalize advantage inside the batch
         self.container[advantage_rename] = self.container[return_rename] - self.container[value_rename]
-        self.container[advantage_rename] = ( self.container[advantage_rename] - self.container[advantage_rename].mean() ) / (self.container[advantage_rename].std() + 1e-5)
+        if self.advantage_norm:
+            self.container[advantage_rename] = ( self.container[advantage_rename] - self.container[advantage_rename].mean() ) / (self.container[advantage_rename].std() + 1e-5)
         # size of minibatch for each agent
         self.mini_batch_size = math.ceil(self.big_batch_size / self.n_pieces_batch_division)  
 

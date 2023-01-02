@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 from UTIL.colorful import *
-from UTIL.tensor_ops import _2tensor, __hash__, repeat_at, gather_righthand
+from UTIL.tensor_ops import _2tensor, __hash__
 from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
 from ALGORITHM.common.ppo_sampler import TrajPoolSampler
@@ -23,8 +23,10 @@ class PPO():
         self.add_prob_loss = ppo_config.add_prob_loss
         self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
         self.BlockInvalidPg = ppo_config.BlockInvalidPg
+        self.advantage_norm = ppo_config.advantage_norm
         self.lr = ppo_config.lr
         self.extral_train_loop = ppo_config.extral_train_loop
+        self.policy_and_critic = policy_and_critic
         self.all_parameter = list(policy_and_critic.named_parameters())
         self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name)]
         self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name)]
@@ -79,6 +81,7 @@ class PPO():
             value_rename='value_selected',
             advantage_rename='advantage_selected',
             prevent_batchsize_oom=False, 
+            advantage_norm = self.advantage_norm,
             mcv=None
         )
         assert self.n_div == len(sampler)
@@ -164,13 +167,12 @@ class PPO():
         real_return = _2tensor(sample['return_selected'])
         advantage = _2tensor(sample['advantage_selected'])
 
-        batchsize = advantage.shape[0]
+        batch_agent_size_raw = advantage.shape[0]*advantage.shape[1]
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
         newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
             state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn, randl=randl)
-        entropy_loss = entropy.mean()
 
         if self.use_conc_net:
             # threat approximation
@@ -179,9 +181,11 @@ class PPO():
             threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
 
         # remove the Non-PR agents' policy
-        oldPi_actionLogProb = oldPi_actionLogProb[~eprsn]
-        advantage = advantage[~eprsn]
-        newPi_actionLogProb = newPi_actionLogProb[~eprsn]
+        no_pr = ~eprsn
+        oldPi_actionLogProb = oldPi_actionLogProb[no_pr]
+        advantage = advantage[no_pr]
+        newPi_actionLogProb = newPi_actionLogProb[no_pr]
+        entropy = entropy[no_pr]
         batch_agent_size = advantage.shape[0]
         # dual clip ppo core: input oldPi_actionLogProb, advantage, newPi_actionLogProb
         E = newPi_actionLogProb - oldPi_actionLogProb
@@ -190,6 +194,7 @@ class PPO():
         E_clip = torch.where(advantage < 0, torch.clamp(E, min=np.log(1.0-self.clip_param), max=np.log(5) ), E_clip)
         ratio = torch.exp(E_clip)
         policy_loss = -(ratio*advantage).mean()
+        entropy_loss = entropy.mean()
 
         # add all loses
         value_loss = 0.5 * F.mse_loss(real_return, newPi_value)

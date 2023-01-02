@@ -86,7 +86,7 @@ class Net(Logit2Act, nn.Module):
         logits = self.at_policy_head(bac)
         
         # choose action selector
-        logit2act = self._logit2act_rsn if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
+        logit2act = self._logit2act_rsn_entropy_split if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
         
         # apply action selector
         act, actLogProbs, distEntropy, probs = logit2act(   logits,
