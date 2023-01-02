@@ -2,7 +2,6 @@
 from config import GlobalConfig
 import numpy as np
 from numpy.core.numeric import indices
-from .foundation import AlgorithmConfig
 from ALGORITHM.common.traj import TRAJ_BASE
 import copy
 from UTIL.colorful import *
@@ -10,10 +9,10 @@ from UTIL.tensor_ops import __hash__, my_view, np_one_hot, np_repeat_at, np_soft
 
 class trajectory(TRAJ_BASE):
     dead_mask_check = True  # confirm mask ok
-    def __init__(self, traj_limit, env_id, use_pr=False):
+    def __init__(self, traj_limit, env_id, alg_cfg):
         super().__init__(traj_limit, env_id)
         self.agent_alive_reference = 'alive'
-        self.use_pr = use_pr
+        self.alg_cfg = alg_cfg
 
     def early_finalize(self):
         assert not self.readonly_lock   # unfinished traj
@@ -51,8 +50,8 @@ class trajectory(TRAJ_BASE):
 
     def reward_push_forward(self, dead_mask):
         # self.new_reward = self.reward.copy()
-        if AlgorithmConfig.gamma_in_reward_forwarding:
-            gamma = AlgorithmConfig.gamma_in_reward_forwarding_value 
+        if self.alg_cfg.gamma_in_reward_forwarding:
+            gamma = self.alg_cfg.gamma_in_reward_forwarding_value 
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
                 self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)  # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
@@ -96,7 +95,7 @@ class trajectory(TRAJ_BASE):
         setattr(self, 'threat', np.expand_dims(threat, -1))
 
         # ! Use GAE to calculate return
-        if self.use_pr:
+        if self.alg_cfg.use_policy_resonance:
             self.gae_finalize_return(reward_key='reward', value_key='BLA_value_all_level', new_return_name='return')
         else:
             self.gae_finalize_return(reward_key='reward', value_key='value', new_return_name='return')
@@ -104,14 +103,14 @@ class trajectory(TRAJ_BASE):
 
     def gae_finalize_return(self, reward_key, value_key, new_return_name):
         # ------- gae parameters -------
-        gamma = AlgorithmConfig.gamma 
-        tau = AlgorithmConfig.tau
+        gamma = self.alg_cfg.gamma 
+        tau = self.alg_cfg.tau
         # ------- -------------- -------
         rewards = getattr(self, reward_key)
-        if self.use_pr:
+        if self.alg_cfg.use_policy_resonance:
             BLA_value_all_level = getattr(self, value_key)
             # how to merge?
-            self.value = BLA_value_all_level[:, :, np.array(AlgorithmConfig.pg_target_distribute)].mean(-1, keepdims=True)
+            self.value = BLA_value_all_level[:, :, np.array(self.alg_cfg.pg_target_distribute)].mean(-1, keepdims=True)
             value = self.value
             assert value.shape[-1] == 1
             # how to merge BLA_value_all_level ?
@@ -151,21 +150,6 @@ class trajectory(TRAJ_BASE):
 
 
 
-class TrajPoolManager(object):
-    def __init__(self):
-        self.cnt = 0
-
-    def absorb_finalize_pool(self, pool):
-        for traj_handle in pool:
-            traj_handle.cut_tail()
-        pool = list(filter(lambda traj: not traj.deprecated_flag, pool))
-        for traj_handle in pool: traj_handle.finalize()
-        self.cnt += 1
-        task = ['train']
-        return task, pool
-
-
-
 
 
 
@@ -181,13 +165,14 @@ class TrajPoolManager(object):
 '''
 
 class TrajManagerBase(object):
-    def __init__(self, n_env, traj_limit):
+    def __init__(self, n_env, traj_limit, alg_cfg):
+        self.alg_cfg = alg_cfg
         self.n_env = n_env
         self.traj_limit = traj_limit
         self.update_cnt = 0
         self.traj_pool = []
         self.registered_keys = []
-        self.live_trajs = [trajectory(self.traj_limit, env_id=i) for i in range(self.n_env)]
+        self.live_trajs = [trajectory(self.traj_limit, env_id=i, alg_cfg=self.alg_cfg) for i in range(self.n_env)]
         self.live_traj_frame = [0 for _ in range(self.n_env)]
         self._traj_lock_buf = None
         self.patience = 1000
@@ -209,8 +194,8 @@ class TrajManagerBase(object):
         skip = traj_frag['_SKIP_']; traj_frag.pop('_SKIP_') # skip/frozen flag
         tobs = traj_frag['_TOBS_']; traj_frag.pop('_TOBS_') # terminal obs
         # single bool to list bool
-        if isinstance(done, bool): done = [done for i in range(self.n_env)]
-        if isinstance(skip, bool): skip = [skip for i in range(self.n_env)]
+        if isinstance(done, bool): done = [done for _ in range(self.n_env)]
+        if isinstance(skip, bool): skip = [skip for _ in range(self.n_env)]
         n_active = sum(~skip)
         # feed
         cnt = 0
@@ -228,7 +213,7 @@ class TrajManagerBase(object):
                 assert tobs[env_i] is not None # get the final obs
                 traj_handle.set_terminal_obs(tobs[env_i])
                 self.traj_pool.append(traj_handle)
-                self.live_trajs[env_index] = trajectory(self.traj_limit, env_id=env_index)
+                self.live_trajs[env_index] = trajectory(self.traj_limit, env_id=env_index, alg_cfg=self.alg_cfg)
                 self.live_traj_frame[env_index] = 0
 
     def traj_remember(self, traj, key, content, frag_index, n_active):
@@ -242,71 +227,35 @@ class TrajManagerBase(object):
 
 
 class BatchTrajManager(TrajManagerBase):
-    def __init__(self, n_env, traj_limit, trainer_hook):
-        super().__init__(n_env, traj_limit)
+    def __init__(self, n_env, traj_limit, trainer_hook, alg_cfg):
+        super().__init__(n_env, traj_limit, alg_cfg)
         self.trainer_hook = trainer_hook
         self.traj_limit = traj_limit
-        self.train_traj_needed = AlgorithmConfig.train_traj_needed
-        self.pool_manager = TrajPoolManager()
-
-    def update(self, traj_frag, index):
-        assert traj_frag is not None
-        for j, env_i in enumerate(index):
-            traj_handle = self.live_trajs[env_i]
-            for key in traj_frag:
-                if traj_frag[key] is None:
-                    assert False, key
-                if isinstance(traj_frag[key], dict):  # 如果是二重字典，特殊处理
-                    for sub_key in traj_frag[key]:
-                        content = traj_frag[key][sub_key][j]
-                        traj_handle.remember(key + ">" + sub_key, content)
-                else:
-                    content = traj_frag[key][j]
-                    traj_handle.remember(key, content)
-            self.live_traj_frame[env_i] += 1
-            traj_handle.time_shift()
-        return
 
     # 函数入口
     def feed_traj(self, traj_frag, require_hook=False):
-        # an unlock hook must be executed before new trajectory feed in
+        if require_hook:  raise ModuleNotFoundError("not supported anymore")
         assert self._traj_lock_buf is None
-        if require_hook: 
-            # the traj_frag is not intact, lock up traj_frag, wait for more
-            assert '_SKIP_' in traj_frag
-            assert '_DONE_' not in traj_frag
-            assert 'reward' not in traj_frag
-            self._traj_lock_buf = traj_frag
-            return self.unlock_fn
-        else:
-            assert '_DONE_' in traj_frag
-            assert '_SKIP_' in traj_frag
-            self.batch_update(traj_frag=traj_frag)
-            return
-
-        
-    def train_and_clear_traj_pool(self):
-        print('do update %d'%self.update_cnt)
-
-        current_task_l, self.traj_pool = self.pool_manager.absorb_finalize_pool(pool=self.traj_pool)
-        for current_task in current_task_l:
-            ppo_update_cnt = self.trainer_hook(self.traj_pool, current_task)
-
-        self.traj_pool = []
-        self.update_cnt += 1
-        # assert ppo_update_cnt == self.update_cnt
-        return self.update_cnt
-
-    def can_exec_training(self):
-        if len(self.traj_pool) >= self.train_traj_needed:  return True
-        else:  return False
- 
-    def unlock_fn(self, traj_frag):
-        assert self._traj_lock_buf is not None
-        traj_frag.update(self._traj_lock_buf)
-        self._traj_lock_buf = None
         assert '_DONE_' in traj_frag
         assert '_SKIP_' in traj_frag
         self.batch_update(traj_frag=traj_frag)
+        return
 
+    def train_and_clear_traj_pool(self):
+        print('do update %d'%self.update_cnt)
+        for traj_handle in self.traj_pool:
+            traj_handle.cut_tail()
+        self.traj_pool = list(filter(lambda traj: not traj.deprecated_flag, self.traj_pool))
+        for traj_handle in self.traj_pool: traj_handle.finalize()
+        self.trainer_hook(self.traj_pool, 'train')
+        self.traj_pool = []
+        self.update_cnt += 1
+        return self.update_cnt
 
+    def can_exec_training(self):
+        num_traj_needed = self.alg_cfg.train_traj_needed
+        if len(self.traj_pool) >= num_traj_needed:  
+            return True
+        else:  
+            return False
+ 

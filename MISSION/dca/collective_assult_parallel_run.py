@@ -46,9 +46,8 @@ class ScenarioConfig(object):
     terrain_parameters = [0, 0] # terrain parameters (0~1, 0~1)
     MaxEpisodeStep = 180    # time limit (100, 200)
     init_distance = 4  # init distance (1, 8)
-
-    enable_attacker_fluctuation = False
-    attacker_fluctuation = 20
+    enable_attacker_fluctuation = False  # enable attacker fluctuation
+    attacker_fluctuation = 20  # attacker fluctuation [0, num_attackers)
 
 
     size = 5.0 # 
