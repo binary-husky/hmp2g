@@ -133,7 +133,7 @@ ZHECKPOINT/uhmap_hete10vs10/experiment.jsonc
 ZHECKPOINT/adca-100+/backup_files
 ZHECKPOINT/adca-100+/logger
 !ZHECKPOINT/adca-100+/model_95wr.pt
-ZHECKPOINT/adca-100+/test.jsonc
+ZHECKPOINT/adca-100+/experiment.jsonc
 
 
 

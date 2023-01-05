@@ -1,0 +1,64 @@
+{
+    "config.py->GlobalConfig": {                 // 维度: 平台总调度 | 类型: 实验控制
+        "note": "adca-100+",                        // 配置项: 实验路径 (实验ID) | 取值范围: 字符串 | 默认值: 'exp'
+        "env_name": "dca",                          // 配置项: 任务环境 | 取值范围: dca | 默认值: dca
+        "env_path": "MISSION.dca",                  // 配置项: 任务环境路径 | 取值范围: MISSION.dca | 默认值: MISSION.dca
+        "draw_mode": "Img",                         // 配置项: 绘图模式 | 取值范围: Img | 默认值: Img
+        "num_threads": 1,                           // 配置项: 环境并行数量 | 取值范围: 1 ~ 4096 | 默认值: 64
+        "test_only": true,                          // 配置项: 仅测试不训练 | 取值范围: true/false | 默认值: false
+        "report_reward_interval": 64,               // 配置项: 奖励汇报频率/奖励计算的平均场次 | 取值范围: num_threads的整数倍 | 默认值: 64
+        "test_interval": 1024,                      // 配置项: 训练时的测试频率 | 取值范围: num_threads的整数倍 | 默认值: 1024
+        "device": "cuda",                           // 配置项: 神经网络计算设备 | 取值范围: cpu, cuda（自动选择gpu）, cuda:3 (手动指定gpu) | 默认值: cpu
+        "fold": "1",                                // 配置项: 环境并行的进程折叠 | 取值范围: 能被num_threads整除 | 默认值: 1
+        "n_parallel_frame": 50000000.0,             // 配置项: 结束程序的最大帧时长 | 取值范围: 1 ~ 1e16 | 默认值: 50000000
+        "max_n_episode": 1000000.0,                 // 配置项: 结束程序的最大场次 | 取值范围: 1 ~ 1e16 | 默认值: 1000000
+        "seed": 7223,                               // 配置项: 随机数种子 | 取值范围: 1 ~ 1e5 | 默认值: 随机生成
+        "backup_files": [                           // 配置项: 自动备份功能：备份文件清单
+            "ALGORITHM/experimental_conc_4hist", 
+            "MISSION/dca"                        
+        ],                                                              
+    },
+    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {  // 维度: 任务配置 | 类型: 任务控制
+        "num_guards": 100,                                           // 配置项: 蓝方数量 number of agents  | 取值范围: (0, 150) | 默认值: 100
+        "num_attackers": 150,                                        // 配置项: 红方数量 number of opponents  | 取值范围: (0, 150) | 默认值: 150
+        "enable_attacker_fluctuation": true,                         // 配置项: 红方数量随机化 enable attacker fluctuation | 取值范围: true/false | 默认值: true
+        "attacker_fluctuation": 50,                                  // 配置项: 红方数量随机减少范围 attacker fluctuation | 取值范围: [0, num_attackers) | 默认值: 50
+        "agent_acc": 3.0,                                            // 配置项: 加速度 agent acc | 取值范围: (0.01, 10) | 默认值: 3
+        "agent_max_speed": 1.0,                                      // 配置项: 最大速度 agent max speed | 取值范围: (0.01, 10) | 默认值: 1
+        "agent_max_rot": 0.17,                                       // 配置项: 旋转速度 agent max rot  | 取值范围: (0.01, 10) | 默认值: 0.17
+        "agent_shoot_base_radius": 0.4,                              // 配置项: 基础射程 agent shoot base radius | 取值范围: (0.01, 10) | 默认值: 0.4
+        "agent_shoot_win": 0.7853981633974483,                       // 配置项: 有效攻击角度 agent shoot win  | 取值范围: (np.pi/10000, np.pi/1) | 默认值：0.7853981633974483
+        "random_jam_prob": 0.1,                                      // 配置项: 干扰水平 environment interference level | 取值范围: (0,1) | 默认值：0.1
+        "introduce_terrain": true,                                   // 配置项: 启动地形 enable terrain | 取值范围: (true/false) | 默认值：true
+        "terrain_parameters": [0.15, 0.2],                           // 配置项: 地形参数 terrain parameters | 取值范围: (0~1, 0~1) | 默认值：[0.15, 0.2]
+        "MaxEpisodeStep": 180,                                       // 配置项: 场次时间限制 time limit | 取值范围: (100, 200) | 默认值：180
+        "init_distance": 4,                                          // 配置项: 双方的初始距离 init distance | 取值范围: (1, 8) | 默认值：4
+        "render": true,                                              // 配置项: 启动渲染 | 取值范围: true/false | 默认值: false
+        "TEAM_NAMES": [                                              // 配置项: 蓝方算法选择 | 取值范围: 字符串列表
+            "ALGORITHM.experimental_conc_4hist.foundation->ReinforceAlgorithmFoundation"
+        ],
+        "size": "5",
+        "REWARD_DEBUG": "True",
+        "REWARD_DEBUG_Value": 3,
+        "half_death_reward": "True",
+    },
+
+    "ALGORITHM.experimental_conc_4hist.foundation.py->AlgorithmConfig": { // 维度: 算法 | 类型: 算法超参数
+        "train_traj_needed": 64,                                    // 配置项: 每次训练所需的场次  | 取值范围: num_threads的整数倍 | 默认值: 64
+        "load_checkpoint": "True",                                  // 配置项: 是否加载参数  | 取值范围:  true/false | 默认值: false
+        "load_specific_checkpoint": "model_95wr.pt",                // 配置项: 参数文件路径  | 取值范围:  字符串 | 默认值: "model_95wr.pt"
+        "n_focus_on": 3,
+        "ppo_epoch": 24,
+        "gamma": 0.99,
+        "lr": 0.0005,
+        "prevent_batchsize_oom": "True",
+        "gamma_in_reward_forwarding": "True",
+        "gamma_in_reward_forwarding_value": 0.95,
+        "pg_target_distribute": [
+            7
+        ],
+        "ct_target_distribute": [
+            7
+        ]
+    }
+}
