@@ -15,7 +15,7 @@ from UTIL.tensor_ops import __hash__
 
 class CoopAlgConfig(object):
     g_num = 5
-    max_internal_step = 1
+    max_internal_step = 15
     decision_interval = 5
     head_start_cnt = 1 # first 3 step have 
     head_start_hold_n = 1 # how many to control at first few step
@@ -54,8 +54,6 @@ class CoopAlgConfig(object):
     upper_training_epoch = 5
     use_normalization = True
     
-    render_graph = False
-
 class ReinforceAlgorithmFoundation():
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         from config import GlobalConfig
@@ -67,13 +65,6 @@ class ReinforceAlgorithmFoundation():
         self.n_cluster = CoopAlgConfig.g_num
         self.ScenarioConfig = ScenarioConfig = GlobalConfig.ScenarioConfig
         self.note = GlobalConfig.note
-
-        if CoopAlgConfig.render_graph:
-            from VISUALIZE.mcom import mcom
-            self.可视化桥 = mcom(path='TEMP/v2d_logger/', draw_mode='Threejs')
-            self.可视化桥.初始化3D()
-            self.可视化桥.设置样式('gray')
-            self.可视化桥.其他几何体之旋转缩放和平移('box', 'BoxGeometry(1,1,1)',   0,0,0,  1,1,1, 0,0,0) 
 
         self.n_basic_dim = ScenarioConfig.obs_vec_length
         self.n_entity = ScenarioConfig.num_entity
@@ -168,8 +159,6 @@ class ReinforceAlgorithmFoundation():
         thread_internal_step_o,  hold_n_o = self.get_internal_step(State_Recall['Current-Obs-Step'])
         thread_internal_step = thread_internal_step_o
         iter_n = np.max(thread_internal_step)
-        if CoopAlgConfig.render_graph:
-            self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
         
         for _ in range(iter_n):
             LIVE = active_env & (thread_internal_step > 0)
@@ -190,10 +179,6 @@ class ReinforceAlgorithmFoundation():
                             'reward':               np.array([0.0 for _ in range(self.n_thread)])}
             # _______Internal_Environment_Step________
             self.coopgraph.adjust_edge(Active_action, mask=LIVE, hold=hold_n_o)
-
-            if CoopAlgConfig.render_graph:
-                self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
-            
             if not test_mode: self.batch_traj_manager.feed_traj(traj_frag, require_hook=False)
             thread_internal_step = thread_internal_step - 1
 
@@ -204,15 +189,9 @@ class ReinforceAlgorithmFoundation():
 
         _, act_dec = self.coopgraph.attach_encoding_to_obs_masked(raw_obs, np.array([True]*self.n_thread))
         link_indices = self.coopgraph.link_agent_to_target()
-
-
-        # cluster控制器部分
         delta_pos, target_vel = self.目标解析(link_indices, act_dec)
         # if thread_internal_step_o[0] > 0: print红(agent_entity_div[0])
         all_action = self.dir_to_action3d(vec=delta_pos, vel=target_vel) # 矢量指向selected entity
-
-
-
         actions_list = []
         for i in range(self.n_agent): actions_list.append(all_action[:,i,:])
         actions_list = np.array(actions_list)
@@ -254,6 +233,57 @@ class ReinforceAlgorithmFoundation():
             torch.save(self.policy.state_dict(), '%s/history_cpt/model%d.pt'%(self.logdir, update_cnt))
             torch.save(self.policy.state_dict(), '%s/model.pt'%(self.logdir))
             print绿('保存模型完成')
+
+
+    @staticmethod
+    @jit(forceobj=True)
+    def dir_to_action(vec, vel):
+        def np_mat3d_normalize_each_line(mat):
+            return mat / np.expand_dims(np.linalg.norm(mat, axis=2) + 1e-16, axis=-1)
+
+        dis2target = np.linalg.norm(vec, axis=2)
+        vec = np_mat3d_normalize_each_line(vec) #self.step
+
+        e_u = np.array([0,1])
+        e_d = np.array([0,-1])
+        e_r = np.array([1,0])
+        e_l = np.array([-1,0])
+
+        vel_u = np_mat3d_normalize_each_line(vel + e_u * 0.1)
+        vel_d = np_mat3d_normalize_each_line(vel + e_d * 0.1)
+        vel_r = np_mat3d_normalize_each_line(vel + e_r * 0.1)
+        vel_l = np_mat3d_normalize_each_line(vel + e_l * 0.1)
+
+        proj_u = (vel_u * vec).sum(-1)
+        proj_d = (vel_d * vec).sum(-1)
+        proj_r = (vel_r * vec).sum(-1)
+        proj_l = (vel_l * vec).sum(-1)
+
+        _u = ((vec * e_u).sum(-1)>0).astype(np.int)
+        _d = ((vec * e_d).sum(-1)>0).astype(np.int)
+        _r = ((vec * e_r).sum(-1)>0).astype(np.int)
+        _l = ((vec * e_l).sum(-1)>0).astype(np.int)
+
+        proj_u = proj_u + _u*2
+        proj_d = proj_d + _d*2
+        proj_r = proj_r + _r*2
+        proj_l = proj_l + _l*2
+
+        dot_stack = np.stack([proj_u, proj_d, proj_r, proj_l])
+        direct = np.argmax(dot_stack, 0)
+
+        action = np.where(direct == 0, 2, 0)
+        action += np.where(direct == 1, 4, 0)
+        action += np.where(direct == 2, 1, 0)
+        action += np.where(direct == 3, 3, 0)
+
+        action = (dis2target>0.05).astype(np.int)*action
+
+        # make sure that all nan vec become invalid act 0, 
+        # be careful when a different numpy version is used
+        assert (action[np.isnan(np.sum(dot_stack,0))] == 0).all()
+        # action *= 0
+        return np.expand_dims(action, axis=-1)
 
 
 
