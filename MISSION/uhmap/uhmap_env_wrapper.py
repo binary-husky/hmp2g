@@ -226,9 +226,6 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                     simulation_exe = simulation_exe.replace('.exe','.sh')
                 # expand '~' path
                 simulation_exe = os.path.expanduser(simulation_exe)
-                # give execution permission
-                st = os.stat(simulation_exe)
-                os.chmod(simulation_exe, st.st_mode | stat.S_IEXEC)
             else:   # Windows
                 if simulation_exe.endswith('.sh'): 
                     simulation_exe = simulation_exe.replace('/Linux', '/Windows')
@@ -244,6 +241,11 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                     while True:
                         time.sleep(60)
                         if os.path.exists(simulation_exe): break
+
+            # give execution permission
+            if platform.system()=="Linux":
+                st = os.stat(simulation_exe)
+                os.chmod(simulation_exe, st.st_mode | stat.S_IEXEC)
 
             if (not self.render) and simulation_exe != '':
                 # start child process

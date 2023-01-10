@@ -8,6 +8,7 @@ import subprocess
 import json
 import platform
 import os
+import sys
 from config import GlobalConfig
 
 class AlgorithmConfig():
@@ -60,13 +61,14 @@ class PymarlFoundation():
             'test_epoch': GlobalConfig.test_epoch,
         })
 
-        subprocess.Popen(["python", 
+        # Get the location of the current Python executable
+        subprocess.Popen([sys.executable, 
             "./THIRDPARTY/pymarl2/pymarl2src/main.py", 
             "--force", 
             "--config=%s"%AlgorithmConfig.pymarl2_alg_select, 
             "--env-config=HMP_compat",
             "--pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
-            "--env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
+            "--env_uuid=%s"%self.remote_uuid], stdout=fp)
         
         if platform.system() == "Windows":
             from UTIL.network import TcpServerP2P
@@ -328,13 +330,13 @@ class PymarlFoundationOld():
             'test_epoch': GlobalConfig.test_epoch,
         })
 
-        subprocess.Popen(["python", 
+        subprocess.Popen([sys.executable, 
             "./THIRDPARTY/pymarl2/pymarl2src/main.py", 
             "--force", 
             "--config=%s"%AlgorithmConfig.pymarl2_alg_select, 
             "--env-config=HMP_compat",
             "--pymarl_config_injection=%s"%encrpt_string(json.dumps(AlgorithmConfig.pymarl_config_injection)),  
-            "--env_uuid=%s"%self.remote_uuid], stdout=fp, stderr=fp)
+            "--env_uuid=%s"%self.remote_uuid], stdout=fp)
 
         
         atexit.register(lambda: self.__del__()) 

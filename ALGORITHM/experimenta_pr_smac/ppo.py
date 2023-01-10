@@ -1,35 +1,36 @@
-import torch, math
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
-from random import randint, sample
-from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from UTIL.colorful import *
-from UTIL.tensor_ops import _2tensor, __hash__, repeat_at, _2cpu2numpy
-from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
-from config import GlobalConfig as cfg
+from UTIL.tensor_ops import _2tensor, __hash__
+from config import GlobalConfig
 from UTIL.gpu_share import GpuShareUnit
-from .ppo_sampler import TrajPoolSampler
+from ALGORITHM.common.ppo_sampler import TrajPoolSampler
 
 
 class PPO():
-    def __init__(self, policy_and_critic, ppo_config, mcv=None):
+    def __init__(self, policy_and_critic, cfg, mcv=None):
         self.policy_and_critic = policy_and_critic
-        self.clip_param = ppo_config.clip_param
-        self.ppo_epoch = ppo_config.ppo_epoch
-        self.use_conc_net = ppo_config.use_conc_net
-        self.n_pieces_batch_division = ppo_config.n_pieces_batch_division
-        self.value_loss_coef = ppo_config.value_loss_coef
-        self.entropy_coef = ppo_config.entropy_coef
-        self.max_grad_norm = ppo_config.max_grad_norm
-        self.add_prob_loss = ppo_config.add_prob_loss
-        self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
-        self.lr = ppo_config.lr
-        self.extral_train_loop = ppo_config.extral_train_loop
+        self.cfg = cfg
+        self.clip_param = cfg.clip_param
+        self.ppo_epoch = cfg.ppo_epoch
+        self.use_conc_net = cfg.use_conc_net
+        self.n_pieces_batch_division = cfg.n_pieces_batch_division
+        self.value_loss_coef = cfg.value_loss_coef
+        self.entropy_coef = cfg.entropy_coef
+        self.max_grad_norm = cfg.max_grad_norm
+        self.add_prob_loss = cfg.add_prob_loss
+        self.prevent_batchsize_oom = cfg.prevent_batchsize_oom
+        self.BlockInvalidPg = cfg.BlockInvalidPg
+        self.advantage_norm = cfg.advantage_norm
+        self.lr = cfg.lr
+        self.extral_train_loop = cfg.extral_train_loop
+        self.policy_and_critic = policy_and_critic
         self.all_parameter = list(policy_and_critic.named_parameters())
-        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
-        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
+        self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name)]
+        self.ct_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name)]
         # self.ae_parameter = [(p_name, p) for p_name, p in self.all_parameter if 'AE_' in p_name]
         # 检查剩下是是否全都是不需要训练的参数
         remove_exists = lambda LA,LB: list(set(LA).difference(set(LB)))
@@ -39,13 +40,13 @@ class PPO():
         # res = remove_exists(res, self.ae_parameter)
         for p_name, p in res:   
             assert not p.requires_grad, ('a parameter must belong to either CriTic or AcTor, unclassified parameter:',p_name)
-        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if (('ct_' in p_name) or ('CT_' in p_name)) and (('at_' in p_name) or ('AT_' in p_name))]
+        self.cross_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('ct_' in p_name) and ('at_' in p_name)]
         assert len(self.cross_parameter)==0,('a parameter must belong to either CriTic or AcTor, not both')
         # 不再需要参数名
-        self.at_parameter = [p for p_name, p in self.all_parameter if ('at_' in p_name) or ('AT_' in p_name)]
+        self.at_parameter = [p for p_name, p in self.all_parameter if 'at_' in p_name]
         self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)
 
-        self.ct_parameter = [p for p_name, p in self.all_parameter if ('ct_' in p_name) or ('CT_' in p_name)]
+        self.ct_parameter = [p for p_name, p in self.all_parameter if 'ct_' in p_name]
         self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
         # self.ae_parameter = [p for p_name, p in self.all_parameter if 'AE_' in p_name]
         # self.ae_optimizer = optim.Adam(self.ae_parameter, lr=self.lr*100.0) #(self.lr)
@@ -61,33 +62,31 @@ class PPO():
         self.n_div = 1
         # print亮红(self.n_div)
 
-        self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party)
+        self.gpu_share_unit = GpuShareUnit(GlobalConfig.device, gpu_party=GlobalConfig.gpu_party)
 
     def train_on_traj(self, traj_pool, task):
         with self.gpu_share_unit:
-            self.train_on_traj_(traj_pool, task) 
-
-        # while True:
-        #     try:
-
-        #         break # 运行到这说明显存充足
-        #     except RuntimeError:
-        #         if self.prevent_batchsize_oom:
-        #             if TrajPoolSampler.MaxSampleNum[-1] < 0:
-        #                 TrajPoolSampler.MaxSampleNum.pop(-1)
-                        
-        #             assert TrajPoolSampler.MaxSampleNum[-1]>0
-        #             TrajPoolSampler.MaxSampleNum[-1] = -1
-
-        #             print亮红('Insufficient gpu memory, using previous sample size !')
-        #         else:
-        #             raise Exception
-        #     torch.cuda.empty_cache()
+            self.train_on_traj_(traj_pool, task)
 
     def train_on_traj_(self, traj_pool, task):
-
         ppo_valid_percent_list = []
-        sampler = TrajPoolSampler(n_div=self.n_div, traj_pool=traj_pool, flag=task, prevent_batchsize_oom=self.prevent_batchsize_oom)
+
+        req_dict = [
+            'obs', 'state', 'eprsn', 'randl', 'action', 'actionLogProb', 
+            'return', 'reward', 'threat', 'value']
+        sampler = TrajPoolSampler(
+            n_div=self.n_div, 
+            traj_pool=traj_pool, 
+            flag=task, 
+            req_dict=req_dict, 
+            return_rename = 'return',
+            value_rename = 'value',
+            advantage_rename='advantage',
+            prevent_batchsize_oom=False, 
+            advantage_norm = self.advantage_norm,
+            mcv=None
+        )
+
         assert self.n_div == len(sampler)
         for e in range(self.ppo_epoch):
             # print亮紫('pulse')
@@ -156,14 +155,11 @@ class PPO():
 
         assert flag == 'train'
         newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
-            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn)
+            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn, randl=None)
         entropy_loss = entropy.mean()
 
-        if self.use_conc_net:
-            # threat approximation
-            SAFE_LIMIT = 8
-            filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
-            threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
+
+        n_actions = probs.shape[-1]
 
         # dual clip ppo core
         E = newPi_actionLogProb - oldPi_actionLogProb
@@ -178,11 +174,8 @@ class PPO():
         if 'motivation value' in others:
             value_loss += 0.5 * F.mse_loss(real_value, others['motivation value'])
 
-        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef
-        if self.use_conc_net:
-            CT_net_loss = value_loss * 1.0 + threat_loss * 0.1 # + friend_threat_loss*0.01
-        else:
-            CT_net_loss = value_loss * 1.0
+        AT_net_loss = policy_loss - entropy_loss*self.entropy_coef 
+        CT_net_loss = value_loss * 1.0 
 
         loss_final =  AT_net_loss + CT_net_loss  # + AE_new_loss
 
@@ -196,13 +189,14 @@ class PPO():
             'Value loss Abs':           value_loss_abs,
             # 'friend_threat_loss':       friend_threat_loss,
             'PPO valid percent':        ppo_valid_percent,
-            # 'threat loss':              threat_loss,
             # 'Auto encoder loss':        ae_loss,
             'CT_net_loss':              CT_net_loss,
             'AT_net_loss':              AT_net_loss,
-            # 'AE_new_loss':              AE_new_loss,
         }
 
 
         return loss_final, others
+
+
+
 

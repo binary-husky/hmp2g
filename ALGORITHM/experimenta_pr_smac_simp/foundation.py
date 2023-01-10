@@ -50,18 +50,20 @@ class AlgorithmConfig:
     dual_conc = True
     use_my_attn = True
     use_policy_resonance = False
-
+    policy_resonance_method = 'level'
     # net
     shell_obs_add_id = True
     shell_obs_add_previous_act = False
 
     fall_back_to_small_net = False
 
-    distribution_precision = 10
-    pg_target_distribute = [0,1,2,3,4,5]
-    ct_target_distribute = [0,1,2,3,4,5]
+    distribution_precision = 8
+    # pg_target_distribute = [0,1,2,3,4,5]
+    target_distribute = [0]
     ConfigOnTheFly = True
 
+    BlockInvalidPg = True
+    advantage_norm = True
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -98,11 +100,11 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
 
         # initialize optimizer and trajectory (batch) manager
         from .ppo import PPO
-        from .trajectory import BatchTrajManager
+        from ALGORITHM.common.traj_gae import BatchTrajManager
         self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv)
         self.batch_traj_manager = BatchTrajManager(
             n_env=n_thread, traj_limit=int(self.ScenarioConfig.MaxEpisodeStep),
-            trainer_hook=self.trainer.train_on_traj)
+            trainer_hook=self.trainer.train_on_traj, alg_cfg=AlgorithmConfig)
         # confirm that reward method is correct
         self.check_reward_type(AlgorithmConfig)
 
@@ -116,7 +118,12 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
             manual_dir = AlgorithmConfig.load_specific_checkpoint
             ckpt_dir = f'{logdir}/model.pt' if manual_dir == '' else f'{logdir}/{manual_dir}'
             cuda_n = 'cpu' if 'cpu' in self.device else self.device
-            self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n))
+            state_dict = dict(torch.load(ckpt_dir, map_location=cuda_n))
+            for k in list(state_dict.keys()):
+                if 'at_obs_encoder' in k:
+                    k2 = k.replace('at_obs_encoder', 'ct_obs_encoder')
+                    state_dict[k2] = state_dict[k]
+            self.policy.load_state_dict(state_dict)
             print黄('loaded checkpoint:', ckpt_dir)
 
         # data integraty check
@@ -137,10 +144,11 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         state = StateRecall['state'] if 'state' in StateRecall else None
         eprsn = StateRecall['eprsn'] if 'eprsn' in StateRecall else None
         alive = StateRecall['alive'] if 'alive' in StateRecall else None
+        randl = StateRecall['randl'] if 'randl' in StateRecall else None
 
         with torch.no_grad():
             action, BAL_value_all_level, action_log_prob = self.policy.act(
-                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
+                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn, randl=randl)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
@@ -149,6 +157,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
             "actionLogProb": action_log_prob,
             "obs":           obs,
             "alive":         alive,
+            "randl":         randl,
             "eprsn":         eprsn,
             "state":         state,
             "action":        action,

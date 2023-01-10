@@ -56,7 +56,7 @@ class UhmapCommonFn(UhmapEnv):
         # make sure the map (level in UE) is correct
         # assert resp['dataGlobal']['levelName'] == 'UhmapLargeScale'
 
-        assert len(resp['dataArr']) == len(AgentSettingArray)
+        assert len(resp['dataArr']) == len(AgentSettingArray), "Illegal agent initial position. 非法的智能体初始化位置，一部分智能体没有生成."
         return self.parse_response_ob_info(resp)
 
 
