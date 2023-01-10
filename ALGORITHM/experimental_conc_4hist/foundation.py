@@ -5,8 +5,6 @@ from config import GlobalConfig
 from ALGORITHM.common.traj_gae import BatchTrajManager
 from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 from ALGORITHM.common.onfly_config import ConfigOnFly
-from UTIL.tensor_ops import __hash__, repeat_at
-from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -21,7 +19,6 @@ class AlgorithmConfig:
     use_normalization = True
     add_prob_loss = False
     n_focus_on = 2
-    n_entity_placeholder = 10
     load_checkpoint = False
 
     # PPO part
@@ -42,20 +39,10 @@ class AlgorithmConfig:
     gamma_in_reward_forwarding = False
     gamma_in_reward_forwarding_value = 0.99
 
-    net_hdim = 32
     # extral
-    extral_train_loop = False
     load_specific_checkpoint = ''
-    use_conc_net = True
-    dual_conc = True
-    use_my_attn = True
-    use_policy_resonance = False
+    use_policy_resonance = True
 
-    # net
-    shell_obs_add_id = True
-    shell_obs_add_previous_act = False
-
-    fall_back_to_small_net = False
 
     distribution_precision = 10
     pg_target_distribute = [0,1,2,3,4,5]
@@ -69,31 +56,19 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         self.n_agent = n_agent
         self.act_space = space['act_space']
         self.obs_space = space['obs_space']
-        self.state_dim = self.obs_space['state_shape']
+        self.state_dim = 0
         self.ScenarioConfig = GlobalConfig.ScenarioConfig
         n_actions = GlobalConfig.ScenarioConfig.n_actions
         # self.StagePlanner
         from .stage_planner import StagePlanner
         self.stage_planner = StagePlanner(n_agent=self.n_agent, mcv=mcv)
-
-        if AlgorithmConfig.use_conc_net: from .shell_env import ShellEnvWrapper
-        else: from .shell_env_without_conc import ShellEnvWrapper
-        self.shell_env = ShellEnvWrapper(
-            n_agent, n_thread, space, mcv, self, AlgorithmConfig, self.ScenarioConfig)
-            
-        if AlgorithmConfig.use_conc_net: from .net import Net
-        else: from .net_small import Net
-        
+        from .shell_env import ShellEnvWrapper
+        self.shell_env = ShellEnvWrapper(n_agent, n_thread, space, mcv, self, AlgorithmConfig, self.ScenarioConfig)
         self.device = GlobalConfig.device
-        if self.ScenarioConfig.EntityOriented:
-            rawob_dim = self.ScenarioConfig.obs_vec_length
-        else:
-            rawob_dim = space['obs_space']['obs_shape']
-        if AlgorithmConfig.shell_obs_add_id:
-            rawob_dim = rawob_dim + self.n_agent
-        if AlgorithmConfig.shell_obs_add_previous_act:
-            rawob_dim = rawob_dim + n_actions
-        self.policy = Net(rawob_dim=rawob_dim, state_dim=self.state_dim, n_action=n_actions, n_agent=n_agent, stage_planner=self.stage_planner)
+
+        from .net import Net
+        self.policy = Net(rawob_dim=self.ScenarioConfig.obs_vec_length, state_dim=self.state_dim, n_action=n_actions, n_agent=n_agent, stage_planner=self.stage_planner)
+
         self.policy = self.policy.to(self.device)
 
         from .ppo import PPO
@@ -132,23 +107,21 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         obs, threads_active_flag = StateRecall['obs'], StateRecall['threads_active_flag']
         assert len(obs) == sum(threads_active_flag), ('Make sure the right batch of obs!')
         avail_act = StateRecall['avail_act'] if 'avail_act' in StateRecall else None
-        state = StateRecall['state'] if 'state' in StateRecall else None
         eprsn = StateRecall['eprsn'] if 'eprsn' in StateRecall else None
         alive = StateRecall['alive'] if 'alive' in StateRecall else None
 
         with torch.no_grad():
-            action, BAL_value_all_level, action_log_prob = self.policy.act(
-                obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
+            action, BLA_value_all_level, action_log_prob = self.policy.act(
+                obs, state=None, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
             "_SKIP_":        ~threads_active_flag,
-            "BAL_value_all_level":      BAL_value_all_level,
+            "BLA_value_all_level":      BLA_value_all_level,
             "actionLogProb": action_log_prob,
             "obs":           obs,
             "alive":         alive,
             "eprsn":         eprsn,
-            "state":         state,
             "action":        action,
         }
         if avail_act is not None: traj_framefrag.update({'avail_act':  avail_act})
