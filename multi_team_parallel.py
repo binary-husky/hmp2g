@@ -27,6 +27,11 @@ class alg_parallel_wrapper(object):
         self._hook_deligate_(callback_arg)
         self._hook_deligate_ = None
 
+    def notify_teams(self, message, kargs):
+        if (not hasattr(self.alg, 'on_notify')) or (not callable(self.alg.on_notify)): 
+            return
+        self.alg.on_notify(message, **kargs)
+
     # -- you may delete it or replace it with Tensorboard --
     def init_alg_logger(self):
         from config import GlobalConfig as cfg
@@ -69,7 +74,6 @@ class MMPlatform(object):
 
         space = envs.get_space()    # get observation space and action space
         arg_list = []
-        self.algo_foundations = []  # import and initialize algorithms
         for t in range(self.n_t):
             assert len(self.t_member_list[t]) == n_agents_each_t[t]
             assert '->' in self.t_name[t]
@@ -222,9 +226,9 @@ class MMPlatform(object):
             hook(arg)
 
     def notify_teams(self, message, **kargs):
-        for algo_fdn in self.algo_foundations:
-            if (not hasattr(algo_fdn, 'on_notify')) or (not callable(algo_fdn.on_notify)): continue
-            algo_fdn.on_notify(message, **kargs)
+        args_list = [(message, kargs)] * self.n_t
+        self.alg_parallel_exe.exec_target(name='alg_parallel_exe', dowhat='notify_teams', args_list=args_list, ensure_safe=True)
+
 
     def __split_obs(self, obs, t_index):
         # obs [n_thread, n_team/n_agent, coredim]
