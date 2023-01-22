@@ -14,8 +14,8 @@ mcv = mcom(
     draw_mode='Img',    # draw mode
     resume_mod=True,    # resume from previous session
     # figsize=(48,12),  # manual fig size
-    resume_file='ZHECKPOINT/R1-abl/logger/mcom_buffer_3____starting_session.txt',   # pick up from a specific session txt
-    image_path='./temp2.jpg',   # target image directory
+    resume_file='ZHECKPOINT/Run2_wr_reward_T0addhist/logger/mcom_buffer_0____starting_session.txt',   # pick up from a specific session txt
+    image_path='./temp.jpg',   # target image directory
     # smooth_level=40,  # smooth line level
     # rec_exclude=["r*", "n*", 
     #     "*0.00*", 

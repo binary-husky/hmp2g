@@ -86,6 +86,9 @@ class Runner(object):
         self.info_runner['Latest-Reward']      = np.zeros(shape=(self.n_thread, self.n_agent))
         self.info_runner['Latest-Reward-Sum']  = np.zeros(shape=(self.n_thread, self.n_agent))
         self.info_runner['Thread-Episode-Cnt'] = np.array([0 for _ in range(self.n_thread)])
+        self.info_runner['t0_win_cnt_avg'] = []
+        self.info_runner['t1_win_cnt_avg'] = []
+        self.info_runner['td_win_cnt_avg'] = []
         if self.RewardAsUnity:
             self.info_runner['Latest-Reward']  = np.zeros(shape=(self.n_thread, self.n_team))
             self.info_runner['Latest-Reward-Sum'] = np.zeros(shape=(self.n_thread, self.n_team))
@@ -230,7 +233,7 @@ class Runner(object):
     def _checkout_interested_agents(self, info_runner, testing=False):
         # (1). record mean reward
         if not testing: self.mcv.rec(self.current_n_episode, 'time')
-        prefix = 'test' if testing else ''
+        prefix = 'test ' if testing else ''
         recent_rewards = np.stack(info_runner['Recent-Reward-Sum'])
         mean_reward_each_team = []
         if self.RewardAsUnity:
@@ -242,7 +245,7 @@ class Runner(object):
                 mean_reward_each_team.append(recent_rewards[:, tean_agent_uid].mean().copy())
 
         for team in range(self.n_team):
-            self.mcv.rec(mean_reward_each_team[team], f'{prefix} reward of=team-{team}')
+            self.mcv.rec(mean_reward_each_team[team], f'{prefix}reward of=team-{team}')
 
         # (2).reflesh historical top reward
         if not testing: 
@@ -254,7 +257,7 @@ class Runner(object):
         for team in range(self.n_team):
             if mean_reward_each_team[team] > top_rewards_list_pointer[team]:
                 top_rewards_list_pointer[team] = mean_reward_each_team[team]
-            self.mcv.rec(top_rewards_list_pointer[team], f'{prefix} top reward of=team-{team}')
+            self.mcv.rec(top_rewards_list_pointer[team], f'{prefix}top reward of=team-{team}')
 
         # (3).record winning rate (single-team) or record winning rate (multi-team)
         # for team in range(self.n_team):
@@ -265,12 +268,23 @@ class Runner(object):
                 rank_itr_team = np.array(teams_ranking)[:, team]
                 win_rate = (rank_itr_team==0).mean()  # 0 means rank first
                 win_rate_each_team[team] = win_rate
-                self.mcv.rec(win_rate, f'{prefix} top-rank ratio of=team-{team}')
+                self.mcv.rec(win_rate, f'{prefix}top-rank ratio of=team-{team}')
         else:
             team = 0; assert self.n_team == 1, "There is only one team"
             win_rate_each_team[team] = np.array(info_runner['Recent-Win']).mean()
             win_rate = np.array(info_runner['Recent-Win']).mean()
-            self.mcv.rec(win_rate, f'{prefix} win rate of=team-{team}')
+            self.mcv.rec(win_rate, f'{prefix}win rate of=team-{team}')
+
+        if not testing:
+            self.info_runner['t0_win_cnt_avg'].append(win_rate_each_team[0])
+            self.info_runner['t1_win_cnt_avg'].append(win_rate_each_team[1])
+            self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[1]-win_rate_each_team[0])
+            t0 = np.array(self.info_runner['t0_win_cnt_avg']).mean()
+            t1 = np.array(self.info_runner['t1_win_cnt_avg']).mean()
+            td = np.array(self.info_runner['td_win_cnt_avg']).mean()
+            self.mcv.rec(t0, f'{prefix}acc win ratio of=team-0')
+            self.mcv.rec(t1, f'{prefix}acc win ratio of=team-1')
+            self.mcv.rec(td, f'{prefix}acc win ratio of=draw')
 
         # plot the figure
         self.mcv.rec_show()

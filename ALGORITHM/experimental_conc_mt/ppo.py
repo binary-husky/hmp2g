@@ -117,18 +117,29 @@ class PPO():
         return traj_pool
 
     def train_on_traj(self, traj_pool, task, progress):
-        if self.preserve_history_pool:
-            traj_pool = self.roll_traj_pool(traj_pool_feedin = traj_pool)
+
         if self.lr_descent:
             # self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)
             # self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
             # progress = 
-            progress = progress/1e5
-            self.at_optimizer.param_groups[0]['lr'] = self.lr * np.e ** (-self.lr_descent_coef * progress)
-            self.at_optimizer.param_groups[0]['lr'] = max(self.at_optimizer.param_groups[0]['lr'], 5e-5)
-            
-            self.ct_optimizer.param_groups[0]['lr'] = self.lr * 10.0 * np.e ** (-self.lr_descent_coef * progress)
-            self.ct_optimizer.param_groups[0]['lr'] = max(self.ct_optimizer.param_groups[0]['lr'], 4e-5)
+            wr = np.array([t.win for t in traj_pool]).mean()
+
+            # wr : 0~1; lr : 1~0.1
+            max_r = 1.0
+            min_r = 0.1
+            lr_adjust = max_r - (max_r - min_r) * (wr) 
+
+            self.at_optimizer.param_groups[0]['lr'] = self.lr * lr_adjust
+            # self.at_optimizer.param_groups[0]['lr'] = max(self.at_optimizer.param_groups[0]['lr'], 5e-5)
+            # self.ct_optimizer.param_groups[0]['lr'] = 10*self.lr * lr_adjust
+            # self.ct_optimizer.param_groups[0]['lr'] = max(self.ct_optimizer.param_groups[0]['lr'], 4e-5)
+            self.mcv.rec(wr, 'wr')
+            self.mcv.rec(self.at_optimizer.param_groups[0]['lr'], 'at_optimizer_lr')
+            # self.mcv.rec(self.ct_optimizer.param_groups[0]['lr'], 'ct_optimizer_lr')
+
+
+        if self.preserve_history_pool:
+            traj_pool = self.roll_traj_pool(traj_pool_feedin = traj_pool)
 
         with self.gpu_share_unit:
             self.train_on_traj_(traj_pool, task) 
