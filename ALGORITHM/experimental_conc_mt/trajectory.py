@@ -24,6 +24,18 @@ class trajectory(TRAJ_BASE):
     def set_scalar(self, key, value):
         setattr(self, key, value)
 
+    # def get_traj_by_name(self, key_name):
+    #     if AlgorithmConfig.preserve_history_pool:
+    #         arr = getattr(self, key_name)
+    #         shape = arr.shape
+    #         if hasattr(self, 'current_agent_filter'):
+    #             # fil = self.current_agent_filter
+    #             return arr[:, self.current_agent_filter].reshape(-1, *shape[2:])
+    #         else:
+    #             return arr.reshape(-1, *shape[2:])
+    #     else:
+    #         return getattr(self, key_name).reshape(-1, *shape[2:])
+
     def cut_tail(self):
         # 删去多余的预留空间
         super().cut_tail()

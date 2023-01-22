@@ -85,25 +85,46 @@ class PPO():
     #     with self.gpu_share_unit:
     #         self.train_on_traj_(traj_pool, task) 
 
+    def calculate_rank(self, arr):
+        y = np.zeros_like(arr)
+        np.put_along_axis(y, np.argsort(arr), np.arange(len(arr)), axis=-1)
+        return y
+
     def roll_traj_pool(self, traj_pool_feedin):
         # create history_pool_arr if not exist
         if not hasattr(self, 'history_pool_arr'):
             self.history_pool_arr = []
+
+        # for current traj collection, light up all agent traj
+        for p in traj_pool_feedin:
+            p.current_agent_filter = (np.ones_like(p.action) > 0)
 
         # add history pool samples
         tmp_pool = []
         for sub_pool in self.history_pool_arr:
             tmp_pool.extend(sub_pool)
 
-        # life length of all agent in all eps
-        llm = np.array([p.agents_life_length.sum() for p in tmp_pool])
-        n_sel = len(traj_pool_feedin)
-        arg_pick = (-llm).argsort()[:n_sel]
+        if len(tmp_pool) > 0:
+            # life length of all agent in all eps
+            llm = np.array([p.agents_life_length for p in tmp_pool])
+            s =  llm.shape
+            n_agent = s[1]
+            llm = llm.flatten()
 
+            # llm = np.array([p.agents_life_length.sum() for p in tmp_pool])
+            n_sel = len(traj_pool_feedin) * n_agent
+            rank = self.calculate_rank(arr=-llm)
+            rank = rank.reshape(s)
+            mask = rank < n_sel
+            for i, p in enumerate(tmp_pool):
+                time_dim_len = p.action.shape[0]
+                p.current_agent_filter = repeat_at(mask[i], insert_dim=0, n_times=time_dim_len)
 
         traj_pool = []
-        for index in arg_pick:
-            traj_pool.append(tmp_pool[index])
+        for sub_pool in self.history_pool_arr:
+            traj_pool.extend(sub_pool)
+        # for index in arg_pick:
+        #     traj_pool.append(tmp_pool[index])
 
         # add current samples
         traj_pool.extend(traj_pool_feedin)
@@ -117,7 +138,6 @@ class PPO():
         return traj_pool
 
     def train_on_traj(self, traj_pool, task, progress):
-
         if self.lr_descent:
             # self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)
             # self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
@@ -147,6 +167,8 @@ class PPO():
     def train_on_traj_(self, traj_pool, task):
         ppo_valid_percent_list = []
         req_dict = ['obs', 'action', 'actionLogProb', 'return', 'reward', 'threat',  'value']
+        if self.preserve_history_pool:
+            req_dict += ['current_agent_filter',]
         if self.use_policy_resonance:
             req_dict += ['eprsn', 'randl']
         sampler = TrajPoolSampler(
@@ -240,23 +262,24 @@ class PPO():
         newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(
                 obs, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn, randl=None)
         
-        
         # threat approximation
         SAFE_LIMIT = 8
         filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
-        if self.use_policy_resonance:
-            no_pr = ~eprsn
-            # || 1 filter critic pr
-            # real_value = real_value[no_pr]
-            # newPi_value = newPi_value[no_pr]
-            # filter = filter.squeeze(-1) & no_pr
+
+        if self.preserve_history_pool:
+            fltr = _2tensor(sample['current_agent_filter'])
+
+            # || 1 filter critic 
+            real_value = real_value[fltr]
+            newPi_value = newPi_value[fltr]
+            filter = filter.squeeze(-1) & fltr
             
-            # || 2 filter actor pr
-            # oldPi_actionLogProb = oldPi_actionLogProb[no_pr]
-            # advantage = advantage[no_pr]
-            # newPi_actionLogProb = newPi_actionLogProb[no_pr]
-            # entropy = entropy[no_pr]
-            # batch_agent_size = advantage.shape[0]
+            # || 2 filter actor 
+            oldPi_actionLogProb = oldPi_actionLogProb[fltr]
+            advantage = advantage[fltr]
+            newPi_actionLogProb = newPi_actionLogProb[fltr]
+            entropy = entropy[fltr]
+            batch_agent_size = advantage.shape[0]
 
 
         threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
