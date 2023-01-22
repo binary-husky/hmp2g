@@ -310,7 +310,7 @@ class Net(Logit2Act, nn.Module):
 
         # choose action selector
         logit2act = self._logit2act_rsn_entropy_split \
-                if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
+                if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act_entropy_split
         
         act, actLogProbs, distEntropy, probs = logit2act(logits, 
             eval_mode=eval_mode, 
