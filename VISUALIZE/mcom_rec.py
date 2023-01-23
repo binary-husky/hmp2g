@@ -26,7 +26,7 @@ class rec_family(object):
         self.default_fig_spp = None
         self.advance_fig_handle = None
         self.re_plot_timer = time.time()
-        self.re_plot_time_lim = 60
+        self.re_plot_time_lim = 600
         # recent time
         self.current_time = None
         self.time_index = None
