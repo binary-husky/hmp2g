@@ -1,5 +1,5 @@
 import numpy as np
-import importlib, copy
+import importlib, copy, atexit
 from UTIL.data_struct import UniqueList
 from UTIL.shm_pool import SmartPool
 
@@ -88,6 +88,8 @@ class MMPlatform(object):
 
         print('[multi_team_parallel] distributing algorithm to independent process')
         self.alg_parallel_exe = SmartPool(fold=1, proc_num=self.n_t, base_seed=GlobalConfig.seed)
+        atexit.register(self.alg_parallel_exe.party_over)  # failsafe, handles shm leak
+
         self.alg_parallel_exe.add_target(
             name='alg_parallel_exe', 
             lam=alg_parallel_wrapper, 
