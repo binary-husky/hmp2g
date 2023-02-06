@@ -197,12 +197,12 @@ class SmartPool(object):
         self.__del__()
 
     def __del__(self):
-        print('[win_pool]: executing superpool del')
 
         if hasattr(self, 'terminated'): 
-            print_red('[shm_pool]: already terminated, skipping ~')
+            # print_red('[shm_pool]: already terminated, skipping ~')
             return
-
+            
+        print('[win_pool]: executing superpool del')
         print('[win_pool]: Sending exit command to workers ...')
         try:
             for i in range(self.proc_num):
@@ -219,13 +219,16 @@ class SmartPool(object):
 
         N_SEC_WAIT = 2
         for i in range(N_SEC_WAIT):
-            print_red('[win_pool]: terminate in %d'%(N_SEC_WAIT-i));time.sleep(1)
+            print_red('[win_pool]: terminate in %d, please wait for a clean up'%(N_SEC_WAIT-i));time.sleep(1)
 
         # 杀死shm_pool创建的所有子进程，以及子进程的孙进程
-        print_red('[win_pool]: kill_process_and_its_children(proc)')
+        # print_red('[win_pool]: kill_process_and_its_children(proc)')
         for proc in self.proc_pool: 
-            try: kill_process_and_its_children(proc)
-            except Exception as e: print_red('[win_pool]: error occur when kill_process_and_its_children:\n', e)
+            try: 
+                kill_process_and_its_children(proc)
+            except Exception as e: 
+                pass
+                # print_red('[win_pool]: error occur when kill_process_and_its_children:\n', e)
             
 
 
