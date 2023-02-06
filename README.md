@@ -55,7 +55,10 @@ Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/
 
 ## Demo
 This resp is frequently updating.
-
+```sh
+# to clone this resp
+git clone https://github.com/binary-husky/hmp2g.git
+```
 If any unexpected problem is encountered, 
 please clean the temp files by running
  ```sh
