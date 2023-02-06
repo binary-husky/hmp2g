@@ -59,7 +59,10 @@ This resp is frequently updating.
 If any unexpected problem is encountered, 
 please clean the temp files by running
  ```sh
+ # update code version
  git checkout master --force && git pull --force && git clean -xfd
+ # download submodules
+ git submodule foreach -q --recursive 'branch="$(git config -f $toplevel/.gitmodules submodule.$name.branch)"; git switch $branch'
  ```
 
 If the problem does not go away, do not hesitate to [contact us](#contact-us) or send an issue!
