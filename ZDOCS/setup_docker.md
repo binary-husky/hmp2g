@@ -31,8 +31,9 @@ Finally check docker status with ```docker ps```, should be seeing a container n
 
 
 
-# (3. Optional) Get inside HMP container via SSH
+# Get inside HMP container via SSH
 ```
+(Optional: change container ssh port from 2233 to 6666 if )$ docker exec -it hmp-$USER sed -i 's/2233/6666/g' /etc/ssh/sshd_config
 $ docker exec -it hmp-$USER service ssh start
 ```
 
@@ -101,9 +102,6 @@ After getting ```inside``` the HMP container:
 
 # clone rep from github:
 (hmp-container)$ git clone https://github.com/binary-husky/hmp2g.git
-
-# or gitee (sync once a week, may not be the latest, please use gitee rep if possible)
-(hmp-container)$ git clone https://gitee.com/hh505030475/hmp-2g.git
 
 # cd into it.
 (hmp-container)$ cd hmp2g
