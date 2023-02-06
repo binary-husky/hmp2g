@@ -33,7 +33,9 @@ Finally check docker status with ```docker ps```, should be seeing a container n
 
 # Get inside HMP container via SSH
 ```
-(Optional: change container ssh port from 2233 to 6666 if )$ docker exec -it hmp-$USER sed -i 's/2233/6666/g' /etc/ssh/sshd_config
+(Optional: change container ssh port from 2233 to 6666 if port 2233 is already used)
+$ docker exec -it hmp-$USER sed -i 's/2233/6666/g' /etc/ssh/sshd_config
+(Start ssh service)
 $ docker exec -it hmp-$USER service ssh start
 ```
 
