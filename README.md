@@ -64,7 +64,11 @@ please clean the temp files by running
  ```sh
  # update code version
  git checkout master --force && git pull --force && git clean -xfd
+ ```
+ If you'd like to use pymarl2 algorithm, please download submodules first:
+ ```
  # download submodules
+ git submodule update --init
  git submodule foreach -q --recursive 'branch="$(git config -f $toplevel/.gitmodules submodule.$name.branch)"; git switch $branch'
  ```
 
