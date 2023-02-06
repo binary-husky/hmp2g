@@ -53,7 +53,7 @@ class CoopAlgConfig(object):
     invalid_penalty = 0.1
     upper_training_epoch = 5
     use_normalization = True
-    
+
     render_graph = False
 
 class ReinforceAlgorithmFoundation():
@@ -155,6 +155,7 @@ class ReinforceAlgorithmFoundation():
                 pos_decs = self.pos_decs,
                 vel_decs = self.vel_decs,
                 entity_uid = self.entity_uid,
+                test_mode = test_mode,
                 logdir = self.logdir,
                 n_basic_dim = self.n_basic_dim,
                 )

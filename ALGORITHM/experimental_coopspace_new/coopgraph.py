@@ -3,7 +3,7 @@ from UTIL.colorful import *
 from .my_utils import copy_clone, my_view, add_onehot_id_at_last_dim, add_obs_container_subject
 from numba import njit, jit
 import numpy as np
-import pickle
+import pickle, os
 
 class CoopGraph(object):
     def __init__(self, n_agent, n_thread, 
@@ -15,9 +15,11 @@ class CoopGraph(object):
                     pos_decs = None,
                     vel_decs = None,
                     logdir = None,
-                    n_basic_dim = None
+                    test_mode = False,
+                    n_basic_dim = None,
                     ):
         self.n_basic_dim = n_basic_dim
+        self.test_mode = test_mode
         self.n_agent = n_agent
         self.n_entity = n_entity
         self.n_thread = n_thread
@@ -41,17 +43,17 @@ class CoopGraph(object):
         self._SubFifo_L_ = np.ones(shape=(self.n_thread, self.n_container_L, self.n_subject_L), dtype=np.long) * -1
 
         # load checkpoint
-        if load_checkpoint:
-            pkl_file = open('%s/history_cpt/init.pkl'%self.logdir, 'rb')
+        if load_checkpoint or self.test_mode:
+            assert os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
+            pkl_file = open(f'{self.logdir}/history_cpt/init.pkl', 'rb')
             dict_data = pickle.load(pkl_file)
             self._Edge_R_init = dict_data["_Edge_R_init"] if "_Edge_R_init" in dict_data else dict_data["_division_obsR_init"]
             self._Edge_L_init = dict_data["_Edge_L_init"] if "_Edge_L_init" in dict_data else dict_data["_division_obsL_init"]
         else:
             self._Edge_R_init = self.__random_select_init_value_(self.n_container_R, self.n_subject_R)
             self._Edge_L_init = self.__random_select_init_value_(self.n_container_L, self.n_subject_L)
+            assert not os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
             pickle.dump({"_Edge_R_init":self._Edge_R_init, "_Edge_L_init":self._Edge_L_init}, open('%s/history_cpt/init.pkl'%self.logdir,'wb+'))
-
-
 
     def attach_encoding_to_obs_masked(self, obs, mask):
         live_obs = obs[mask]
@@ -213,3 +215,72 @@ class CoopGraph(object):
         new_fifo = fifo
 
         return new_div, new_fifo
+
+    def render_thread0_graph(self, 可视化桥, step, internal_step):
+        if 可视化桥 is None: return
+        agent_cluster = self._Edge_R_[0]
+        cluster_target = self._Edge_L_[0]
+
+        可视化桥.发送几何体(
+            'box|0|green|0.3',
+            2,
+            0,
+            -1,
+            ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
+            label=f'step {step}, internal_step {internal_step}', 
+            label_color='BlueViolet', 
+            opacity=0
+        )
+
+        for i in range(self.n_agent):
+            uid = i+100
+            y = i - self.n_agent/2 # in range (0~self.n_agent)
+            可视化桥.发送几何体(
+                f'box|{uid}|Red|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
+                0, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
+                track_n_frame=0)              
+
+        for i in range(self.n_cluster):
+            uid = i+200
+            y = i - self.n_cluster/2 # in range (0~self.n_agent)
+            可视化桥.发送几何体(
+                f'box|{uid}|Blue|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
+                2, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
+                track_n_frame=0)                
+
+        for i in range(self.n_agent):
+            uid = i+300
+            y = i - self.n_agent/2 # in range (0~self.n_agent)
+            可视化桥.发送几何体(
+                f'box|{uid}|Green|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
+                4, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
+                track_n_frame=0)
+
+
+        for i in range(self.n_agent):
+            # uid = i+400
+            agent_uid = i+100
+            cluster_uid = agent_cluster[i]+200
+            可视化桥.发射光束(
+                'beam',         # 有 beam 和 lightning 两种选择
+                src=agent_uid,   # 发射者的几何体的唯一ID标识
+                dst=cluster_uid,  # 接收者的几何体的唯一ID标识
+                dur=0.1,        # 光束持续时间，单位秒，绝对时间，不受播放fps的影响
+                size=0.03,      # 光束粗细
+                color='DeepSkyBlue' # 光束颜色
+            )
+
+
+        for i in range(self.n_cluster):
+            # uid = i+500
+            cluster_uid = i+200
+            target_uid = cluster_target[i]+300
+            可视化桥.发射光束(
+                'beam',         # 有 beam 和 lightning 两种选择
+                src=cluster_uid,   # 发射者的几何体的唯一ID标识
+                dst=target_uid,  # 接收者的几何体的唯一ID标识
+                dur=0.1,        # 光束持续时间，单位秒，绝对时间，不受播放fps的影响
+                size=0.03,      # 光束粗细
+                color='DeepSkyBlue' # 光束颜色
+            )
+        可视化桥.结束关键帧()

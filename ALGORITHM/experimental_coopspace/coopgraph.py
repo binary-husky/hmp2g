@@ -3,7 +3,7 @@ from UTIL.colorful import *
 from .my_utils import copy_clone, my_view, add_onehot_id_at_last_dim, add_obs_container_subject
 from numba import njit, jit
 import numpy as np
-import pickle
+import pickle, os
 
 class CoopGraph(object):
     def __init__(self, n_agent, n_thread, 
@@ -15,9 +15,11 @@ class CoopGraph(object):
                     pos_decs = None,
                     vel_decs = None,
                     logdir = None,
+                    test_mode = False,
                     n_basic_dim = None,
                     ):
         self.n_basic_dim = n_basic_dim
+        self.test_mode = test_mode
         self.n_agent = n_agent
         self.n_entity = n_entity
         self.n_thread = n_thread
@@ -41,14 +43,16 @@ class CoopGraph(object):
         self._SubFifo_L_ = np.ones(shape=(self.n_thread, self.n_container_L, self.n_subject_L), dtype=np.long) * -1
 
         # load checkpoint
-        if load_checkpoint:
-            pkl_file = open('%s/history_cpt/init.pkl'%self.logdir, 'rb')
+        if load_checkpoint or self.test_mode:
+            assert os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
+            pkl_file = open(f'{self.logdir}/history_cpt/init.pkl', 'rb')
             dict_data = pickle.load(pkl_file)
             self._Edge_R_init = dict_data["_Edge_R_init"] if "_Edge_R_init" in dict_data else dict_data["_division_obsR_init"]
             self._Edge_L_init = dict_data["_Edge_L_init"] if "_Edge_L_init" in dict_data else dict_data["_division_obsL_init"]
         else:
             self._Edge_R_init = self.__random_select_init_value_(self.n_container_R, self.n_subject_R)
             self._Edge_L_init = self.__random_select_init_value_(self.n_container_L, self.n_subject_L)
+            assert not os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
             pickle.dump({"_Edge_R_init":self._Edge_R_init, "_Edge_L_init":self._Edge_L_init}, open('%s/history_cpt/init.pkl'%self.logdir,'wb+'))
 
     def attach_encoding_to_obs_masked(self, obs, mask):
@@ -65,7 +69,7 @@ class CoopGraph(object):
             about_all_objects = live_obs[:,0,:]
         objects_emb  = my_view(x=about_all_objects, shape=[0,-1,self.n_basic_dim]) # select one agent
 
-        agent_pure_emb  = objects_emb[:,self.agent_uid,:]
+        agent_pure_emb = objects_emb[:,self.agent_uid,:]
         entity_pure_emb = objects_emb[:,self.entity_uid,:]
         
         n_thread = live_obs.shape[0]
