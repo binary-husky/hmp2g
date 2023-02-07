@@ -251,8 +251,6 @@ class GNet(nn.Module):
         central_enc_vbottom = torch.cat(tensors=(right_attn_enc_vbottom, left_attn_enc_vbottom), dim=2)
         value_bottom = self._get_value_way2bottom(central_enc_vbottom)
 
-
-
         top_attn_enc    = self._attention(src=central_enc, passive=agent_enc, attn_key='top')
         bottom_attn_enc = self._attention(src=central_enc, passive=entity_enc, attn_key='bottom')
         top_feature     = self._merge_top_feature(top_attn_enc)

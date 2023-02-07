@@ -35,7 +35,7 @@ class CoopGraph(object):
         self.n_subject_R = self.n_agent
         self.n_container_L = self.n_entity if not CoopAlgConfig.reverse_container else self.n_cluster
         self.n_subject_L = self.n_cluster if not CoopAlgConfig.reverse_container else self.n_entity
-
+        self.debug_cnt = 0
         # graph state
         self._Edge_R_    = np.zeros(shape=(self.n_thread, self.n_subject_R), dtype=np.long)
         self._Edge_L_    = np.zeros(shape=(self.n_thread, self.n_subject_L), dtype=np.long)
@@ -52,7 +52,7 @@ class CoopGraph(object):
         else:
             self._Edge_R_init = self.__random_select_init_value_(self.n_container_R, self.n_subject_R)
             self._Edge_L_init = self.__random_select_init_value_(self.n_container_L, self.n_subject_L)
-            assert not os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
+            # assert not os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
             pickle.dump({"_Edge_R_init":self._Edge_R_init, "_Edge_L_init":self._Edge_L_init}, open('%s/history_cpt/init.pkl'%self.logdir,'wb+'))
 
     def attach_encoding_to_obs_masked(self, obs, mask):
@@ -110,6 +110,7 @@ class CoopGraph(object):
 
     def adjust_edge(self, Active_action, mask, hold):
         hold_n = hold[mask]
+        assert Active_action.shape[0] == len(hold_n)
         container_actR = copy_clone(Active_action[:,(0,1)])
         container_actL = copy_clone(Active_action[:,(2,3)])
 
@@ -118,8 +119,8 @@ class CoopGraph(object):
         Active_SubFifo_R = self._SubFifo_R_ [mask]
         Active_SubFifo_L = self._SubFifo_L_ [mask]
 
-        Active_Edge_R, Active_SubFifo_R = self.根据动作交换组成员(container_actR, div=Active_Edge_R, fifo=Active_SubFifo_R, hold_n=hold_n)
-        Active_Edge_L, Active_SubFifo_L = self.根据动作交换组成员(container_actL, div=Active_Edge_L, fifo=Active_SubFifo_L)
+        Active_Edge_R, Active_SubFifo_R = self.swap_according_to_aciton(container_actR, div=Active_Edge_R, fifo=Active_SubFifo_R, hold_n=hold_n)
+        Active_Edge_L, Active_SubFifo_L = self.swap_according_to_aciton(container_actL, div=Active_Edge_L, fifo=Active_SubFifo_L)
 
         self._Edge_R_    [mask] = Active_Edge_R    
         self._Edge_L_    [mask] = Active_Edge_L    
@@ -148,10 +149,27 @@ class CoopGraph(object):
 
         return final_indices
 
+    def random_disturb(self, prob, mask):
+        random_hit = (np.random.rand(self.n_thread) < prob)
+        ones = np.ones_like(random_hit, dtype=np.long)
+        mask = mask&random_hit
+        if not any(mask): return
+        Active_action = np.zeros(shape=(self.n_thread, 4), dtype=np.long)
 
+        for procindex in range(self.n_thread):
+            # 无随机扰动
+            if not random_hit[procindex]: continue
+            # 有随机扰动
+            r_act = np.random.choice( a=range(self.n_container_R), size=(2), replace=False, p=None) # 不放回采样
+            l_act = np.random.choice( a=range(self.n_container_L), size=(2), replace=False, p=None) # 不放回采样
+            Active_action[procindex,:] = np.concatenate((r_act,l_act))
 
+        self.adjust_edge(Active_action[mask], mask=mask, hold=ones)
+        self.debug_cnt += 1
+        # print(self.debug_cnt)
+        return
 
-    def reset_all_threads(self, just_got_reset):
+    def reset_terminated_threads(self, just_got_reset):
         for procindex in range(self.n_thread):
             if not just_got_reset[procindex]: 
                 continue # otherwise reset
@@ -187,7 +205,7 @@ class CoopGraph(object):
 
     @staticmethod
     @njit
-    def 根据动作交换组成员(act, div, fifo, hold_n=None):
+    def swap_according_to_aciton(act, div, fifo, hold_n=None):
         def push(vec, item):
             insert_pos=0; len_vec = len(vec)
             while insert_pos<len_vec and vec[insert_pos]!=-1: insert_pos+=1

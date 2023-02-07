@@ -34,7 +34,7 @@ class CoopAlgConfig(object):
 
     # PPO part
     clip_param = 0.2
-    ppo_epoch = 4
+    ppo_epoch = 16
     n_pieces_batch_division = 32    # 8: the batch size in each ppo update is 23280; x/8 *1.5 = x/y, y=8/1.5
     value_loss_coef = 0.5
     entropy_coef = 0.01
@@ -46,7 +46,7 @@ class CoopAlgConfig(object):
     gamma = 0.99
     tau = 0.95
     # ?
-    train_traj_needed = 128
+    train_traj_needed = 256
     upper_training_epoch = 5
     h_reward_on_R = True
     continues_type_ceil = True
@@ -55,6 +55,8 @@ class CoopAlgConfig(object):
     use_normalization = True
 
     render_graph = False
+
+    dropout_prob = 0.0
 
 class ReinforceAlgorithmFoundation():
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -159,7 +161,8 @@ class ReinforceAlgorithmFoundation():
                 logdir = self.logdir,
                 n_basic_dim = self.n_basic_dim,
                 )
-        self.coopgraph.reset_all_threads(just_got_reset=State_Recall['Env-Suffered-Reset'])
+            
+        self.coopgraph.reset_terminated_threads(just_got_reset=State_Recall['Env-Suffered-Reset'])
 
         raw_obs = copy_clone(State_Recall['Latest-Obs'])
         co_step = copy_clone(State_Recall['Current-Obs-Step'])
@@ -169,6 +172,11 @@ class ReinforceAlgorithmFoundation():
         thread_internal_step_o,  hold_n_o = self.get_internal_step(State_Recall['Current-Obs-Step'])
         thread_internal_step = thread_internal_step_o
         iter_n = np.max(thread_internal_step)
+
+        # disturb graph functioning
+        LIVE = active_env & (thread_internal_step > 0)
+        self.coopgraph.random_disturb(prob=CoopAlgConfig.dropout_prob, mask=LIVE)
+
         if CoopAlgConfig.render_graph:
             self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
         
