@@ -11,7 +11,6 @@ from .ppo import PPO
 from .trajectory import BatchTrajManager
 from .my_utils import copy_clone, my_view, add_onehot_id_at_last_dim, add_obs_container_subject
 from UTIL.tensor_ops import __hash__
-# from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 
 class CoopAlgConfig(object):
     g_num = 5
@@ -55,8 +54,8 @@ class CoopAlgConfig(object):
     use_normalization = True
 
     render_graph = False
-
     dropout_prob = 0.0
+    hdim = 128
 
 class ReinforceAlgorithmFoundation():
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
@@ -95,7 +94,8 @@ class ReinforceAlgorithmFoundation():
         self.device = GlobalConfig.device
         cuda_n = 'cpu' if 'cpu' in self.device else GlobalConfig.device
 
-        self.policy = GNet(num_agents=self.n_agent, num_entities=self.n_entity, basic_vec_len=self.n_basic_dim).to(self.device)
+        self.policy = GNet(num_agents=self.n_agent, num_entities=self.n_entity, 
+                           basic_vec_len=self.n_basic_dim, hidden_dim=CoopAlgConfig.hdim).to(self.device)
         self.trainer = PPO(self.policy, mcv=mcv)
 
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread, traj_limit=ScenarioConfig.MaxEpisodeStep*3, trainer_hook=self.trainer.train_on_traj)
@@ -175,7 +175,8 @@ class ReinforceAlgorithmFoundation():
 
         # disturb graph functioning
         LIVE = active_env & (thread_internal_step > 0)
-        self.coopgraph.random_disturb(prob=CoopAlgConfig.dropout_prob, mask=LIVE)
+        if not test_mode:
+            self.coopgraph.random_disturb(prob=CoopAlgConfig.dropout_prob, mask=LIVE)
 
         if CoopAlgConfig.render_graph:
             self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
@@ -306,6 +307,7 @@ class ReinforceAlgorithmFoundation():
                 else:
                     assert self.hash_debug[key] == __hash__(item), ('Currupted data! 发现腐败数据!')
             self.patience -= 1
+
     def rollout_frag_hook(self, f2):
         '''   <2>  hook is called, reward and next moment observation is ready,
                         now feed them into trajectory manager    '''

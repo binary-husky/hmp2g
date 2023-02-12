@@ -99,8 +99,6 @@ class ReinforceAlgorithmFoundation():
 
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread, traj_limit=ScenarioConfig.MaxEpisodeStep*3, trainer_hook=self.trainer.train_on_traj)
 
-        self._division_obsR_init = None
-        self._division_obsL_init = None
         self.load_checkpoint = CoopAlgConfig.load_checkpoint
         self.cnt = 0
 
@@ -174,7 +172,9 @@ class ReinforceAlgorithmFoundation():
 
         # disturb graph functioning
         LIVE = active_env & (thread_internal_step > 0)
-        self.coopgraph.random_disturb(prob=CoopAlgConfig.dropout_prob, mask=LIVE)
+        
+        if not test_mode:
+            self.coopgraph.random_disturb(prob=CoopAlgConfig.dropout_prob, mask=LIVE)
 
         if CoopAlgConfig.render_graph:
             self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
@@ -185,19 +185,21 @@ class ReinforceAlgorithmFoundation():
 
             # hold_n = hold_n_o[LIVE]
             Active_emb, Active_act_dec = self.coopgraph.attach_encoding_to_obs_masked(raw_obs, LIVE)
-            _, _, Active_cter_fifoR, Active_cter_fifoL = self.coopgraph.get_graph_encoding_masked(LIVE)
+            avail_act = self.coopgraph.get_avail_act(LIVE)
+            # _, _, Active_cter_fifoR, Active_cter_fifoL = self.coopgraph.get_graph_encoding_masked(LIVE)
 
             with torch.no_grad():
-                Active_action, Active_value_top, Active_value_bottom, Active_action_log_prob_R, Active_action_log_prob_L = self.policy.act(Active_emb, test_mode=test_mode)
-            traj_frag = {   'skip':                 ~LIVE,           'done':                 False,
-                            'value_R':              Active_value_top,               'value_L':              Active_value_bottom,
-                            'g_actionLogProbs_R':   Active_action_log_prob_R,       'g_actionLogProbs_L':   Active_action_log_prob_L,
-                            'g_obs':                Active_emb,                     'g_actions':            Active_action,
-                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.long),
-                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.long),
-                            'reward':               np.array([0.0 for _ in range(self.n_thread)])}
+                act, value, actLogProbs = self.policy.act(Active_emb, avail_act=avail_act, test_mode=test_mode)
+            traj_frag = {   'skip':         ~LIVE,           
+                            'done':         False,
+                            'act':          act,
+                            'obs':        Active_emb, 
+                            'avail_act':  avail_act,
+                            'value':            value,
+                            'actLogProbs':          actLogProbs,
+                            'reward':           np.array([0.0 for _ in range(self.n_thread)])}
             # _______Internal_Environment_Step________
-            self.coopgraph.adjust_edge(Active_action, mask=LIVE, hold=hold_n_o)
+            self.coopgraph.adjust_edge(act, mask=LIVE, hold=hold_n_o)
 
             if CoopAlgConfig.render_graph:
                 self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
@@ -206,8 +208,12 @@ class ReinforceAlgorithmFoundation():
             thread_internal_step = thread_internal_step - 1
 
         traj_frag = {
-            'skip': copy_clone(State_Recall['ENV-PAUSE']), 'g_obs': None, 'value_R': None,'value_L': None, 'g_actions': None,
-            'g_actionLogProbs_R': None, 'g_actionLogProbs_L': None, 'ctr_mask_R': None, 'ctr_mask_L': None,
+            'skip': copy_clone(State_Recall['ENV-PAUSE']), 
+            'obs': None, 
+            'value': None,
+            'act': None,
+            'avail_act': None,
+            'actLogProbs': None, 
         }
 
         _, act_dec = self.coopgraph.attach_encoding_to_obs_masked(raw_obs, np.array([True]*self.n_thread))

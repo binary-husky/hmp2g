@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
-from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor
+from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, pt_inf
 from ALGORITHM.common.norm import DynamicNormFix as DynamicNorm
 from ALGORITHM.common.net_manifest import weights_init
 
@@ -28,31 +28,10 @@ class CNet(nn.Module):
         else:
             _n_cluster = n_cluster + 1
 
-        TopNetDim = {
-            'I_I': h_dim,
-            'I_O': _n_cluster,
-            'O_I': h_dim + _n_cluster,
-            'O_O': _n_cluster,
-        }
-
-        if not CoopAlgConfig.reverse_container:
-            BottomNetDim = {
-                'I_I': h_dim,
-                'I_O': n_target,
-                'O_I': h_dim + n_target,
-                'O_O': n_target,
-            }
-        else:
-            BottomNetDim = {
-                'I_I': h_dim,
-                'I_O': _n_cluster,
-                'O_I': h_dim + _n_cluster,
-                'O_O': _n_cluster,
-            }
 
 
 
-
+        self.n_operators = 4
 
 
         agent_emb_dim = n_agent + basic_vec_len    +  _n_cluster
@@ -96,14 +75,8 @@ class CNet(nn.Module):
 
 
         self.downsample = nn.ModuleDict({
-            'top_downsample': nn.Linear(h_dim * 2, h_dim),
-            'top_nonlin':   nn.Sequential(
-                                nn.Linear(_n_cluster * h_dim, h_dim),
-                                activation_func(),
-                                nn.Linear(h_dim, h_dim)
-                            ),
-            'bottom_downsample': nn.Linear(h_dim * 2, h_dim),
-            'bottom_nonlin':   nn.Sequential(
+            'final_downsample': nn.Linear(h_dim * 4, h_dim),
+            'final_nonlin':   nn.Sequential(
                                 nn.Linear(_n_cluster * h_dim, h_dim),
                                 activation_func(),
                                 nn.Linear(h_dim, h_dim)
@@ -122,48 +95,46 @@ class CNet(nn.Module):
             'nonlin'    :nn.Sequential(
                             nn.Linear(_n_cluster * h_dim // 2, h_dim),
                             activation_func(),
-                            nn.Linear(h_dim, 1)
+                            nn.Linear(h_dim, self.n_operators)
                         ),
         })
 
-        self.value_head_bottom = nn.ModuleDict({
-            'centralize':nn.Sequential(
-                            nn.Linear(h_dim, h_dim),
-                            activation_func(),
-                            nn.Linear(h_dim, h_dim // 2)
-                        ),
+        self.NetDim = NetDim = {
+            'operator 1 input size':  h_dim,
+            'operator 1 output size': _n_cluster,
 
-            'nonlin'    :nn.Sequential(
-                            nn.Linear(_n_cluster * h_dim // 2, h_dim),
-                            activation_func(),
-                            nn.Linear(h_dim, 1)
-                        ),
-        })
+            'operator 2 input size': h_dim,
+            'operator 2 output size': _n_cluster,
 
-        self.fifo_net_top = nn.ModuleDict({
-            'INet': nn.Sequential(
-                nn.Linear(TopNetDim['I_I'], h_dim),
+            'operator 3 input size':  h_dim,
+            'operator 3 output size': n_target,
+
+            'operator 4 input size': h_dim,
+            'operator 4 output size': n_target,
+        }
+
+
+        self.fifo_net = nn.ModuleDict({
+            'operator 1': nn.Sequential(
+                nn.Linear(NetDim['operator 1 input size'], h_dim),
                 activation_func(),
-                LinearFinal(h_dim, TopNetDim['I_O'])
+                LinearFinal(h_dim, NetDim['operator 1 output size'])
              ),
-            'ONet': nn.Sequential(
-                nn.Linear(TopNetDim['O_I'], h_dim),
+            'operator 2': nn.Sequential(
+                nn.Linear(NetDim['operator 2 input size'], h_dim),
                 activation_func(),
-                LinearFinal(h_dim, TopNetDim['O_O'])
-            )
-        })
-
-        self.fifo_net_bottom = nn.ModuleDict({
-            'INet': nn.Sequential(
-                nn.Linear(BottomNetDim['I_I'], h_dim),
-                activation_func(),
-                LinearFinal(h_dim, BottomNetDim['I_O'])
+                LinearFinal(h_dim, NetDim['operator 2 output size'])
              ),
-            'ONet': nn.Sequential(
-                nn.Linear(BottomNetDim['O_I'], h_dim),
+            'operator 3': nn.Sequential(
+                nn.Linear(NetDim['operator 3 input size'], h_dim),
                 activation_func(),
-                LinearFinal(h_dim, BottomNetDim['O_O'])
-            )
+                LinearFinal(h_dim, NetDim['operator 3 output size'])
+             ),
+            'operator 4': nn.Sequential(
+                nn.Linear(NetDim['operator 4 input size'], h_dim),
+                activation_func(),
+                LinearFinal(h_dim, NetDim['operator 4 output size'])
+             ),
         })
 
 
@@ -174,55 +145,63 @@ class CNet(nn.Module):
         self.apply(weights_init)
         return
 
+    
     @Args2tensor_Return2numpy
-    def act(self, all_emb, test_mode=False):
-        return self._act(all_emb, test_mode=test_mode)
+    def act(self, *args, **kargs):
+        return self._act(*args, **kargs)
 
     @Args2tensor
-    def evaluate_actions(self, embedding, action):
-        return self._act(embedding, eval_mode=True, eval_actions=action)
+    def evaluate_actions(self, *args, **kargs):
+        return self._act(*args, **kargs, eval_mode=True)
+    
+    def _act(self, all_emb, eval_mode=False, eval_actions=None, test_mode=False, avail_act=None):
 
-    def _act(self, all_emb, eval_mode=False, eval_actions=None, test_mode=False):
-        eval_top_act, eval_bottom_act = (eval_actions[:, (0, 1)], eval_actions[:,(2,3)]) if eval_mode \
-                                   else (None,                    None                 )
+        feature, value = self.get_feature(all_emb)
+        act, actLogProbs, distEntropy = self.get_fifo_act(
+            feature=feature,
+            eval_mode=eval_mode, 
+            avail_act=avail_act,
+            eval_actions=eval_actions, 
+            test_mode=test_mode)
 
-        top_feature, bottom_feature, value_top, value_bottom = self.get_feature(all_emb)
-
-        act_top, actLogProbs_top, distEntropy_top, probs_top = self.get_fifo_act(net=self.fifo_net_top, feature=top_feature,
-                                                                                eval_mode=eval_mode, eval_actions=eval_top_act, test_mode=test_mode)
-
-        act_bottom, actLogProbs_bottom, distEntropy_bottom, probs_bottom = self.get_fifo_act(net=self.fifo_net_bottom, feature=bottom_feature,
-                                                                                eval_mode=eval_mode, eval_actions=eval_bottom_act, test_mode=test_mode)
-
-        act = torch.cat(tensors=[act_top, act_bottom], dim=1)
 
         if not eval_mode:
-            return act, value_top, value_bottom, actLogProbs_top, actLogProbs_bottom
+            return act, value, actLogProbs
         else:
-            return value_top, actLogProbs_top, distEntropy_top, probs_top, \
-                value_bottom, actLogProbs_bottom, distEntropy_bottom, probs_bottom
+            return value, actLogProbs, distEntropy
 
     def chain_acts(self):
         return
 
-    def get_fifo_act(self, net, feature, eval_mode, eval_actions=None, test_mode=False):
-        i_act_logits = net['INet'](feature)
-        i_act_dist = Categorical(logits=i_act_logits)
-        if not test_mode:  
-            i_act = i_act_dist.sample() if not eval_mode else eval_actions[:, 0]
-        else: 
-            i_act = torch.argmax(i_act_dist.probs, axis=-1)
-        i_act_oh = torch.nn.functional.one_hot(i_act, i_act_logits.shape[-1])
-        o_act_logits = net['ONet'](torch.cat([feature, i_act_oh], dim=-1))
-        o_act_dist = Categorical(logits=o_act_logits)
-        if not test_mode:  
-            o_act = o_act_dist.sample() if not eval_mode else eval_actions[:, 1]
-        else: 
-            o_act = torch.argmax(o_act_dist.probs, axis=-1)
-        act = torch.cat(tensors=[i_act.unsqueeze(-1), o_act.unsqueeze(-1)], dim=1)
-        actLogProbs = self._get_act_log_probs(i_act_dist, i_act) + self._get_act_log_probs(o_act_dist, o_act)
-        distEntropy = i_act_dist.entropy().mean() + o_act_dist.entropy().mean() if eval_mode else None
-        return act, actLogProbs, distEntropy, o_act_dist.probs
+    def get_fifo_act(self, feature, eval_mode, eval_actions=None, avail_act=None, test_mode=False):
+        __act = []
+        __actLogProbs = []
+        __distEntropy = []
+        for op_index, _ in enumerate(['operator 1', 'operator 2', 'operator 3', 'operator 4']):
+            # final layer
+            act_logits = self.fifo_net[f'operator {op_index+1}'](feature)
+
+            # settle avail action
+            n_act = self.NetDim[f'operator {op_index+1} output size']
+            avail_act_this_op = avail_act[:, op_index, :n_act]
+            if avail_act_this_op is not None: 
+                act_logits = torch.where(avail_act_this_op>0, act_logits, -pt_inf())
+
+            # go sample
+            act_dist = Categorical(logits=act_logits)
+            if not test_mode:
+                act = act_dist.sample() if not eval_mode else eval_actions[:, op_index]
+            else: 
+                act = torch.argmax(act_dist.probs, axis=-1)
+            distEntropy = act_dist.entropy().mean()
+            __act.append(act)
+            __actLogProbs.append(self._get_act_log_probs(act_dist, act))
+            __distEntropy.append(distEntropy)
+
+        __act = torch.stack(__act, dim=1)
+        __actLogProbs = torch.stack(__actLogProbs, dim=1)
+        __distEntropy = torch.stack(__distEntropy).mean()
+        return __act, __actLogProbs, __distEntropy
 
     def get_feature(self, all_emb):
         # 1. normaliza all input
@@ -239,17 +218,20 @@ class CNet(nn.Module):
         ac_attn_enc = self._attention(src=cluster_enc, passive=agent_enc, attn_key='right')
         ct_attn_enc = self._attention(src=cluster_enc, passive=target_enc, attn_key='left')
 
+        # 4. central enc
         central_enc = torch.cat(tensors=(ac_attn_enc, ct_attn_enc), dim=2)
         central_enc = self.central_zip(central_enc)
 
-        value_top = value_bottom = self._get_value_way2top(central_enc)
+        # 5. value
+        value = self._get_final_value(central_enc)
 
+        # 6. value
         top_attn_enc    = self._attention(src=central_enc, passive=agent_enc, attn_key='top')
         bottom_attn_enc = self._attention(src=central_enc, passive=target_enc, attn_key='bottom')
-        top_feature     = self._merge_top_feature(top_attn_enc)
-        bottom_feature  = self._merge_bottom_feature(bottom_attn_enc)
-        
-        return top_feature, bottom_feature, value_top, value_bottom
+        all_feature = torch.cat(tensors=(top_attn_enc, bottom_attn_enc), dim=2)
+        feature  = self._merge_final_feature(all_feature)
+
+        return feature, value
 
     def _get_act_log_probs(self, distribution, action):
         return distribution.log_prob(action.squeeze(-1)).unsqueeze(-1)
@@ -262,35 +244,17 @@ class CNet(nn.Module):
         src_attn_enc = torch.cat(tensors=(src, src_attn_res), dim=2)
         return src_attn_enc
 
-    def _get_value_way1(self, enc):
-        value_each_group = self.value_head_way1(enc)
-        value = torch.sum(value_each_group, dim=1)
-        return value
-
-    def _get_value_way2top(self, enc):
+    def _get_final_value(self, enc):
         enc = self.value_head_top['centralize'](enc)
         enc = my_view(x=enc, shape=[0, -1])
         value = self.value_head_top['nonlin'](enc)
         return value
-    
-    def _get_value_way2bottom(self, enc):
-        enc = self.value_head_bottom['centralize'](enc)
-        enc = my_view(x=enc, shape=[0, -1])
-        value = self.value_head_bottom['nonlin'](enc)
-        return value
 
-    def _merge_top_feature(self, top_attn_enc):
-        enc = self.downsample['top_downsample'](top_attn_enc)
+    def _merge_final_feature(self, top_attn_enc):
+        enc = self.downsample['final_downsample'](top_attn_enc)
         enc = my_view(x=enc, shape=[0, -1]) # 0 for dim unchanged, -1 for auto calculation
-        enc = self.downsample['top_nonlin'](enc)
+        enc = self.downsample['final_nonlin'](enc)
         return enc
-
-    def _merge_bottom_feature(self, bottom_attn_enc):
-        enc = self.downsample['bottom_downsample'](bottom_attn_enc)
-        enc = my_view(x=enc, shape=[0, -1]) # 0 for dim unchanged, -1 for auto calculation
-        enc = self.downsample['bottom_nonlin'](enc)
-        return enc
-
 
 
 class MultiHeadAttention(nn.Module):

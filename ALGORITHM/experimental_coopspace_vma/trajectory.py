@@ -56,9 +56,9 @@ class trajectory():
                 setattr(self, key, set_item)
             # 根据这个轨迹上的NaN，删除所有无效时间点
             # before clip NaN, push reward forward
-            reference_track = getattr(self, 'value_R')  
+            reference_track = getattr(self, 'value')  
             reward = getattr(self, 'reward')
-            p_invalid = np.isnan(reference_track).squeeze()
+            p_invalid = np.isnan(reference_track).squeeze().all(-1)
             p_valid = ~p_invalid
             assert ~p_invalid[0]
             for i in reversed(range(n_frame)):
@@ -81,24 +81,9 @@ class trajectory():
             assert self.finalize
         self.readonly_lock = True
         n_frame = self.time_pointer
-
         assert self.done_cut_tail
 
-        if hyper_reward is not None: 
-            self.copy_track(origin_key='reward', new_key='h_reward')
-            h_rewards = getattr(self, 'h_reward')
-            assert not np.isnan(h_rewards[-1])
-            # h_rewards[-1] = hyper_reward*(1-self.h_reward_percent) + h_rewards[-1]*self.h_reward_percent # reward fusion
-
-        if self.h_reward_on_R:
-            if hyper_reward is not None:  
-                self.gae_finalize_return(reward_key='h_reward', value_key='value_R', new_return_name='return_R')
-            self.gae_finalize_return(reward_key='reward', value_key='value_L', new_return_name='return_L')
-        else:
-            if hyper_reward is not None:  
-                self.gae_finalize_return(reward_key='h_reward', value_key='value_L', new_return_name='return_L')
-            self.gae_finalize_return(reward_key='reward', value_key='value_R', new_return_name='return_R')
-        pass
+        self.gae_finalize_return(reward_key='reward', value_key='value', new_return_name='return')
 
 
 
