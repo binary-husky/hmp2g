@@ -25,7 +25,7 @@ Open this json file, choose the version and platform you want, download and unzi
 - Method 3 (Compile from source): 
 If you want to build new multi-agent environment, welcome to our U-MAP project in following resp!
 In U-MAP, you can use all the capability of Enreal Engine (blueprints, 3D models/animations, rich plugin resources) to build 
-elegant (but also computational efficient) and powerful (but also experimentally reproducible) MARL tasks.
+elegant (but also computational efficient) and magnificent (but also experimentally reproducible) MARL tasks.
 ```
 https://github.com/binary-husky/unreal-map
 ```
