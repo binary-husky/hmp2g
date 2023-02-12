@@ -99,8 +99,6 @@ class ReinforceAlgorithmFoundation():
 
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread, traj_limit=ScenarioConfig.MaxEpisodeStep*3, trainer_hook=self.trainer.train_on_traj)
 
-        self._division_obsR_init = None
-        self._division_obsL_init = None
         self.load_checkpoint = CoopAlgConfig.load_checkpoint
         self.cnt = 0
 
@@ -187,14 +185,16 @@ class ReinforceAlgorithmFoundation():
 
             # hold_n = hold_n_o[LIVE]
             Active_emb, Active_act_dec = self.coopgraph.attach_encoding_to_obs_masked(raw_obs, LIVE)
+            avail_act = self.coopgraph.get_avail_act(LIVE)
             # _, _, Active_cter_fifoR, Active_cter_fifoL = self.coopgraph.get_graph_encoding_masked(LIVE)
 
             with torch.no_grad():
-                act, value, actLogProbs = self.policy.act(Active_emb, test_mode=test_mode)
+                act, value, actLogProbs = self.policy.act(Active_emb, avail_act=avail_act, test_mode=test_mode)
             traj_frag = {   'skip':         ~LIVE,           
                             'done':         False,
                             'act':          act,
                             'obs':        Active_emb, 
+                            'avail_act':  avail_act,
                             'value':            value,
                             'actLogProbs':          actLogProbs,
                             'reward':           np.array([0.0 for _ in range(self.n_thread)])}
@@ -212,6 +212,7 @@ class ReinforceAlgorithmFoundation():
             'obs': None, 
             'value': None,
             'act': None,
+            'avail_act': None,
             'actLogProbs': None, 
         }
 

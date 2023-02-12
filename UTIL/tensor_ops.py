@@ -836,9 +836,9 @@ def zeros_like_except_dim(array, except_dim, n):
     return torch.zeros(size=shape_, device=array.device, dtype=array.dtype)
 
 
-def pad_at_dim(array, dim, n):
+def pad_at_dim(array, dim, n, pad=0):
     extra_n = n-array.shape[dim]
-    padding = zeros_like_except_dim(array, except_dim=dim, n=extra_n)
+    padding = zeros_like_except_dim(array, except_dim=dim, n=extra_n) + pad
     return torch.cat((array, padding), axis=dim)
 
 def stack_vec_with_padding(arr_list):

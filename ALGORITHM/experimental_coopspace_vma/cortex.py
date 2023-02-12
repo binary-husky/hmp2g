@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
-from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor
+from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, pt_inf
 from ALGORITHM.common.norm import DynamicNormFix as DynamicNorm
 from ALGORITHM.common.net_manifest import weights_init
 
@@ -99,7 +99,7 @@ class CNet(nn.Module):
                         ),
         })
 
-        NetDim = {
+        self.NetDim = NetDim = {
             'operator 1 input size':  h_dim,
             'operator 1 output size': _n_cluster,
 
@@ -145,21 +145,22 @@ class CNet(nn.Module):
         self.apply(weights_init)
         return
 
+    
     @Args2tensor_Return2numpy
-    def act(self, all_emb, test_mode=False):
-        return self._act(all_emb, test_mode=test_mode)
+    def act(self, *args, **kargs):
+        return self._act(*args, **kargs)
 
     @Args2tensor
-    def evaluate_actions(self, embedding, action):
-        return self._act(embedding, eval_mode=True, eval_actions=action)
-
-    def _act(self, all_emb, eval_mode=False, eval_actions=None, test_mode=False):
+    def evaluate_actions(self, *args, **kargs):
+        return self._act(*args, **kargs, eval_mode=True)
+    
+    def _act(self, all_emb, eval_mode=False, eval_actions=None, test_mode=False, avail_act=None):
 
         feature, value = self.get_feature(all_emb)
-
         act, actLogProbs, distEntropy = self.get_fifo_act(
             feature=feature,
             eval_mode=eval_mode, 
+            avail_act=avail_act,
             eval_actions=eval_actions, 
             test_mode=test_mode)
 
@@ -172,12 +173,21 @@ class CNet(nn.Module):
     def chain_acts(self):
         return
 
-    def get_fifo_act(self, feature, eval_mode, eval_actions=None, test_mode=False):
+    def get_fifo_act(self, feature, eval_mode, eval_actions=None, avail_act=None, test_mode=False):
         __act = []
         __actLogProbs = []
         __distEntropy = []
         for op_index, _ in enumerate(['operator 1', 'operator 2', 'operator 3', 'operator 4']):
+            # final layer
             act_logits = self.fifo_net[f'operator {op_index+1}'](feature)
+
+            # settle avail action
+            n_act = self.NetDim[f'operator {op_index+1} output size']
+            avail_act_this_op = avail_act[:, op_index, :n_act]
+            if avail_act_this_op is not None: 
+                act_logits = torch.where(avail_act_this_op>0, act_logits, -pt_inf())
+
+            # go sample
             act_dist = Categorical(logits=act_logits)
             if not test_mode:
                 act = act_dist.sample() if not eval_mode else eval_actions[:, op_index]

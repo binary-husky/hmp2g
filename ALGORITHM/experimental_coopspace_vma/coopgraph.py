@@ -5,6 +5,17 @@ from numba import njit, jit
 import numpy as np
 import pickle, os
 
+def zeros_like_except_dim(array, except_dim, n):
+    shape_ = list(array.shape)
+    shape_[except_dim] = n
+    return np.zeros(shape=shape_, dtype=array.dtype)
+
+def pad_at_dim(array, dim, n, pad=0):
+    extra_n = n - array.shape[dim]
+    padding = zeros_like_except_dim(array, except_dim=dim, n=extra_n) + pad
+    return np.concatenate((array, padding), axis=dim)
+
+
 class CoopGraph(object):
     def __init__(self, n_agent, n_thread, 
                     n_entity=0, 
@@ -31,36 +42,70 @@ class CoopGraph(object):
         self.logdir = logdir
         # define graph nodes
         self.n_cluster = CoopAlgConfig.g_num if not CoopAlgConfig.one_more_container else CoopAlgConfig.g_num+1
-        self.n_container_R = self.n_cluster
-        self.n_subject_R = self.n_agent
-        self.n_container_L = self.n_entity if not CoopAlgConfig.reverse_container else self.n_cluster
-        self.n_subject_L = self.n_cluster if not CoopAlgConfig.reverse_container else self.n_entity
+        self.n_container_AC = self.n_cluster
+        self.n_subject_AC = self.n_agent
+        self.n_container_CT = self.n_entity if not CoopAlgConfig.reverse_container else self.n_cluster
+        self.n_subject_CT = self.n_cluster if not CoopAlgConfig.reverse_container else self.n_entity
         self.debug_cnt = 0
         # graph state
-        self._Edge_R_    = np.zeros(shape=(self.n_thread, self.n_subject_R), dtype=np.long)
-        self._Edge_L_    = np.zeros(shape=(self.n_thread, self.n_subject_L), dtype=np.long)
-        self._SubFifo_R_ = np.ones(shape=(self.n_thread, self.n_container_R, self.n_subject_R), dtype=np.long) * -1
-        self._SubFifo_L_ = np.ones(shape=(self.n_thread, self.n_container_L, self.n_subject_L), dtype=np.long) * -1
+        self._Edge_AC_    = np.zeros(shape=(self.n_thread, self.n_subject_AC), dtype=np.long)
+        self._Edge_CT_    = np.zeros(shape=(self.n_thread, self.n_subject_CT), dtype=np.long)
+        self._SubFifo_AC_ = np.ones(shape=(self.n_thread, self.n_container_AC, self.n_subject_AC), dtype=np.long) * -1
+        self._SubFifo_CT_ = np.ones(shape=(self.n_thread, self.n_container_CT, self.n_subject_CT), dtype=np.long) * -1
 
         # load checkpoint
         if load_checkpoint or self.test_mode:
             assert os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
             pkl_file = open(f'{self.logdir}/history_cpt/init.pkl', 'rb')
             dict_data = pickle.load(pkl_file)
-            self._Edge_R_init = dict_data["_Edge_R_init"] if "_Edge_R_init" in dict_data else dict_data["_division_obsR_init"]
-            self._Edge_L_init = dict_data["_Edge_L_init"] if "_Edge_L_init" in dict_data else dict_data["_division_obsL_init"]
+            self._Edge_AC_init = dict_data["_Edge_AC_init"] if "_Edge_AC_init" in dict_data else dict_data["_division_obs_AC_init"]
+            self._Edge_CT_init = dict_data["_Edge_CT_init"] if "_Edge_CT_init" in dict_data else dict_data["_division_obs_CT_init"]
         else:
-            self._Edge_R_init = self.__random_select_init_value_(self.n_container_R, self.n_subject_R)
-            self._Edge_L_init = self.__random_select_init_value_(self.n_container_L, self.n_subject_L)
+            self._Edge_AC_init = self.__random_select_init_value_(self.n_container_AC, self.n_subject_AC)
+            self._Edge_CT_init = self.__random_select_init_value_(self.n_container_CT, self.n_subject_CT)
             # assert not os.path.exists(f'{self.logdir}/history_cpt/init.pkl')
-            pickle.dump({"_Edge_R_init":self._Edge_R_init, "_Edge_L_init":self._Edge_L_init}, open('%s/history_cpt/init.pkl'%self.logdir,'wb+'))
+            pickle.dump({"_Edge_AC_init":self._Edge_AC_init, "_Edge_CT_init":self._Edge_CT_init}, open('%s/history_cpt/init.pkl'%self.logdir,'wb+'))
+
+    def get_current_container_size(self, Active_SubFifo):
+        return (Active_SubFifo >= 0).sum(-1)
+
+
+
+
+    def get_avail_act(self, mask):
+        # container_AC_act = copy_clone(Active_action[:,(0,1)])
+        # container_CT_act = copy_clone(Active_action[:,(2,3)])
+
+        Active_SubFifo_AC = self._SubFifo_AC_ [mask]
+        container_size_AC = self.get_current_container_size(Active_SubFifo_AC)
+        act1avail = np.ones_like(container_size_AC)
+        act2avail = container_size_AC > 0
+
+        Active_SubFifo_CT = self._SubFifo_CT_ [mask]
+        container_size_CT = self.get_current_container_size(Active_SubFifo_CT)
+        act3avail = np.ones_like(container_size_CT)
+        act4avail = container_size_CT > 0
+
+        pad_length = max(act1avail.shape[-1], act3avail.shape[-1])
+
+        assert act1avail.shape[-1] < act3avail.shape[-1]
+
+        act1avail = pad_at_dim(act1avail, dim=-1, n=pad_length, pad=np.nan)
+        act2avail = pad_at_dim(act2avail, dim=-1, n=pad_length, pad=np.nan)
+        # act3avail = pad_at_dim(act3avail, dim=-1, n=pad_length, pad=np.nan)
+        # act4avail = pad_at_dim(act4avail, dim=-1, n=pad_length, pad=np.nan)
+
+        avail_act = np.stack((act1avail,act2avail,act3avail,act4avail), axis=1)
+
+        return avail_act
+        # Active_SubFifo_CT = self._SubFifo_CT_ [mask]
 
     def attach_encoding_to_obs_masked(self, obs, mask):
         live_obs = obs[mask]
-        Active_Edge_R    = self._Edge_R_    [mask]
-        Active_Edge_L    = self._Edge_L_    [mask]
-        # Active_SubFifo_R = self._SubFifo_R_ [mask]
-        # Active_SubFifo_L = self._SubFifo_L_ [mask]
+        Active_Edge_AC    = self._Edge_AC_    [mask]
+        Active_Edge_CT    = self._Edge_CT_    [mask]
+        # Active_SubFifo_AC = self._SubFifo_AC_ [mask]
+        # Active_SubFifo_CT = self._SubFifo_CT_ [mask]
 
         _n_cluster = self.n_cluster if not CoopAlgConfig.one_more_container else self.n_cluster+1
         if self.ObsAsUnity:
@@ -78,11 +123,11 @@ class CoopGraph(object):
         agent_hot_emb = add_onehot_id_at_last_dim(agent_pure_emb)
         target_hot_emb = add_onehot_id_at_last_dim(target_pure_emb)
         cluster_hot_emb = add_onehot_id_at_last_dim(cluster_pure_emb)
-        cluster_hot_emb, agent_hot_emb  = add_obs_container_subject(container_emb=cluster_hot_emb, subject_emb=agent_hot_emb, div=Active_Edge_R)
+        cluster_hot_emb, agent_hot_emb  = add_obs_container_subject(container_emb=cluster_hot_emb, subject_emb=agent_hot_emb, div=Active_Edge_AC)
         if not CoopAlgConfig.reverse_container:
-            target_hot_emb, cluster_hot_emb = add_obs_container_subject(container_emb=target_hot_emb, subject_emb=cluster_hot_emb, div=Active_Edge_L)
+            target_hot_emb, cluster_hot_emb = add_obs_container_subject(container_emb=target_hot_emb, subject_emb=cluster_hot_emb, div=Active_Edge_CT)
         else:
-            cluster_hot_emb, target_hot_emb = add_obs_container_subject(container_emb=cluster_hot_emb, subject_emb=target_hot_emb, div=Active_Edge_L)
+            cluster_hot_emb, target_hot_emb = add_obs_container_subject(container_emb=cluster_hot_emb, subject_emb=target_hot_emb, div=Active_Edge_CT)
 
         agent_final_emb = agent_hot_emb
         target_final_emb = target_hot_emb
@@ -111,40 +156,40 @@ class CoopGraph(object):
     def adjust_edge(self, Active_action, mask, hold):
         hold_n = hold[mask]
         assert Active_action.shape[0] == len(hold_n)
-        container_actR = copy_clone(Active_action[:,(0,1)])
-        container_actL = copy_clone(Active_action[:,(2,3)])
+        container_AC_act = copy_clone(Active_action[:,(0,1)])
+        container_CT_act = copy_clone(Active_action[:,(2,3)])
 
-        Active_Edge_R    = self._Edge_R_    [mask]
-        Active_Edge_L    = self._Edge_L_    [mask]
-        Active_SubFifo_R = self._SubFifo_R_ [mask]
-        Active_SubFifo_L = self._SubFifo_L_ [mask]
+        Active_Edge_AC    = self._Edge_AC_    [mask]
+        Active_Edge_CT    = self._Edge_CT_    [mask]
+        Active_SubFifo_AC = self._SubFifo_AC_ [mask]
+        Active_SubFifo_CT = self._SubFifo_CT_ [mask]
 
-        Active_Edge_R, Active_SubFifo_R = self.swap_according_to_aciton(container_actR, div=Active_Edge_R, fifo=Active_SubFifo_R, hold_n=hold_n)
-        Active_Edge_L, Active_SubFifo_L = self.swap_according_to_aciton(container_actL, div=Active_Edge_L, fifo=Active_SubFifo_L)
+        Active_Edge_AC, Active_SubFifo_AC = self.swap_according_to_aciton(container_AC_act, div=Active_Edge_AC, fifo=Active_SubFifo_AC, hold_n=hold_n)
+        Active_Edge_CT, Active_SubFifo_CT = self.swap_according_to_aciton(container_CT_act, div=Active_Edge_CT, fifo=Active_SubFifo_CT)
 
-        self._Edge_R_    [mask] = Active_Edge_R    
-        self._Edge_L_    [mask] = Active_Edge_L    
-        self._SubFifo_R_ [mask] = Active_SubFifo_R 
-        self._SubFifo_L_ [mask] = Active_SubFifo_L 
+        self._Edge_AC_    [mask] = Active_Edge_AC    
+        self._Edge_CT_    [mask] = Active_Edge_CT    
+        self._SubFifo_AC_ [mask] = Active_SubFifo_AC 
+        self._SubFifo_CT_ [mask] = Active_SubFifo_CT 
 
 
     def get_graph_encoding_masked(self, mask):
-        return  copy_clone(self._Edge_R_   [mask]), \
-                copy_clone(self._Edge_L_   [mask]), \
-                copy_clone(self._SubFifo_R_[mask]), \
-                copy_clone(self._SubFifo_L_[mask])
+        return  copy_clone(self._Edge_AC_  [mask]), \
+                copy_clone(self._Edge_CT_  [mask]), \
+                copy_clone(self._SubFifo_AC_[mask]), \
+                copy_clone(self._SubFifo_CT_[mask])
 
     def link_agent_to_target(self):
         if not CoopAlgConfig.reverse_container:
-            cluster_target_div = self._Edge_L_   # 每个cluster在哪个entity容器中
+            cluster_target_div = self._Edge_CT_   # 每个cluster在哪个entity容器中
         else:   # figure out cluster_target_div with fifo # 每个cluster指向那个entity
             cluster_target_div = np.ones(shape=(self.n_thread, self.n_cluster), dtype=np.long) * self.n_entity #point to n_entity+1
-            for thread, jth_cluster, pos in np.argwhere(self._SubFifo_L_ >= 0):
-                cluster_target_div[thread, jth_cluster] = self._SubFifo_L_[thread, jth_cluster, pos]    # 指向队列中的最后一个目标
+            for thread, jth_cluster, pos in np.argwhere(self._SubFifo_CT_ >= 0):
+                cluster_target_div[thread, jth_cluster] = self._SubFifo_CT_[thread, jth_cluster, pos]    # 指向队列中的最后一个目标
             if CoopAlgConfig.one_more_container: 
                 cluster_target_div[:,self.n_cluster] = self.n_entity
 
-        agent_target_div = np.take_along_axis(cluster_target_div, axis=1, indices=self._Edge_R_)
+        agent_target_div = np.take_along_axis(cluster_target_div, axis=1, indices=self._Edge_AC_)
         final_indices = np.expand_dims(agent_target_div, axis=-1).repeat(3, axis=-1)
 
         return final_indices
@@ -160,8 +205,8 @@ class CoopGraph(object):
             # 无随机扰动
             if not random_hit[procindex]: continue
             # 有随机扰动
-            r_act = np.random.choice( a=range(self.n_container_R), size=(2), replace=False, p=None) # 不放回采样
-            l_act = np.random.choice( a=range(self.n_container_L), size=(2), replace=False, p=None) # 不放回采样
+            r_act = np.random.choice( a=range(self.n_container_AC), size=(2), replace=False, p=None) # 不放回采样
+            l_act = np.random.choice( a=range(self.n_container_CT), size=(2), replace=False, p=None) # 不放回采样
             Active_action[procindex,:] = np.concatenate((r_act,l_act))
 
         self.adjust_edge(Active_action[mask], mask=mask, hold=ones)
@@ -175,22 +220,22 @@ class CoopGraph(object):
                 continue # otherwise reset
 
             if CoopAlgConfig.use_fixed_random_start:
-                assert self._Edge_R_init is not None
-                _Edge_R_ = self._Edge_R_init
-                _Edge_L_ = self._Edge_L_init
+                assert self._Edge_AC_init is not None
+                _Edge_AC_ = self._Edge_AC_init
+                _Edge_CT_ = self._Edge_CT_init
             else:
                 assert False
 
-            self._Edge_R_[procindex,:] = _Edge_R_
-            self._Edge_L_[procindex,:] = _Edge_L_
-            for container in range(self.n_container_R):
-                self._SubFifo_R_[procindex,container] = np.ones(self.n_subject_R) *-1
-                index_ = np.where(_Edge_R_ == container)[0]
-                self._SubFifo_R_[procindex,container,:len(index_)] = index_
-            for container in range(self.n_container_L):
-                self._SubFifo_L_[procindex,container] = np.ones(self.n_subject_L) *-1
-                index_ = np.where(_Edge_L_ == container)[0]
-                self._SubFifo_L_[procindex,container,:len(index_)] = index_
+            self._Edge_AC_[procindex,:] = _Edge_AC_
+            self._Edge_CT_[procindex,:] = _Edge_CT_
+            for container in range(self.n_container_AC):
+                self._SubFifo_AC_[procindex,container] = np.ones(self.n_subject_AC) *-1
+                index_ = np.where(_Edge_AC_ == container)[0]
+                self._SubFifo_AC_[procindex,container,:len(index_)] = index_
+            for container in range(self.n_container_CT):
+                self._SubFifo_CT_[procindex,container] = np.ones(self.n_subject_CT) *-1
+                index_ = np.where(_Edge_CT_ == container)[0]
+                self._SubFifo_CT_[procindex,container,:len(index_)] = index_
             pass
 
 
@@ -225,7 +270,9 @@ class CoopGraph(object):
             else:
                 for _ in range(hold_n[i]):     # check this       
                     移除组智能体成员 = np.where(div[i] == 移除组)[0]
-                    if len(移除组智能体成员) == 0: continue  # 已经是空组别
+                    if len(移除组智能体成员) == 0: 
+                        assert False
+                        continue  # 已经是空组别
                     转移体 = pop(fifo[i, 移除组])
                     div[i, 转移体] = 目标组
                     push(fifo[i, 目标组], 转移体)
@@ -236,8 +283,8 @@ class CoopGraph(object):
 
     def render_thread0_graph(self, 可视化桥, step, internal_step):
         if 可视化桥 is None: return
-        agent_cluster = self._Edge_R_[0]
-        cluster_target = self._Edge_L_[0]
+        agent_cluster = self._Edge_AC_[0]
+        cluster_target = self._Edge_CT_[0]
 
         可视化桥.发送几何体(
             'box|0|green|0.3',

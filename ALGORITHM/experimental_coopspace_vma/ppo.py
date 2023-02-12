@@ -64,8 +64,8 @@ class PPO():
     def 轨迹采样(self, traj_pool):
         container = {}
 
-        req_dict =        ['obs', 'act', 'actLogProbs', 'return', 'value',  ]
-        req_dict_rename = ['obs', 'act', 'actLogProbs', 'return', 'state_value',  ]
+        req_dict =        ['obs', 'act', 'actLogProbs', 'avail_act', 'return', 'value',  ]
+        req_dict_rename = ['obs', 'act', 'actLogProbs', 'avail_act', 'return', 'state_value',  ]
 
         return_rename = "return"
         value_rename =  "state_value"
@@ -124,9 +124,11 @@ class PPO():
         oldPi_actionLogProb = _2tensor(sample['actLogProbs'])
         # oldPi_actionLogProb:  $batch.$1.(the output from act)        used in [clipped version of value loss],
         real_value =   _2tensor(sample['return'])
+        # oldPi_actionLogProb:  $batch.$1.(the output from act)        used in [clipped version of value loss],
+        avail_act =   _2tensor(sample['avail_act'])
 
 
-        newPi_value, newPi_actionLogProb, entropy_loss = self.policy_and_critic.evaluate_actions(obs, action)
+        newPi_value, newPi_actionLogProb, entropy_loss = self.policy_and_critic.evaluate_actions(obs, eval_actions=action, avail_act=avail_act)
 
 
 
