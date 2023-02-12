@@ -14,17 +14,17 @@ base = """
         "fold": 1,
         "seed": 1,
         "backup_files": [
-            "ALGORITHM/experimenta_pr_smac"
+            "ALGORITHM/experimental_pr_smac"
         ],
     },
     "MISSION.starcraft.sc2_env_wrapper.py->ScenarioConfig": {
         "map_": "MMM2",
         "sc_version": "2.4.6",
         "TEAM_NAMES": [
-            "ALGORITHM.experimenta_pr_smac.foundation->ReinforceAlgorithmFoundation"
+            "ALGORITHM.experimental_pr_smac.foundation->ReinforceAlgorithmFoundation"
         ]
     },
-    "ALGORITHM.experimenta_pr_smac.foundation.py->AlgorithmConfig": {
+    "ALGORITHM.experimental_pr_smac.foundation.py->AlgorithmConfig": {
         "lr": 0.0001,
         "ppo_epoch": 16,
         "n_focus_on": -1,
@@ -44,7 +44,7 @@ base = """
         "load_checkpoint": false,
         "use_conc_net": false
     },
-    "ALGORITHM.experimenta_pr_smac.stage_planner.py->PolicyRsnConfig": {
+    "ALGORITHM.experimental_pr_smac.stage_planner.py->PolicyRsnConfig": {
         "lockPrInOneBatch": false,
         "resonance_start_at_update": 5000,
         "yita_max": 0.8,

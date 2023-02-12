@@ -2,11 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from smac.env.multiagentenv import MultiAgentEnv
-from smac.env.starcraft2.maps import get_map_params
+from MISSION.starcraft.smac.env.multiagentenv import MultiAgentEnv
+from MISSION.starcraft.smac.env.starcraft2.maps import get_map_params
 
 import atexit
-import os
+from warnings import warn
 from operator import attrgetter
 from copy import deepcopy
 import numpy as np
@@ -62,6 +62,7 @@ class StarCraft2Env(MultiAgentEnv):
     """The StarCraft II environment for decentralised multi-agent
     micromanagement scenarios.
     """
+
     def __init__(
         self,
         sc_version,
@@ -90,6 +91,8 @@ class StarCraft2Env(MultiAgentEnv):
         reward_scale=True,
         reward_scale_rate=20,
         reward_vec=False,
+        fix_shield_reward_bug=True, # A notorious bug reported at https://github.com/oxwhirl/smac/issues/72
+        fix_shield_reward_bug_removeabs=True, # A notorious bug reported at https://github.com/oxwhirl/smac/issues/72
         return_mat=False,
         replay_dir="",
         replay_prefix="",
@@ -196,6 +199,7 @@ class StarCraft2Env(MultiAgentEnv):
             Log messages about observations, state, actions and rewards for
             debugging purposes (default is False).
         """
+        import os
         if sc_version=='old' or sc_version=='2.4.6':
             os.environ.setdefault("SC2PATH", "~/StarCraftIII")
         if sc_version=='new' or sc_version=='2.4.10':
@@ -235,6 +239,8 @@ class StarCraft2Env(MultiAgentEnv):
         self.reward_defeat = reward_defeat
         self.reward_scale = reward_scale
         self.reward_scale_rate = reward_scale_rate
+        self.fix_shield_reward_bug = fix_shield_reward_bug # A notorious bug reported at https://github.com/oxwhirl/smac/issues/72
+        self.fix_shield_reward_bug_removeabs = fix_shield_reward_bug_removeabs
 
         # Other
         self.game_version = game_version
@@ -317,8 +323,7 @@ class StarCraft2Env(MultiAgentEnv):
         self._run_config = None
         self._sc2_proc = None
         self._controller = None
-        self.return_mat = return_mat
-        self.reward_vec = reward_vec
+
         self.enable_threejs_render = render
         # Try to avoid leaking SC2 processes on shutdown
         atexit.register(lambda: self.close())
@@ -376,7 +381,7 @@ class StarCraft2Env(MultiAgentEnv):
                         [(b >> i) & 1 for b in row for i in range(7, -1, -1)]
                         for row in vals
                     ],
-                    dtype=np.bool,
+                    dtype=bool,
                 )
             )
         else:
@@ -461,7 +466,7 @@ class StarCraft2Env(MultiAgentEnv):
 
     def threejs_renderer(self):
         if not hasattr(self, 'threejs_bridge'):
-            # 濡傛灉娌℃湁鍒濆鍖栵紝鍏堝垵濮嬪寲
+            # 如果没有初始化，先初始化
             from VISUALIZE.mcom import mcom
             self.threejs_bridge = mcom(ip='127.0.0.1',
                                         port=12084,
@@ -507,7 +512,6 @@ class StarCraft2Env(MultiAgentEnv):
         self.threejs_bridge.v2d_show()
 
     def step(self, actions):
-        # print('-----step-----')
         """A single environment step. Returns reward, terminated, info."""
         actions_int = [int(a) for a in actions]
 
@@ -540,13 +544,12 @@ class StarCraft2Env(MultiAgentEnv):
             self._obs = self._controller.observe()
         except (protocol.ProtocolError, protocol.ConnectionError):
             self.full_restart()
-            reward = 0 if not self.reward_vec else np.array([0. for _ in self.agents])
-            return reward, True, {}
+            return 0, True, {}
 
         self._total_steps += 1
         self._episode_steps += 1
 
-        # Update units, 
+        # Update units
         # return None: game is still on,
         # return -1: lose the game
         # return +1: win the game
@@ -554,7 +557,7 @@ class StarCraft2Env(MultiAgentEnv):
         game_end_code = self.update_units()
 
         terminated = False
-        reward = self.reward_battle()   # <1>璁＄畻绋犲瘑濂栧姳锛屼絾濡傛灉self.reward_sparse锛岃繖涓猺eward鏍规湰涓嶇敤
+        reward = self.reward_battle()   # <1>计算稠密奖励，但如果self.reward_sparse，这个reward根本不用
         info = {"battle_won": False}
 
         # count units that are still alive
@@ -575,24 +578,18 @@ class StarCraft2Env(MultiAgentEnv):
             # Battle is over
             terminated = True
             self.battles_game += 1
-            if game_end_code == 1 and not self.win_counted: # 鑳滃埄
-                print('\t [starcraft]: win')
+            if game_end_code == 1 and not self.win_counted:
                 self.battles_won += 1
                 self.win_counted = True
                 info["battle_won"] = True
-                if not self.reward_sparse: 
-                    if self.reward_vec:
-                        assert False
-                        reward += 4  # <2> 鑳滃埄鐨勯澶栧鍔?                    else:
-                        reward += self.reward_win  # <2> 鑳滃埄鐨勯澶栧鍔?                else:
+                if not self.reward_sparse:
+                    reward += self.reward_win  # <2> 胜利的额外奖励
+                else:
                     reward = 1
-            elif game_end_code == -1 and not self.defeat_counted:   # 澶辫触
+            elif game_end_code == -1 and not self.defeat_counted:
                 self.defeat_counted = True
                 if not self.reward_sparse:
-                    if self.reward_vec:
-                        assert False
-                        reward += -4  # <2> 鑳滃埄鐨勯澶栧鍔?                    else:
-                        reward += self.reward_defeat
+                    reward += self.reward_defeat
                 else:
                     reward = -1
 
@@ -605,15 +602,14 @@ class StarCraft2Env(MultiAgentEnv):
             self.timeouts += 1
 
         if self.debug:
-            logging.debug("Reward = {}".format(reward).center(60, '-'))
+            logging.debug("Reward = {}".format(reward).center(60, "-"))
 
         if terminated:
             self._episode_count += 1
 
-        # print(reward)
-        if self.reward_scale and (not self.reward_vec): # <3> 鑳滃埄鐨剆cale
+        if self.reward_scale:
             reward /= self.max_reward / self.reward_scale_rate
-            # reward = reward / (self.max_reward/self.reward_scale_rate)
+
         self.reward = reward
 
         return reward, terminated, info
@@ -862,9 +858,6 @@ class StarCraft2Env(MultiAgentEnv):
         delta_enemy = 0
 
         neg_scale = self.reward_negative_scale
-        if self.reward_vec:
-            assert False
-            reward_awise_compat = [0. for _ in self.agents] 
 
         # update deaths, al_id begin from 0
         for al_id, al_unit in self.agents.items():
@@ -879,9 +872,6 @@ class StarCraft2Env(MultiAgentEnv):
                     self.death_tracker_ally[al_id] = 1
                     if not self.reward_only_positive:
                         delta_deaths -= self.reward_death_value * neg_scale # reward_death_value=10, reward_negative_scale=0.5, (-5)
-                    if self.reward_vec: 
-                        reward_awise_compat[al_id] -= 1
-
                     delta_ally += prev_health * neg_scale
                 else:
                     # still alive
@@ -904,26 +894,19 @@ class StarCraft2Env(MultiAgentEnv):
                 else:
                     delta_enemy += prev_health - e_unit.health - e_unit.shield
 
-                if self.reward_vec:
-                    assert False
-                    if e_unit.health == 0:
-                        # just died
-                        for al_id in self.action_blow[e_id]:
-                            reward_awise_compat[al_id] += (-1) / len(self.action_blow[e_id])
-                    else:
-                        for al_id in self.action_blow[e_id]:
-                            scale_= 0.01
-                            reward_awise_compat[al_id] += (prev_health - (e_unit.health+e_unit.shield))*scale_ / len(self.action_blow[e_id])
-
         if self.reward_only_positive:
             reward = abs(delta_enemy + delta_deaths)  # shield regeneration
+            if self.fix_shield_reward_bug: # A notorious bug reported at https://github.com/oxwhirl/smac/issues/72
+                reward = max(0, delta_enemy + delta_deaths)
+            if self.fix_shield_reward_bug_removeabs:
+                reward = delta_enemy + delta_deaths
         else:
             reward = delta_enemy + delta_deaths - delta_ally
 
-        if self.reward_vec:
-            assert False
-            reward = np.array(reward_awise_compat)
-            
+
+        # print([e_unit.health for e_id, e_unit in self.enemies.items()]) # REMOVE
+        # print([e_unit.shield for e_id, e_unit in self.enemies.items()]) # REMOVE
+        # print(reward) # REMOVE
         return reward
 
     def get_total_actions(self):
@@ -1021,7 +1004,7 @@ class StarCraft2Env(MultiAgentEnv):
 
     def check_bounds(self, x, y):
         """Whether a point is within the map bounds."""
-        return (0 <= x < self.map_x and 0 <= y < self.map_y)
+        return 0 <= x < self.map_x and 0 <= y < self.map_y
 
     def get_surrounding_pathing(self, unit):
         """Returns pathing values of the grid surrounding the given unit."""
@@ -1206,41 +1189,19 @@ class StarCraft2Env(MultiAgentEnv):
                 type_id = self.get_unit_type_id(unit, True)
                 own_feats[ind + type_id] = 1
 
-        if not return_mat:
-            agent_obs = np.concatenate(
-                (
-                    move_feats.flatten(),
-                    enemy_feats.flatten(),
-                    ally_feats.flatten(),
-                    own_feats.flatten(),
-                )
+        agent_obs = np.concatenate(
+            (
+                move_feats.flatten(),
+                enemy_feats.flatten(),
+                ally_feats.flatten(),
+                own_feats.flatten(),
             )
-    
-            if self.obs_timestep_number:
-                agent_obs = np.append(
-                    agent_obs, self._episode_steps / self.episode_limit)
+        )
 
-        if return_mat:
-            assert False
-            # ally_feats  = np.concatenate((ally_feats,  -1 * np.ones_like(ally_feats[:,(0,)] )), -1)
-            # enemy_feats = np.concatenate((enemy_feats, +1 * np.ones_like(enemy_feats[:,(0,)])), -1)
-            max_len = len(enemy_feats) + len(ally_feats) + 1 # maximum len of core dimension
-
-            _core_max_len = max(
-                move_feats_dim+own_feats_dim,
-                max(enemy_feats_dim[1], ally_feats_dim[1])+1
+        if self.obs_timestep_number:
+            agent_obs = np.append(
+                agent_obs, self._episode_steps / self.episode_limit
             )
-            agent_obs = self.stack_vec_with_padding([
-                                np.concatenate((  move_feats.flatten(),  own_feats.flatten()  )),
-                            *(  np.append(feat, -1) for feat in enemy_feats if not (feat==0).all()  ),
-                            *(  np.append(feat, +1) for feat in ally_feats if not (feat==0).all()   ),
-                        ], max_len=_core_max_len, padding=0)     #   shape = (??, max_len)
-            padding = np.zeros(shape=(max_len - agent_obs.shape[0], agent_obs.shape[1]), dtype=agent_obs.dtype) + np.nan    #   shape = (max_len - ??, max_len)
-            agent_obs = np.concatenate((agent_obs, padding), 0)
-            if (unit.health <= 0): agent_obs+=np.nan
-            # print('agent_obs', agent_obs)
-            # pad to max_len with np.nan to compat
-            # (30, 7)
 
         if self.debug:
             logging.debug("Obs Agent: {}".format(agent_id).center(60, "-"))
@@ -1261,7 +1222,7 @@ class StarCraft2Env(MultiAgentEnv):
         NOTE: Agents should have access only to their local observations
         during decentralised execution.
         """
-        agents_obs = [self.get_obs_agent(i, self.return_mat) for i in range(self.n_agents)]
+        agents_obs = [self.get_obs_agent(i) for i in range(self.n_agents)]
         return agents_obs
 
     def get_state(self):
@@ -1445,17 +1406,11 @@ class StarCraft2Env(MultiAgentEnv):
 
         n_enemies, n_enemy_feats = self.get_obs_enemy_feats_size()
         n_allies, n_ally_feats = self.get_obs_ally_feats_size()
-        if not self.return_mat:
-            enemy_feats = n_enemies * n_enemy_feats
-            ally_feats = n_allies * n_ally_feats
-    
-            return move_feats + enemy_feats + ally_feats + own_feats
-        else:
-            return (
-                n_allies + n_enemies + 1,
-                max(max(own_feats+move_feats, n_enemy_feats+1), n_ally_feats+1)
-                )
 
+        enemy_feats = n_enemies * n_enemy_feats
+        ally_feats = n_allies * n_ally_feats
+
+        return move_feats + enemy_feats + ally_feats + own_feats
 
     def get_state_size(self):
         """Returns the size of the global state."""
@@ -1619,7 +1574,7 @@ class StarCraft2Env(MultiAgentEnv):
 
     def render_original(self, mode="human"):
         if self.renderer is None:
-            from smac.env.starcraft2.render import StarCraft2Renderer
+            from MISSION.starcraft.smac.env.starcraft2.render import StarCraft2Renderer
 
             self.renderer = StarCraft2Renderer(self, mode)
         assert (

@@ -898,7 +898,7 @@ class StarCraft2Env(MultiAgentEnv):
             reward = abs(delta_enemy + delta_deaths)  # shield regeneration
             if self.fix_shield_reward_bug: # A notorious bug reported at https://github.com/oxwhirl/smac/issues/72
                 reward = max(0, delta_enemy + delta_deaths)
-            if self.fix_shield_reward_bug_removeabs:
+            if self.fix_shield_reward_bug_removeabs: # A notorious bug reported at https://github.com/oxwhirl/smac/issues/72
                 reward = delta_enemy + delta_deaths
         else:
             reward = delta_enemy + delta_deaths - delta_ally
