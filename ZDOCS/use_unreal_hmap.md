@@ -1,8 +1,8 @@
 
 
-# Get Unreal-HMAP Binary Client (Win & Linux)
+# Get Unreal-MAP Binary Client (Win & Linux)
 
-- Method 1: 
+- Method 1 (Will run automatically if U-MAP is called but cannot find executable): 
 ``` python 
 from MISSION.uhmap.auto_download import download_client_binary_on_platform
 download_client_binary_on_platform(
@@ -12,8 +12,6 @@ download_client_binary_on_platform(
     is_render_client=True,
     platform="Linux",
     # platform="Windows",
-
-    
 )
 ```
 
@@ -23,7 +21,8 @@ https://ageasga-my.sharepoint.com/:u:/g/personal/fuqingxu_yiteam_tech/EVmCQMSUWV
 ```
 Open this json file, choose the version and platform you want, download and unzip it.
 
+
 - Method 3 (Compile from source): 
 ```
-https://github.com/binary-husky/unreal-hmp
+[https://github.com/binary-husky/unreal-hmp](https://github.com/binary-husky/unreal-map)
 ```
