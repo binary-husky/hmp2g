@@ -206,6 +206,8 @@ class rec_family(object):
                 self.working_figure_handle2.savefig(self.img_to_write2)
 
     def smooth(self, data, sm_lv=1):
+        if len(data) < sm_lv:
+            raise RuntimeError("You should not enable smoothing")
         if sm_lv > 1:
             y = np.ones(sm_lv)*1.0/sm_lv
             d = np.convolve(y, data, 'same')#"same")

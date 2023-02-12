@@ -1,4 +1,4 @@
-import os, copy, atexit, time, gzip, threading, setproctitle
+import os, copy, atexit, time, gzip, threading, setproctitle, traceback
 import numpy as np
 from multiprocessing import Process
 from UTIL.colorful import *
@@ -480,6 +480,7 @@ class DrawProcess(Process):
             try:
                 self.process_cmd(buff)
             except:
+                traceback.print_exc()
                 print亮红(f'[mcom.py] We have encountered error processing command: {buff}')
 
         #     # print('成功处理指令:', buff)
@@ -496,7 +497,7 @@ class DrawProcess(Process):
                 cmd_str_ = cmd_str_+'()'
             prefix = self.get_cmd_lib(cmd_str_)
             if prefix is not None: 
-                eval('%s.%s'%(prefix, cmd_str_))
+                eval(f'{prefix}.{cmd_str_}')
 
     def get_cmd_lib(self, cmd):
         cmd_key = None

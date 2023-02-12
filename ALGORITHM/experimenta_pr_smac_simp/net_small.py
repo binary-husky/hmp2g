@@ -23,15 +23,13 @@ class Net(Logit2Act, nn.Module):
                 state_dim,
                 n_action,
                 n_agent,
-                stage_planner,
-                alg):
+                stage_planner):
         super().__init__()
         self.use_normalization = AlgorithmConfig.use_normalization
         self.use_policy_resonance = AlgorithmConfig.use_policy_resonance
         self.n_action = n_action
         self.stage_planner = stage_planner
         self.ccategorical = CCategorical(stage_planner)
-        self.alg = alg
 
         h_dim = AlgorithmConfig.net_hdim
         self.state_dim = state_dim
@@ -57,21 +55,19 @@ class Net(Logit2Act, nn.Module):
         assert self.n_action <= h_dim
 
         # # # # # # # # # # critic # # # # # # # # # # # #
+        self.ct_obs_encoder = nn.Sequential(
+            nn.Linear(rawob_dim, h_dim), nn.ReLU(inplace=True), 
+            nn.Linear(h_dim, h_dim)
+        )
         self.ct_encoder = nn.Sequential(
             nn.Linear(h_dim+state_dim, h_dim), nn.ReLU(inplace=True), 
             nn.Linear(h_dim, h_dim)
         )
         self.ct_attention_layer = SimpleAttention(h_dim=h_dim)
-        if self.alg.policy_resonance_method == 'level':
-            self.ct_get_value = nn.Sequential(
-                nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
-                nn.Linear(h_dim, AlgorithmConfig.distribution_precision)
-            )
-        else:
-            self.ct_get_value = nn.Sequential(
-                nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
-                nn.Linear(h_dim, 1)
-            )
+        self.ct_get_value = nn.Sequential(
+            nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
+            nn.Linear(h_dim, AlgorithmConfig.distribution_precision)
+        )
 
 
         self.is_recurrent = False
@@ -94,8 +90,7 @@ class Net(Logit2Act, nn.Module):
         logits = self.at_policy_head(bac)
         
         # choose action selector
-        logit2act = self._logit2act_rsn_entropy_split \
-                if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
+        logit2act = self._logit2act_rsn_entropy_split if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
         
         # apply action selector
         act, actLogProbs, distEntropy, probs = logit2act(   logits,
@@ -106,32 +101,21 @@ class Net(Logit2Act, nn.Module):
                                                             eprsn=eprsn)
         
         # # # # # # # # # # critic # # # # # # # # # # # #
-        n_agent = bac.shape[-2]
-
+        bac_ct = self.ct_obs_encoder(obs)
+        n_agent = bac_ct.shape[-2]
         state_cp = repeat_at(state, -2, n_agent)
-        ct_bac = torch.cat((bac, state_cp), dim=-1)
+        ct_bac = torch.cat((bac_ct, state_cp), dim=-1)
         ct_bac = self.ct_encoder(ct_bac)
         ct_bac = self.ct_attention_layer(k=ct_bac,q=ct_bac,v=ct_bac)
-
-        if self.alg.policy_resonance_method == 'level':
-            assert randl is not None
-            BAL_value_all_level = self.ct_get_value(ct_bac)
-            # BAL_value_all_level[..., 1:] = pt_nan() # pt_inf
-            # in this mode, value is used for advantage calculation
-            if not eval_mode: 
-                return act, BAL_value_all_level, actLogProbs
-            # in this mode, value is used for critic regression
-            else:             
-                value = self.select_value_level(BAL_all_level=BAL_value_all_level, randl=randl)
-                return value, actLogProbs, distEntropy, probs, others
-        else:
-
-            value = self.ct_get_value(ct_bac)
-            if not eval_mode: 
-                return act, value, actLogProbs
-            else:             
-                return value, actLogProbs, distEntropy, probs, others
-
+        BAL_value_all_level = self.ct_get_value(ct_bac)
+        # BAL_value_all_level[..., 1:] = pt_nan() # pt_inf
+        # in this mode, value is used for advantage calculation
+        if not eval_mode: 
+            return act, BAL_value_all_level, actLogProbs
+        # in this mode, value is used for critic regression
+        else:             
+            value = self.select_value_level(BAL_all_level=BAL_value_all_level, randl=randl)
+            return value, actLogProbs, distEntropy, probs, others
 
     def select_value_level(self, BAL_all_level, randl):
         n_agent = BAL_all_level.shape[1]

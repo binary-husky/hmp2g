@@ -1,6 +1,6 @@
 import os,sys
 import numpy as np
-from smac.env.starcraft2.maps import smac_maps
+from MISSION.starcraft.smac.env.starcraft2.maps import smac_maps
 from UTIL.config_args import ChainVar
 map_param_registry = smac_maps.get_smac_map_registry()
 
@@ -136,7 +136,7 @@ class HiddenPrints:
 # 一层套一层。。。这层是为了参数对齐
 class Env_Compat_Wrapper():
     def __init__(self, rank):
-        from smac.env import StarCraft2Env
+        from MISSION.starcraft.smac.env import StarCraft2Env
         # To solve StarCraft2Env.__init__() got an unexpected keyword argument 'sc_version'
         #       replace file : /home/hmp/.local/lib/python?/site-packages/smac/env/starcraft2/starcraft2.py 
         #       with file    : ./ZDOCS/sc2checkversion
