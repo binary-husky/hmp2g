@@ -24,5 +24,5 @@ Open this json file, choose the version and platform you want, download and unzi
 
 - Method 3 (Compile from source): 
 ```
-[https://github.com/binary-husky/unreal-hmp](https://github.com/binary-husky/unreal-map)
+https://github.com/binary-husky/unreal-map
 ```
