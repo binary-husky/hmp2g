@@ -18,7 +18,7 @@ def get_info(script_path):
         info['DockerContainerHash'] = 'None'
     return info
 
-def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path):
+def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, debug):
     arg_base = ['python', 'main.py']
     time_mark_only = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
     time_mark = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + '-' + sum_note
@@ -89,6 +89,9 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         final_arg_list.append(final_arg)
         print('')
 
+    def local_worker_std_console(ith_run):
+        printX[ith_run%len(printX)](final_arg_list[ith_run])
+        subprocess.run(final_arg_list[ith_run])
 
     def local_worker(ith_run):
         log_path = open('PROFILE/%s/run-%d.log'%(exp_log_dir, ith_run+1), 'w+')
@@ -190,21 +193,22 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         parent_pid = os.getpid()   # my example
         clean_process(parent_pid)
 
-    
-            
-    input('Confirm execution? 确认执行?')
-    input('Confirm execution! 确认执行!')
+    if debug:
+        local_worker_std_console(0)
+    else:
+        input('Confirm execution? 确认执行?')
+        input('Confirm execution! 确认执行!')
 
-    t = 0
-    while (t >= 0):
-        print('Counting down ', t)
-        time.sleep(1)
-        t -= 1
-
-    DELAY = 60
-    for ith_run in range(n_run):
-        worker(ith_run)
-        for i in range(DELAY):
+        t = 0
+        while (t >= 0):
+            print('Counting down ', t)
             time.sleep(1)
+            t -= 1
 
-    print('all submitted')
+        DELAY = 60
+        for ith_run in range(n_run):
+            worker(ith_run)
+            for i in range(DELAY):
+                time.sleep(1)
+
+        print('all submitted')

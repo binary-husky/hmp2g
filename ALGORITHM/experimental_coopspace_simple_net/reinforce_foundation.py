@@ -100,8 +100,6 @@ class ReinforceAlgorithmFoundation():
 
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread, traj_limit=ScenarioConfig.MaxEpisodeStep*3, trainer_hook=self.trainer.train_on_traj)
 
-        self._division_obsR_init = None
-        self._division_obsL_init = None
         self.load_checkpoint = CoopAlgConfig.load_checkpoint
         self.cnt = 0
 

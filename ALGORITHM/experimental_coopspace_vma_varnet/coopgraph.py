@@ -200,14 +200,18 @@ class CoopGraph(object):
         mask = mask&random_hit
         if not any(mask): return
         Active_action = np.zeros(shape=(self.n_thread, 4), dtype=np.long)
+        avail_act = self.get_avail_act(mask=np.array([True]*self.n_thread))
 
         for procindex in range(self.n_thread):
             # 无随机扰动
-            if not random_hit[procindex]: continue
+            if not mask[procindex]: continue
             # 有随机扰动
-            r_act = np.random.choice( a=range(self.n_container_AC), size=(2), replace=False, p=None) # 不放回采样
-            l_act = np.random.choice( a=range(self.n_container_CT), size=(2), replace=False, p=None) # 不放回采样
-            Active_action[procindex,:] = np.concatenate((r_act,l_act))
+            avail_act_thread = avail_act[procindex]
+            free_to_choose = [np.where(x==1)[0] for x in avail_act_thread]
+            choose_res = [np.random.choice(x) for x in free_to_choose]
+            # r_act = np.random.choice( a=range(self.n_container_AC), size=(2), replace=False, p=None) # 不放回采样
+            # l_act = np.random.choice( a=range(self.n_container_CT), size=(2), replace=False, p=None) # 不放回采样
+            Active_action[procindex,:] = choose_res # np.concatenate((r_act,l_act))
 
         self.adjust_edge(Active_action[mask], mask=mask, hold=ones)
         self.debug_cnt += 1
@@ -249,7 +253,7 @@ class CoopGraph(object):
 
 
     @staticmethod
-    # @njit
+    @njit
     def swap_according_to_aciton(act, div, fifo, hold_n=None):
         def push(vec, item):
             insert_pos=0; len_vec = len(vec)
