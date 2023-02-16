@@ -1,6 +1,7 @@
 from .reinforce_foundation import CoopAlgConfig
 from UTIL.colorful import *
-from .my_utils import copy_clone, my_view, add_onehot_id_at_last_dim, add_obs_container_subject
+from UTIL.tensor_ops import my_view, repeat_at
+from .my_utils import copy_clone, add_onehot_id_at_last_dim, add_obs_container_subject
 from numba import njit, jit
 import numpy as np
 import pickle, os
@@ -22,6 +23,7 @@ class CoopGraph(object):
                     load_checkpoint=False, 
                     ObsAsUnity=None,
                     agent_uid = None,
+                    sub_cluster_size = 1,
                     target_uid = None,
                     pos_decs = None,
                     vel_decs = None,
@@ -30,6 +32,7 @@ class CoopGraph(object):
                     n_basic_dim = None,
                     ):
         self.n_basic_dim = n_basic_dim
+        self.sub_cluster_size = sub_cluster_size
         self.test_mode = test_mode
         self.n_agent = n_agent
         self.n_entity = n_entity
@@ -43,7 +46,7 @@ class CoopGraph(object):
         # define graph nodes
         self.n_cluster = CoopAlgConfig.g_num if not CoopAlgConfig.one_more_container else CoopAlgConfig.g_num+1
         self.n_container_AC = self.n_cluster
-        self.n_subject_AC = self.n_agent
+        self.n_subject_AC = self.n_agent // self.sub_cluster_size
         self.n_container_CT = self.n_entity if not CoopAlgConfig.reverse_container else self.n_cluster
         self.n_subject_CT = self.n_cluster if not CoopAlgConfig.reverse_container else self.n_entity
         self.debug_cnt = 0
@@ -115,6 +118,9 @@ class CoopGraph(object):
         objects_emb  = my_view(x=about_all_objects, shape=[0,-1,self.n_basic_dim]) # select one agent
 
         agent_pure_emb = objects_emb[:,self.agent_uid,:]
+        if self.sub_cluster_size!=1:
+            agent_pure_emb = my_view(agent_pure_emb, [0, self.n_agent//self.sub_cluster_size, self.sub_cluster_size, 0])    # (32, 30, 8)
+            agent_pure_emb = agent_pure_emb.mean(-2)
         target_pure_emb = objects_emb[:,self.target_uid,:]
         
         n_thread = live_obs.shape[0]
@@ -189,10 +195,56 @@ class CoopGraph(object):
             if CoopAlgConfig.one_more_container: 
                 cluster_target_div[:,self.n_cluster] = self.n_entity
 
-        agent_target_div = np.take_along_axis(cluster_target_div, axis=1, indices=self._Edge_AC_)
-        final_indices = np.expand_dims(agent_target_div, axis=-1).repeat(3, axis=-1)
+        agent_target_link = np.take_along_axis(cluster_target_div, axis=1, indices=self._Edge_AC_)
+        # deal with sub_cluster_size
+        if self.sub_cluster_size != 1:
+            agent_target_link = my_view(repeat_at(agent_target_link, insert_dim=-1, n_times=self.sub_cluster_size),[0,-1])
+        return agent_target_link
+    
 
-        return final_indices
+    @staticmethod
+    # @jit(forceobj=True)
+    def dir_to_action3d(vec, vel):
+        dis = np.expand_dims(np.linalg.norm(vec, axis=2) + 1e-16, axis=-1)
+        vec2 = np.cross(np.cross(vec, vel, axis=-1),vec, axis=-1)
+        def np_mat3d_normalize_each_line(mat):
+            return mat / np.expand_dims(np.linalg.norm(mat, axis=2) + 1e-16, axis=-1)
+        # desired_speed = 0.8
+        vec_dx = np_mat3d_normalize_each_line(vec)
+        vec_dv = np_mat3d_normalize_each_line(vel)*0.8
+        vec = np_mat3d_normalize_each_line(vec_dx+vec_dv)
+        vec = np.where(dis<0.15, vec2, vec)
+        return vec
+    
+    ##################### ######################
+    def target_micro_control(self, agent_target_link, act_dec):
+
+        final_indices = np.expand_dims(agent_target_link, axis=-1).repeat(3, axis=-1)
+
+        # cluster控制器部分
+        delta_pos, target_vel = self.目标解析(final_indices, act_dec)
+
+        # if thread_internal_step_o[0] > 0: print红(agent_target_div[0])
+        all_action = self.dir_to_action3d(vec=delta_pos, vel=target_vel) # 矢量指向selected entity
+
+        return all_action
+    
+    ##################### ######################
+    def 目标解析(self, link_indices, act_dec):
+        target_pos, agent_pos, target_vel = (act_dec['target_pos'], act_dec['agent_pos'], act_dec['target_vel'])
+
+        if not CoopAlgConfig.reverse_container:
+            final_sel_pos = target_pos
+        else:   # 为没有装入任何entity的container解析一个nan动作
+            final_sel_pos = np.concatenate( (target_pos,  np.zeros(shape=(self.n_thread, 1, 3))+np.nan ) , axis=1)
+            
+        sel_target_pos  = np.take_along_axis(final_sel_pos, axis=1, indices=link_indices)  # 6 in final_indices /cluster_target_div
+        sel_target_vel  = np.take_along_axis(target_vel, axis=1, indices=link_indices)  # 6 in final_indices /cluster_target_div
+        delta_pos = sel_target_pos - agent_pos
+        return delta_pos, sel_target_vel
+    ##################### ######################
+
+
 
     def random_disturb(self, prob, mask):
         random_hit = (np.random.rand(self.n_thread) < prob)
@@ -301,9 +353,9 @@ class CoopGraph(object):
             opacity=0
         )
 
-        for i in range(self.n_agent):
+        for i in range(self.n_subject_AC):
             uid = i+100
-            y = i - self.n_agent/2 # in range (0~self.n_agent)
+            y = i - self.n_subject_AC/2 # in range (0~self.n_subject_AC)
             可视化桥.发送几何体(
                 f'box|{uid}|Red|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
                 0, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
@@ -311,22 +363,22 @@ class CoopGraph(object):
 
         for i in range(self.n_cluster):
             uid = i+200
-            y = i - self.n_cluster/2 # in range (0~self.n_agent)
+            y = i - self.n_cluster/2 # in range (0~self.n_subject_AC)
             可视化桥.发送几何体(
                 f'box|{uid}|Blue|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
                 2, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
                 track_n_frame=0)                
 
-        for i in range(self.n_agent):
+        for i in range(self.n_subject_AC):
             uid = i+300
-            y = i - self.n_agent/2 # in range (0~self.n_agent)
+            y = i - self.n_subject_AC/2 # in range (0~self.n_subject_AC)
             可视化桥.发送几何体(
                 f'box|{uid}|Green|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
                 4, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
                 track_n_frame=0)
 
 
-        for i in range(self.n_agent):
+        for i in range(self.n_subject_AC):
             # uid = i+400
             agent_uid = i+100
             cluster_uid = agent_cluster[i]+200

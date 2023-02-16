@@ -1,7 +1,7 @@
 import numpy as np
-from multiagent.core import World, Agent, Landmark
-from multiagent.scenario import BaseScenario
-import cmath, math, os, time
+from ..core import World, Agent, Landmark
+from ..scenario import BaseScenario
+from UTIL.config_args import ChainVar, ChainVarSimple
 from UTIL.tensor_ops import np_normalize_last_dim, dir3d_rad
 
 def Norm(x):  # 求长度
@@ -20,29 +20,50 @@ def assert_and_break(cond):
         print("fail!")
 
 
+def get_uid_dict(hunter_num, invader_num, num_landmarks, num_dummy_coordinate):
+    uid_dictionary = { # need to contain at least 'agent_uid' and 'entity_uid'
+        'invader_uid' : range(0,                                        invader_num),
+        'agent_uid'  :  range(invader_num,                              invader_num+hunter_num),
+        'landmark_uid': range(invader_num+hunter_num,                   invader_num+hunter_num+num_landmarks),
+        'dummy_uid':    range(invader_num+hunter_num+num_landmarks,     invader_num+hunter_num+num_landmarks+num_dummy_coordinate),
+    }
+    uid_dictionary['entity_uid'] = list(uid_dictionary['invader_uid']) + list(uid_dictionary['landmark_uid']) +  list(uid_dictionary['dummy_uid'])
+    return uid_dictionary
+
+# def ChainVarStr(str):
+#     lambda_str = 'num_entity = invader_num + num_landmarks + num_dummy_coordinate'
+#     left_hand = lambda_str.split('lambda_str')[0]
+#     right_hand = lambda_str.split('lambda_str')[1]
+
+# ChainVarStr('num_entity = invader_num + num_landmarks + num_dummy_coordinate')
 
 
-class ScenarioConfig(object):
-    hunter_num = 15
+
+class ScenarioConfig():
+    hunter_num = 30
     invader_num = 5
     num_landmarks = 6
     num_dummy_coordinate = 4
 
     num_entity = invader_num + num_landmarks + num_dummy_coordinate
+    num_entity_cv = ChainVarSimple('$invader_num$ + $num_landmarks$ + $num_dummy_coordinate$')
+    
     num_subject_in_obs =  (hunter_num + invader_num) + num_landmarks + num_dummy_coordinate   # 观测向量长度
+    num_subject_in_obs_cv = ChainVarSimple('$hunter_num$ + $invader_num$ + $num_landmarks$ + $num_dummy_coordinate$')
+    
+    
+    (hunter_num + invader_num) + num_landmarks + num_dummy_coordinate   # 观测向量长度
 
-    uid_dictionary = { # need to contain at least 'agent_uid' and 'entity_uid'
-        'invader_uid' : range(0,                                        invader_num),
-        'agent_uid'  :  range(invader_num,                              invader_num+hunter_num),
+    uid_dictionary = get_uid_dict(hunter_num, invader_num, num_landmarks, num_dummy_coordinate)
+    uid_dictionary_cv = ChainVar(get_uid_dict, chained_with=['hunter_num', 'invader_num', 'num_landmarks', 'num_dummy_coordinate'])
 
-        'landmark_uid': range(invader_num+hunter_num,                   invader_num+hunter_num+num_landmarks),
-        'dummy_uid':    range(invader_num+hunter_num+num_landmarks,     invader_num+hunter_num+num_landmarks+num_dummy_coordinate),
-    }
-    uid_dictionary['entity_uid'] = list(uid_dictionary['invader_uid']) + list(uid_dictionary['landmark_uid']) +  list(uid_dictionary['dummy_uid'])
 
     N_TEAM = 2
     N_AGENT_EACH_TEAM = [invader_num, hunter_num]
+    N_AGENT_EACH_TEAM_CV = ChainVarSimple('[$invader_num$, $hunter_num$]')
     AGENT_ID_EACH_TEAM = [list(range(0,invader_num)), list(range(invader_num,  invader_num+hunter_num))]
+    AGENT_ID_EACH_TEAM_CV = ChainVarSimple('[list(range(0,$invader_num$)), list(range($invader_num$,  $invader_num$+$hunter_num$))]')
+
     TEAM_NAMES = ['script-team', 'rl-team']
     obs_vec_length = 8
     obs_vec_dictionary = {
@@ -55,7 +76,6 @@ class ScenarioConfig(object):
     discrete_action = True
     MaxEpisodeStep = 140
     arena_size = Unit(m=140)
-    num_MPE_agent = hunter_num + invader_num
     nest_center_pos = np.array([Unit(m=0), Unit(m=0), Unit(m=0)])
 
     hunter_spawn_pos_lim = Unit(m=25)
@@ -63,7 +83,7 @@ class ScenarioConfig(object):
 
     invader_spawn_limit = Unit(m=80)
     distance_dectection = Unit(m=25)
-    intercept_hunter_needed = 3
+    intercept_unit_needed = 3
 
     hunter_affect_range   = Unit(m=5.999)
     hunter_speed_pressure = Unit(m=5.999)
@@ -79,9 +99,6 @@ class ScenarioConfig(object):
     Landmark_Size = Unit(m=6)
     Invader_Kill_Range = Unit(m=5.999) #
 
-    Invader_Spawn_Times = invader_num*2-invader_num
-    invader_spawn_cd = 20
-
     RewardAsUnity = True
     render = False
     
@@ -90,8 +107,6 @@ class ScenarioConfig(object):
 
 class Scenario(BaseScenario):
     def __init__(self, process_id=-1):
-        self.invader_spawn_cd = ScenarioConfig.invader_spawn_cd
-        self.num_agents = ScenarioConfig.num_MPE_agent
         self.arena_size = ScenarioConfig.arena_size
         self.discrete_action = ScenarioConfig.discrete_action
         self.cam_range = ScenarioConfig.arena_size * 1.2
@@ -102,14 +117,12 @@ class Scenario(BaseScenario):
         self.Invader_MaxSpeed = ScenarioConfig.Invader_MaxSpeed
         self.hunter_affect_range = ScenarioConfig.hunter_affect_range
         self.hunter_speed_pressure = ScenarioConfig.hunter_speed_pressure
-        self.intercept_hunter_needed = ScenarioConfig.intercept_hunter_needed
+        self.intercept_unit_needed = ScenarioConfig.intercept_unit_needed
         self.num_subject_in_obs = ScenarioConfig.num_subject_in_obs
         self.Invader_Kill_Range = ScenarioConfig.Invader_Kill_Range
-        self.Invader_Spawn_Times = ScenarioConfig.Invader_Spawn_Times
         self.obs_vec_length = ScenarioConfig.obs_vec_length
         self.invader_num = ScenarioConfig.invader_num
-        self.Invader_To_Intercept = self.invader_num + self.Invader_Spawn_Times
-        # self.thread_index = thread_index  # thread_index = 0 是主进程
+        self.num_agents = sum(ScenarioConfig.N_AGENT_EACH_TEAM)
         self.caught = 0
         self.rew_other = 0
         self.manual_render = None
@@ -161,7 +174,7 @@ class Scenario(BaseScenario):
                 self.threejs_bridge.agent_alive_pos[index][0], 
                 self.threejs_bridge.agent_alive_pos[index][1], 
                 self.threejs_bridge.agent_alive_pos[index][2], 
-                ro_x=0, ro_y=-dir_2, ro_z=dir_1, # rotation
+                ro_x=0, ro_y=-dir_2, ro_z=dir_1, ro_order='ZYX',# rotation
                 label='', label_color='white',
                 opacity=opacity if agent.live else 0,
                 track_n_frame = max(min(self.threejs_bridge.agent_alive_time[index]-1, 10),0)
@@ -244,9 +257,22 @@ class Scenario(BaseScenario):
             if invader.state.previous_pos is None: continue # special situations
             if not hasattr(invader, 'force'): continue # special situations
 
-            invader.state.p_vel = invader.state.previous_vel * (1 - world.damping)  # read vel
+            invader.state.p_vel = invader.state.previous_vel * (1 - world.damping)
             if (invader.force is not None): # use force to update vel
-                invader.force_real = invader.force +  (-invader.force) * len(invader.tracked_by) * 0.55
+                if len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.5:  # (0~0.5) no backward force
+                    invader.force_real = invader.force
+                elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.7:   # (0.5 ~ 0.7) 30% backward force
+                    invader.force_real = invader.force +  (-invader.force) * 0.6
+                elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.9:   # (0.7 ~ 0.9) 30% backward force
+                    invader.force_real = invader.force +  (-invader.force) * 0.8
+                elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*1.0:   # (0.9 ~ 0.95) 30% backward force
+                    invader.state.p_vel = invader.state.previous_vel * 0.1
+                    invader.force_real = invader.force +  (-invader.force) * 1.0
+                elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*1.2:   # (1.0 ~ 1.2) 30% backward force
+                    invader.force_real = invader.force +  (-invader.force) * 1.2
+                else:
+                    invader.force_real = invader.force +  (-invader.force) * 2.0
+
                 invader.state.p_vel += (invader.force_real / invader.mass) * world.dt
 
             # limit max speed
@@ -413,8 +439,6 @@ class Scenario(BaseScenario):
         self.hunter_failed = False
         self.threat_clear = False
         self.reward_sample = 0
-        # self.invader_spawn_time_left = self.Invader_Spawn_Times
-        # self.indader_left_to_hunt = self.Invader_To_Intercept
         if self.show_off:
             print('reset world')
 

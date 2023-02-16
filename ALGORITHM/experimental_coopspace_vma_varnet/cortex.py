@@ -4,8 +4,33 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 from UTIL.tensor_ops import my_view, Args2tensor_Return2numpy, Args2tensor, pt_inf
-from ALGORITHM.common.norm import DynamicNormFix as DynamicNorm
-from ALGORITHM.common.net_manifest import weights_init
+from ALGORITHM.common.norm import DynamicNorm # Fix as DynamicNorm
+
+
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname ==  'Conv':
+        assert False
+    elif classname == 'CNet':
+        return
+    elif classname == 'DynamicNorm':
+        return
+    elif classname == 'Sequential':
+        return
+    elif classname == 'ModuleDict':
+        return
+    elif classname ==  'MultiHeadAttention':
+        return
+    elif classname ==  'ReLU':
+        m.inplace=True
+    elif classname ==  'Linear':
+        nn.init.orthogonal_(m.weight.data)
+        if m.bias is not None: m.bias.data.fill_(0)
+    elif classname == 'LinearFinal':
+        nn.init.orthogonal_(m.weight.data, gain=0.01)
+        m.bias.data.fill_(0)
+    else:
+        assert False, ('how to handle the initialization of this class? ', classname)
 
 
 

@@ -1,5 +1,5 @@
 import_path_ref = {
-    "collective_assult": ("MISSION.collective_assult.collective_assult_parallel_run",          'ScenarioConfig'),
+    "collective_assult": ("MISSION.collective_assult.collective_assult_parallel_run",           'ScenarioConfig'),
     "dca_multiteam": ("MISSION.dca_multiteam.collective_assult_parallel_run",                   'ScenarioConfig'),
     "dca": ("MISSION.dca.collective_assult_parallel_run", 'ScenarioConfig'),
     "air_fight": ("MISSION.air_fight.environment.air_fight_compat",                            'ScenarioConfig'),
