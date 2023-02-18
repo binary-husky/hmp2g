@@ -1,4 +1,4 @@
-import os, fnmatch, matplotlib, time, copy
+import os, fnmatch, matplotlib, time, copy, json
 import numpy as np
 from functools import lru_cache
 from config import GlobalConfig
@@ -62,6 +62,14 @@ class rec_family(object):
                 self.img_to_write2 = image_path+'.jpeg'
         else:
             assert False
+
+    def rec_get(self):
+        assert self.draw_mode =='Img'
+        return json.dumps({
+            'name_list': self.name_list,
+            'line_list': self.line_list,
+            'time_list': self.time_list,
+        })
 
     def rec_init(self, colorC=None):
         if colorC is not None: self.colorC = colorC

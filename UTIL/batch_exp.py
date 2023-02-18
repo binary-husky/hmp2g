@@ -18,7 +18,7 @@ def get_info(script_path):
         info['DockerContainerHash'] = 'None'
     return info
 
-def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path):
+def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission'):
     arg_base = ['python', 'main.py']
     time_mark_only = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
     time_mark = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + '-' + sum_note
@@ -111,9 +111,9 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
             usr = n_run_mode[ith_run]['usr']
             pwd = n_run_mode[ith_run]['pwd']
             ssh, sftp = get_ssh_sftp(addr, usr, pwd)
-            sftp.mkdir('/home/%s/MultiServerMission'%(usr), ignore_existing=True)
-            sftp.mkdir('/home/%s/MultiServerMission/%s'%(usr, time_mark), ignore_existing=True)
-            src_path = '/home/%s/MultiServerMission/%s/src'%(usr, time_mark)
+            sftp.mkdir('/home/%s/%s'%(usr, master_folder), ignore_existing=True)
+            sftp.mkdir('/home/%s/%s/%s'%(usr, master_folder, time_mark), ignore_existing=True)
+            src_path = '/home/%s/%s/%s/src'%(usr, master_folder, time_mark)
             try:
                 sftp.mkdir(src_path, ignore_existing=False)
                 sftp.put_dir('./', src_path, ignore_list=['__pycache__','TEMP','ZHECKPOINT'])
@@ -162,14 +162,20 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
 
         # 杀死
         # stdin, stdout, stderr = ssh.exec_command(command='byobu kill-session -t %s'%byobu_win_name, timeout=1)
-        pass
+        note = conf_list[ith_run]['config.py->GlobalConfig']['note']
+        future = {
+            'checkpoint': '/home/%s/%s/%s/src/ZHECKPOINT/%s'%(usr, master_folder, time_mark, note),
+            'conclusion': '/home/%s/%s/%s/src/ZHECKPOINT/%s/experiment_conclusion.pkl'%(usr, master_folder, time_mark, note),
+            'mark': time_mark,
+        }
+        return future
 
     def worker(ith_run):
         if n_run_mode[ith_run] is None: 
-            local_worker(ith_run)
+            return local_worker(ith_run)
         else:
-            remote_worker(ith_run)
-
+            return remote_worker(ith_run)
+         
 
 
     def clean_process(pid):
@@ -191,20 +197,54 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         clean_process(parent_pid)
 
     
-            
-    input('Confirm execution? 确认执行?')
-    input('Confirm execution! 确认执行!')
+    if not skip_confirm:
+        input('Confirm execution? 确认执行?')
+        input('Confirm execution! 确认执行!')
 
-    t = 0
-    while (t >= 0):
-        print('Counting down ', t)
-        time.sleep(1)
-        t -= 1
+    def count_down(DELAY):
+        DELAY = 20
+        while DELAY > 0: 
+            time.sleep(1); DELAY -= 1; print('Counting down ', DELAY)
 
-    DELAY = 60
+    count_down(5)
+
+    future = []
     for ith_run in range(n_run):
-        worker(ith_run)
-        for i in range(DELAY):
-            time.sleep(1)
+        future.append(worker(ith_run)); count_down(20)
 
     print('all submitted')
+    return future
+
+def objload(file):
+    import pickle, os
+    if not os.path.exists(file): 
+        return
+    with open(file, 'rb') as f:
+        return pickle.load(f)
+    
+def fetch_experiment_conclusion(step, future_list, n_run_mode):
+    n_run = len(future_list)
+    conclusion_list = []
+    for ith_run, future in enumerate(future_list):
+        # step 1: transfer all files
+        from UTIL.exp_helper import get_ssh_sftp
+        addr = n_run_mode[ith_run]['addr']
+        # assert False
+        usr = n_run_mode[ith_run]['usr']
+        pwd = n_run_mode[ith_run]['pwd']
+        ssh, sftp = get_ssh_sftp(addr, usr, pwd)
+        def remote_exist(remote_file, sftp):
+            try:
+                sftp.stat(future['conclusion'])
+                return True
+            except:
+                return False
+
+        while not remote_exist(future['conclusion'], sftp):
+            print('Waiting', future['conclusion'])
+            time.sleep(60)
+        if not os.path.exists('./ZHECKPOINT/AutoRL/'): os.makedirs('./ZHECKPOINT/AutoRL/')
+        sftp.get(future['conclusion'], f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl')
+        conclusion_list.append(objload(f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl'))
+    return conclusion_list
+

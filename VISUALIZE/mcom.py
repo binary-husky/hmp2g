@@ -1,4 +1,4 @@
-import os, copy, atexit, time, gzip, threading, setproctitle, traceback
+import os, copy, atexit, time, gzip, threading, setproctitle, traceback, json
 import numpy as np
 from multiprocessing import Process
 from UTIL.colorful import *
@@ -158,6 +158,11 @@ class mcom():
 
     def rec_save(self):
         self.send('>>rec_save\n')
+
+    def rec_get(self):
+        self.send('>>rec_get\n')
+        res = self.draw_tcp_client.wait_reply()
+        return json.loads(res)
 
     def rec_end_hold(self):
         self.send('>>rec_end_hold\n')
@@ -476,12 +481,17 @@ class DrawProcess(Process):
         while True:
             if len(buff_list) == 0: break
             buff = buff_list.pop(0)
-            if (buff=='>>rec_show\n') and ('>>rec_show\n' in buff_list): continue # skip
-            try:
-                self.process_cmd(buff)
-            except:
-                traceback.print_exc()
-                print亮红(f'[mcom.py] We have encountered error processing command: {buff}')
+            if (buff=='>>rec_show\n') and ('>>rec_show\n' in buff_list): 
+                continue # skip
+            elif (buff=='>>rec_get\n'): 
+                result = self.rec.rec_get()
+                self.tcp_connection.tcpServerP2P.reply_last_client(result)
+            else:
+                try:
+                    self.process_cmd(buff)
+                except:
+                    traceback.print_exc()
+                    print亮红(f'[mcom.py] We have encountered error processing command: {buff}')
 
         #     # print('成功处理指令:', buff)
 

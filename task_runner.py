@@ -308,6 +308,15 @@ class Runner(object):
             
         return win_rate_each_team, mean_reward_each_team
 
+    def conclude_experiment(self):
+        result = self.mcv.rec_get() # get all experiment data
+        logdir = cfg.logdir
+        def objdump(obj):
+            import pickle
+            with open(f'{logdir}/experiment_conclusion.pkl', 'wb+') as f:
+                pickle.dump(obj, f)
+            return
+        objdump(result)
 
     # -- below is nothing of importance --
     # -- you may delete it or replace it with Tensorboard --

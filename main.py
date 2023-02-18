@@ -82,6 +82,7 @@ if __name__ == '__main__':
     runner = Runner(process_pool=smart_pool)
     # GO! GO! GO!
     runner.run() 
+    runner.conclude_experiment()
 
     # DONE!
     print绿('--- All jobs finished ---')
