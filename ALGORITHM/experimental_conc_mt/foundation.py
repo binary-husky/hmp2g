@@ -73,6 +73,8 @@ class AlgorithmConfig:
 
     lr_descent = False
     lr_descent_coef = 2
+    fuzzy_controller = False
+    fuzzy_controller_param = [0,1,2, 0,1,2]
 
 def override_cuda_settings(AlgorithmConfig):
     # change Local cuda settings according to AlgorithmConfig
@@ -137,7 +139,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         logdir = GlobalConfig.logdir
         # makedirs if not exists
         if not os.path.exists(f'{logdir}/history_cpt/'):
-            os.makedirs(f'{logdir}/history_cpt/')
+            os.makedirs(f'{logdir}/history_cpt/', exist_ok=True)
         if self.load_checkpoint:
             self.save_or_load('load', None)
 

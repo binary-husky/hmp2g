@@ -114,7 +114,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         logdir = GlobalConfig.logdir
         # makedirs if not exists
         if not os.path.exists(f'{logdir}/history_cpt/'):
-            os.makedirs(f'{logdir}/history_cpt/')
+            os.makedirs(f'{logdir}/history_cpt/', exist_ok=True)
         if self.load_checkpoint:
             self.save_or_load('load', None)
 

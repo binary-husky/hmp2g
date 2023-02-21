@@ -10,6 +10,73 @@ from config import GlobalConfig
 from UTIL.gpu_share import GpuShareUnit
 from ALGORITHM.common.ppo_sampler import TrajPoolSampler
 
+def gen_feedback_sys(fuzzy_controller_param):
+    import numpy as np
+    import skfuzzy as fuzz
+    from skfuzzy import control as ctrl
+    import matplotlib.pyplot as plt
+    def gen_antecedent(key, min, max):
+        d = (max - min) / 10
+        antecedent = ctrl.Antecedent(np.arange(min, max+1e-10, d), key) # Antecedent 前提变量 [0 ~ 1]
+
+        antecedent['small']   = fuzz.trimf(antecedent.universe, [min,             min,              min/2 + max/2   ])
+        antecedent['medium']  = fuzz.trimf(antecedent.universe, [min,             min/2 + max/2,    max             ])
+        antecedent['large']   = fuzz.trimf(antecedent.universe, [min/2 + max/2,   max,              max             ])
+        # plt.plot(antecedent.universe, antecedent['small'].mf, 'b', linewidth=1.5, label='small')
+        # plt.plot(antecedent.universe, antecedent['medium'].mf, 'g', linewidth=1.5, label='medium')
+        # plt.plot(antecedent.universe, antecedent['large'].mf, 'r', linewidth=1.5, label='large')
+        # plt.title(f'Membership functions of {key}')
+        # plt.legend()
+        # plt.show()
+        return antecedent
+
+    def gen_consequent(key, min, max):
+        d = (max - min) / 10
+        consequent = ctrl.Consequent(np.arange(min, max+1e-10, d), key) # consequent 前提变量 [0 ~ 1]
+
+        consequent['small']   = fuzz.trimf(consequent.universe, [min,             min,              min/2 + max/2   ])
+        consequent['medium']  = fuzz.trimf(consequent.universe, [min,             min/2 + max/2,    max             ])
+        consequent['large']   = fuzz.trimf(consequent.universe, [min/2 + max/2,   max,              max             ])
+        return consequent
+
+
+    win_rate = gen_antecedent(key='win_rate', min=0.0, max=1.0)
+    lr_log_multiplier = gen_consequent(key='lr_log_multiplier', min=-1.0, max=+1.0)
+    ppo_epoch_floating = gen_consequent(key='ppo_epoch_floating', min=2, max=30)
+
+
+    # input_arr = [consequent_1_select, consequent_2_select, consequent_3_select]
+    def gen_rule_list(input_arr, antecedent, consequent_arr, member_ship = ['small', 'medium', 'large']):
+        assert len(consequent_arr) * len(['small', 'medium', 'large']) == len(input_arr)
+        rule_list = []
+        p = 0
+        for consequent in consequent_arr:
+            rule_list.append(ctrl.Rule(antecedent['small'],  consequent[member_ship[input_arr[p]]])) ; p += 1
+            rule_list.append(ctrl.Rule(antecedent['medium'],  consequent[member_ship[input_arr[p]]])) ; p += 1
+            rule_list.append(ctrl.Rule(antecedent['large'],  consequent[member_ship[input_arr[p]]])) ; p += 1
+        assert p == len(input_arr)
+        return rule_list
+
+    rule_list = gen_rule_list(
+        input_arr=fuzzy_controller_param, 
+        antecedent=win_rate, 
+        consequent_arr=[lr_log_multiplier, ppo_epoch_floating], 
+        member_ship = ['small', 'medium', 'large']
+    )
+    controller = ctrl.ControlSystem(rule_list)
+    feedback_sys = ctrl.ControlSystemSimulation(controller)
+    return feedback_sys
+
+def fuzzy_compute(feedback_sys, win_rate_actual):
+    feedback_sys.input['win_rate'] = win_rate_actual
+    feedback_sys.compute()
+        
+    lr_log_multiplier = feedback_sys.output['lr_log_multiplier']
+    ppo_epoch_floating = feedback_sys.output['ppo_epoch_floating']
+
+    lr_multiplier = 10 ** lr_log_multiplier
+    ppo_epoch = int(ppo_epoch_floating)
+    return lr_multiplier, ppo_epoch
 
 class PPO():
     def __init__(self, policy_and_critic, cfg, mcv=None, team=0):
@@ -25,6 +92,10 @@ class PPO():
         self.use_policy_resonance = cfg.use_policy_resonance
         self.preserve_history_pool = cfg.preserve_history_pool
         self.preserve_history_pool_size = cfg.preserve_history_pool_size
+        self.fuzzy_controller_param = cfg.fuzzy_controller_param
+        self.fuzzy_controller = cfg.fuzzy_controller
+
+
         self.lr_descent = cfg.lr_descent
         self.lr_descent_coef = cfg.lr_descent_coef
         self.team = team
@@ -80,8 +151,16 @@ class PPO():
             self.amp_ = amp
             self.policy_and_critic, optimizers = self.amp_.initialize(self.policy_and_critic, [self.at_optimizer, self.ct_optimizer], opt_level="O1")
             self.at_optimizer, self.ct_optimizer = optimizers
-    # def train_on_traj(self, traj_pool, task):
+        if self.fuzzy_controller:
+            self.feedback_sys = gen_feedback_sys(self.fuzzy_controller_param)
+            wr = 0.5
+            lr_multiplier, ppo_epoch = fuzzy_compute(self.feedback_sys, win_rate_actual=wr)
+            self.ppo_epoch = ppo_epoch
+            self.at_optimizer.param_groups[0]['lr'] = self.lr * lr_multiplier
+            self.mcv.rec(wr, 'wr')
+            self.mcv.rec(self.at_optimizer.param_groups[0]['lr'], 'at_optimizer_lr')
 
+    # def train_on_traj(self, traj_pool, task):
     #     with self.gpu_share_unit:
     #         self.train_on_traj_(traj_pool, task) 
 
@@ -138,6 +217,14 @@ class PPO():
         return traj_pool
 
     def train_on_traj(self, traj_pool, task, progress):
+        if self.fuzzy_controller:
+            wr = np.array([t.win for t in traj_pool]).mean()
+            lr_multiplier, ppo_epoch = fuzzy_compute(self.feedback_sys, win_rate_actual=wr)
+            self.ppo_epoch = ppo_epoch
+            self.at_optimizer.param_groups[0]['lr'] = self.lr * lr_multiplier
+            self.mcv.rec(wr, 'wr')
+            self.mcv.rec(self.at_optimizer.param_groups[0]['lr'], 'at_optimizer_lr')
+
         if self.lr_descent:
             # self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)
             # self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)

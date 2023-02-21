@@ -18,7 +18,7 @@ def get_info(script_path):
         info['DockerContainerHash'] = 'None'
     return info
 
-def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission'):
+def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission', auto_rl=False):
     arg_base = ['python', 'main.py']
     time_mark_only = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
     time_mark = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + '-' + sum_note
@@ -116,7 +116,11 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
             src_path = '/home/%s/%s/%s/src'%(usr, master_folder, time_mark)
             try:
                 sftp.mkdir(src_path, ignore_existing=False)
-                sftp.put_dir('./', src_path, ignore_list=['__pycache__','TEMP','ZHECKPOINT'])
+                if auto_rl:
+                    ignore_list=['__pycache__','TEMP','ZHECKPOINT', '.git', 'threejsmod', 'md_imgs', 'ZDOCS']
+                else:
+                    ignore_list=['__pycache__','TEMP','ZHECKPOINT']
+                sftp.put_dir('./', src_path, ignore_list=ignore_list)
                 sftp.close()
                 print紫('upload complete')
             except:
@@ -167,6 +171,7 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
             'checkpoint': '/home/%s/%s/%s/src/ZHECKPOINT/%s'%(usr, master_folder, time_mark, note),
             'conclusion': '/home/%s/%s/%s/src/ZHECKPOINT/%s/experiment_conclusion.pkl'%(usr, master_folder, time_mark, note),
             'mark': time_mark,
+            'time_mark': time_mark_only,
         }
         return future
 
@@ -202,7 +207,6 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         input('Confirm execution! 确认执行!')
 
     def count_down(DELAY):
-        DELAY = 20
         while DELAY > 0: 
             time.sleep(1); DELAY -= 1; print('Counting down ', DELAY)
 
@@ -221,10 +225,27 @@ def objload(file):
         return
     with open(file, 'rb') as f:
         return pickle.load(f)
-    
+
+
+def clean_byobu_interface(future_list, n_run_mode):
+    for ith_run, future in enumerate(future_list):
+        from UTIL.exp_helper import get_ssh_sftp
+        addr = n_run_mode[ith_run]['addr']
+        usr = n_run_mode[ith_run]['usr']
+        pwd = n_run_mode[ith_run]['pwd']
+        ssh, sftp = get_ssh_sftp(addr, usr, pwd)
+        time_mark_only = future['time_mark']
+        stdin, stdout, stderr = ssh.exec_command(command='byobu kill-session -t %s'%(time_mark_only), timeout=1)
+        print亮紫('byobu kill-session -t %s'%(time_mark_only))
+        time.sleep(1)
+
 def fetch_experiment_conclusion(step, future_list, n_run_mode):
     n_run = len(future_list)
     conclusion_list = []
+
+    time_out = 1 * 600 # 在一个小时后timeout
+    time_start = time.time()
+
     for ith_run, future in enumerate(future_list):
         # step 1: transfer all files
         from UTIL.exp_helper import get_ssh_sftp
@@ -239,12 +260,17 @@ def fetch_experiment_conclusion(step, future_list, n_run_mode):
                 return True
             except:
                 return False
-
         while not remote_exist(future['conclusion'], sftp):
-            print('Waiting', future['conclusion'])
-            time.sleep(60)
+            used_time = time.time() - time_start
+            print('Waiting', future['conclusion'], 'Timeour in:', time_out - used_time)
+            if used_time > time_out: 
+                clean_byobu_interface(future_list, n_run_mode)
+                raise TimeoutError
+            time.sleep(10)
         if not os.path.exists('./ZHECKPOINT/AutoRL/'): os.makedirs('./ZHECKPOINT/AutoRL/')
         sftp.get(future['conclusion'], f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl')
         conclusion_list.append(objload(f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl'))
+
+    clean_byobu_interface(future_list, n_run_mode)
     return conclusion_list
 
