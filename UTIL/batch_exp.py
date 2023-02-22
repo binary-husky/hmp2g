@@ -214,7 +214,7 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
 
     future = []
     for ith_run in range(n_run):
-        future.append(worker(ith_run)); count_down(20)
+        future.append(worker(ith_run)); count_down(10)
 
     print('all submitted')
     return future
@@ -243,7 +243,7 @@ def fetch_experiment_conclusion(step, future_list, n_run_mode):
     n_run = len(future_list)
     conclusion_list = []
 
-    time_out = 1 * 600 # 在一个小时后timeout
+    time_out = 1 * 3600 # 在一个小时后timeout
     time_start = time.time()
 
     for ith_run, future in enumerate(future_list):
@@ -262,7 +262,7 @@ def fetch_experiment_conclusion(step, future_list, n_run_mode):
                 return False
         while not remote_exist(future['conclusion'], sftp):
             used_time = time.time() - time_start
-            print('Waiting', future['conclusion'], 'Timeour in:', time_out - used_time)
+            print('Waiting', future['conclusion'], 'Timeout in:', time_out - used_time)
             if used_time > time_out: 
                 clean_byobu_interface(future_list, n_run_mode)
                 raise TimeoutError
