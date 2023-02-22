@@ -26,7 +26,7 @@ numba cython
 
 ## Group 5: Functional
 ```
-func_timeout commentjson PyYAML onedrivedownloader redis filelock
+func_timeout commentjson PyYAML onedrivedownloader redis filelock scikit-fuzzy
 ```
 
 ## Group 6: Remote and management

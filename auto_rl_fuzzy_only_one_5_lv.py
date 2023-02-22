@@ -1,150 +1,122 @@
-# An abstract class implementation for all test functions
-
-from abc import abstractmethod
 import numpy as np
 import commentjson as json
-import logging
-
-
-
-
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-###################################### 第一部分 ：贝叶斯优化接口父类 ##############################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-class BayesianOptimizationInterface:
-    """
-    The abstract class for all benchmark functions acting as objective functions for BO.
-    Note that we assume all problems will be minimization problem, so convert maximisation problems as appropriate.
-    """
-
-    # this should be changed if we are tackling a mixed, or continuous problem, for e.g.
-    problem_type = 'categorical'
-
-    def __init__(self, normalize=True, **kwargs):
-        self.normalize = normalize
-        self.n_vertices = None
-        self.P_NumCategoryList = None
-        self.dim = None
-        self.continuous_dims = None
-        self.categorical_dims = None
-        self.int_constrained_dims = None
-
-    def _check_int_constrained_dims(self):
-        if self.int_constrained_dims is None:
-            return
-        assert self.continuous_dims is not None, 'int_constrained_dims must be a subset of the continuous_dims, ' \
-                                                 'but continuous_dims is not supplied!'
-        int_dims_np = np.asarray(self.int_constrained_dims)
-        cont_dims_np = np.asarray(self.continuous_dims)
-        assert np.all(np.in1d(int_dims_np, cont_dims_np)), "all continuous dimensions with integer " \
-                                                           "constraint must be themselves contained in the " \
-                                                           "continuous_dimensions!"
-
-    @abstractmethod
-    def compute(self, x, normalize=None):
-        raise NotImplementedError()
-
-    def sample_normalize(self, size=None):
-        if size is None:
-            size = 2 * self.dim + 1
-        y = []
-        for i in range(size):
-            x = np.array([np.random.choice(self.P_NumCategoryList[_]) for _ in range(self.dim)])
-            y.append(self.compute(x, normalize=False, ))
-        y = np.array(y)
-        return np.mean(y), np.std(y)
-
-    def __call__(self, *args, **kwargs):
-        return self.compute(*args, **kwargs)
-
-
-
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
+import logging, os
+from functools import lru_cache
+from THIRDPARTY.casmopolitan.bo_interface import BayesianOptimizationInterface
+MasterAutoRLKey = 'auto_rl_fuzzy_only_lr_5mf'
+os.makedirs(f'AUTORL/{MasterAutoRLKey}', exist_ok=True)
 #####################################################################################################################
 ###################################### 第二部分 ：贝叶斯优化HMAP接口继承父类 ###########################################
 #####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
-#####################################################################################################################
 
 class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
-    def __init__(self, seed=None):
-        super().__init__()
-        self.problem_type = 'categorical' # 'mixed'
-        self.seed = seed if seed is not None else 0
-        self.n_run = 4
-        self.seed_list = [self.seed + i for i in range(self.n_run)]
-        self.note_list = [f'parallel-{i}' for i in range(self.n_run)]
-        self.n_run_mode = [
-            {   
-                # "addr": "172.18.116.149:2266",
-                "addr": "210.75.240.143:2236",
-                "usr": "hmp",
-                "pwd": "hmp"
-            },
-        ]*self.n_run
-        self.sum_note = "Bo_AutoRL"
-        self.base_conf = json.loads(self.obtain_base_experiment())
-        self.internal_step_cnt = 0
+    # 获取基本的实验配置模板
+    def obtain_base_experiment(self):
+        return """
+{
+    "config.py->GlobalConfig": {
+        "note": "Run1-Lr-Study",   // 实验存储路径
+        "env_name": "dca_multiteam",  // 环境（任务名称）
+        "env_path": "MISSION.dca_multiteam", 
+        "draw_mode": "Img",
+        "num_threads": 32,    // 环境并行数量
+        "report_reward_interval": 32,
+        "test_interval": 65536,
+        "test_epoch": 256,
+        "mt_parallel": true,
+        "device": "cpu", // 使用哪张显卡
+        "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
+        "n_parallel_frame": 50000000.0,
+        "max_n_episode": 4096.0,
+        "seed": 22334, // 随机数种子
+        "mt_act_order": "new_method",
+        "backup_files": [
+            "ALGORITHM/experimental_conc_mt_fuzzy5",
+            "MISSION/dca_multiteam"
+        ]
+    },
+    "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
+        "N_TEAM": 2,
+        "N_AGENT_EACH_TEAM": [20, 20],
+        "introduce_terrain": true,
+        "terrain_parameters": [0.15, 0.2],
+        "size": "5",
+        "random_jam_prob": 0.05,
+        "MaxEpisodeStep": 150,     // 时间限制， 胜利条件：尽量摧毁、存活
+        "render": false,           // 高效渲染,只有0号线程环境会渲染
+        "RewardAsUnity": true,
+        "half_death_reward": true,
+        "TEAM_NAMES": [
+            "ALGORITHM.experimental_conc_mt_fuzzy5.foundation->ReinforceAlgorithmFoundation",
+            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation->ReinforceAlgorithmFoundation",
+        ]
+    },
+    "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig": {
+        "train_traj_needed": 32,
+        "n_focus_on": 4,
+        "lr": 0.0003,
+        "ppo_epoch": 16,
+        "lr_descent": false,
+        "fuzzy_controller": true,
+        "use_policy_resonance": false,
+        "gamma": 0.99,
+    },
+    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig": {
+        "train_traj_needed": 32,
+        "n_focus_on": 4,
+        "lr": 0.0003,
+        "ppo_epoch": 16,
+        "lr_descent": false,
+        "use_policy_resonance": false,
+        "gamma": 0.99,
+    },
+}
+"""
 
-        self.logger = logging.getLogger('my_logger')
-        self.logger.setLevel(logging.DEBUG)
-        # create a file handler
-        handler = logging.FileHandler('auto_rl_processing.log')
-        # set the logging level for the handler
-        handler.setLevel(logging.DEBUG)
-        # create a formatter
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-        # add the formatter to the handler
-        handler.setFormatter(formatter)
-        # add the handler to the self.logger
-        self.logger.addHandler(handler)
-        self.logger.debug('logger start')
 
-        self.P_CategoricalDims = np.array([0, 1, 2, 3, 4, 5])
-        self.P_NumCategoryList = np.array([3, 3, 3, 3, 3, 3])
+    def get_device_conf(self):
+        return {
+            ########################################
+            "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->device_override":
+                [
+                    "cuda:0",
+                    "cuda:0",
+                    "cuda:1",
+                    "cuda:1",
+                ],
+            "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->gpu_party_override":
+                [
+                    "cuda0_party0", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
+                    "cuda0_party0",
+                    "cuda1_party0", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
+                    "cuda1_party0",
+                ],
 
-        # self.P_ContinuousDims = np.array([2, 3])
-        # self.P_ContinuousLowerBound = np.array([-1] * len(self.P_ContinuousDims))
-        # self.P_ContinuousUpperBound = np.array([1] * len(self.P_ContinuousDims))
+            ########################################
+            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->device_override":
+                [
+                    "cuda:1",
+                    "cuda:1",
+                    "cuda:0",
+                    "cuda:0",
+                ],
+            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->gpu_party_override":
+                [
+                    "cuda1_party0",
+                    "cuda1_party0",
+                    "cuda0_party0",
+                    "cuda0_party0",
+                ],
 
-        self.normalize = False
-        self.y_offset = 0.5
-        self.optimize_direction = 'maximize' # 'minimize'
-
-    def convert_categorical(self, from_x, to_list, p_index):
-        assert p_index in self.P_CategoricalDims
-        assert len(to_list) == self.P_NumCategoryList[p_index]
-        from_x_ = int(from_x)
-        assert from_x_-from_x == 0
-        return to_list[from_x_]
-
-    def convert_continuous(self, from_x, to_range, p_index):
-        assert p_index in self.P_ContinuousDims
-        where = np.where(self.P_ContinuousDims==p_index)[0]
-
-        new_range = to_range[1] - to_range[0]
-        xx = ((from_x - self.P_ContinuousLowerBound[where]) * new_range / (self.P_ContinuousUpperBound[where] - self.P_ContinuousLowerBound[where])) + to_range[0]
-
-        return float(xx)
-
+        }
+    
     def compute(self, X, normalize=False):
+        x_tuple_can_hash = tuple((tuple(x) for x in X))
+        return self.compute_(x_tuple_can_hash, normalize=normalize)
+
+    @lru_cache
+    def compute_(self, X, normalize=False):
+        X = np.array(X)
         batch = X.shape[0]
         y_result_array = np.zeros(shape=(batch, 1))
 
@@ -159,20 +131,19 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
             conf_override.update(self.get_device_conf())
 
             # AutoRL::learn hyper parameter ---> fuzzy
-            p1 = self.convert_categorical(from_x = X[0], to_list=[0, 1, 2], p_index=0)
-            p2 = self.convert_categorical(from_x = X[1], to_list=[0, 1, 2], p_index=1)
-            p3 = self.convert_categorical(from_x = X[2], to_list=[0, 1, 2], p_index=2)
-            p4 = self.convert_categorical(from_x = X[3], to_list=[0, 1, 2], p_index=3)
-            p5 = self.convert_categorical(from_x = X[4], to_list=[0, 1, 2], p_index=4)
-            p6 = self.convert_categorical(from_x = X[5], to_list=[0, 1, 2], p_index=5)
+            p1 = self.convert_categorical(from_x = X[0], to_list=[0, 1, 2, 3, 4], p_index=0)
+            p2 = self.convert_categorical(from_x = X[1], to_list=[0, 1, 2, 3, 4], p_index=1)
+            p3 = self.convert_categorical(from_x = X[2], to_list=[0, 1, 2, 3, 4], p_index=2)
+            p4 = self.convert_categorical(from_x = X[3], to_list=[0, 1, 2, 3, 4], p_index=3)
+            p5 = self.convert_categorical(from_x = X[4], to_list=[0, 1, 2, 3, 4], p_index=4)
 
 
             conf_override.update({
-                "ALGORITHM.experimental_conc_mt.foundation.py->AlgorithmConfig-->fuzzy_controller_param": [
-                    [p1,p2,p3,p4,p5,p6],
-                    [p1,p2,p3,p4,p5,p6],
-                    [p1,p2,p3,p4,p5,p6],
-                    [p1,p2,p3,p4,p5,p6],
+                "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->fuzzy_controller_param": [
+                    [p1,p2,p3,p4,p5],
+                    [p1,p2,p3,p4,p5],
+                    [p1,p2,p3,p4,p5],
+                    [p1,p2,p3,p4,p5],
                 ]
             })
 
@@ -210,7 +181,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
 
             y_array = get_score(conclusion_list)
             y = np.array(y_array).mean()
-            self.logger.debug(f'input {X}, [p1,p2,p3,p4,p5,p6] = {[p1,p2,p3,p4,p5,p6]}| output {y_array}, average {y}')
+            self.logger.debug(f'input {X}, [p1,p2,p3,p4,p5] = {[p1,p2,p3,p4,p5]}| output {y_array}, average {y}')
             y_result_array[b] = (y - self.y_offset)
             if self.optimize_direction == 'maximize':
                 y_result_array[b] = -y_result_array[b]
@@ -218,6 +189,69 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
                 assert self.optimize_direction == 'minimize'
 
         return y_result_array
+
+
+
+    def __init__(self, seed=None):
+        super().__init__()
+        self.problem_type = 'categorical' # 'mixed'
+        self.seed = seed if seed is not None else 0
+        self.n_run = 4
+        self.seed_list = [self.seed + i for i in range(self.n_run)]
+        self.note_list = [f'parallel-{i}' for i in range(self.n_run)]
+        self.n_run_mode = [
+            {   
+                # "addr": "172.18.116.149:2266",
+                "addr": "172.18.29.20:20256",
+                "usr": "hmp",
+                "pwd": "hmp"
+            },
+        ]*self.n_run
+        self.sum_note = "Bo_AutoRL"
+        self.base_conf = json.loads(self.obtain_base_experiment())
+        self.internal_step_cnt = 0
+
+        self.logger = logging.getLogger('my_logger')
+        self.logger.setLevel(logging.DEBUG)
+
+        # create a file handler
+        handler = logging.FileHandler(f'AUTORL/{MasterAutoRLKey}/auto_rl_processing.log')
+        # set the logging level for the handler
+        handler.setLevel(logging.DEBUG)
+        # create a formatter
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        # add the formatter to the handler
+        handler.setFormatter(formatter)
+        # add the handler to the self.logger
+        self.logger.addHandler(handler)
+        self.logger.debug('logger start')
+
+        self.P_CategoricalDims = np.array([0, 1, 2, 3, 4])
+        self.P_NumCategoryList = np.array([5, 5, 5, 5, 5])
+
+        # self.P_ContinuousDims = np.array([2, 3])
+        # self.P_ContinuousLowerBound = np.array([-1] * len(self.P_ContinuousDims))
+        # self.P_ContinuousUpperBound = np.array([1] * len(self.P_ContinuousDims))
+
+        self.normalize = False
+        self.y_offset = 0.5
+        self.optimize_direction = 'maximize' # 'minimize'
+
+    def convert_categorical(self, from_x, to_list, p_index):
+        assert p_index in self.P_CategoricalDims
+        assert len(to_list) == self.P_NumCategoryList[p_index]
+        from_x_ = int(from_x)
+        assert from_x_-from_x == 0
+        return to_list[from_x_]
+
+    def convert_continuous(self, from_x, to_range, p_index):
+        assert p_index in self.P_ContinuousDims
+        where = np.where(self.P_ContinuousDims==p_index)[0]
+
+        new_range = to_range[1] - to_range[0]
+        xx = ((from_x - self.P_ContinuousLowerBound[where]) * new_range / (self.P_ContinuousUpperBound[where] - self.P_ContinuousLowerBound[where])) + to_range[0]
+
+        return float(xx)
 
     def clean_profile_folder(self):
         import shutil, os
@@ -240,106 +274,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
 
 
 
-    def get_device_conf(self):
-        return {
-            ########################################
-            "ALGORITHM.experimental_conc_mt.foundation.py->AlgorithmConfig-->device_override":
-                [
-                    "cuda:0",
-                    "cuda:0",
-                    "cuda:1",
-                    "cuda:1",
-                ],
-            "ALGORITHM.experimental_conc_mt.foundation.py->AlgorithmConfig-->gpu_party_override":
-                [
-                    "cuda0_party0", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
-                    "cuda0_party0",
-                    "cuda1_party0", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
-                    "cuda1_party0",
-                ],
 
-            ########################################
-            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt.foundation.py->AlgorithmConfig-->device_override":
-                [
-                    "cuda:2",
-                    "cuda:2",
-                    "cuda:3",
-                    "cuda:3",
-                ],
-            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt.foundation.py->AlgorithmConfig-->gpu_party_override":
-                [
-                    "cuda2_party0",
-                    "cuda2_party0",
-                    "cuda3_party0",
-                    "cuda3_party0",
-                ],
-
-        }
-
-
-
-    # 获取基本的实验配置模板
-    def obtain_base_experiment(self):
-        return """
-{
-    "config.py->GlobalConfig": {
-        "note": "Run1-Lr-Study",   // 实验存储路径
-        "env_name": "dca_multiteam",  // 环境（任务名称）
-        "env_path": "MISSION.dca_multiteam", 
-        "draw_mode": "Img",
-        "num_threads": 32,    // 环境并行数量
-        "report_reward_interval": 32,
-        "test_interval": 65536,
-        "test_epoch": 256,
-        "mt_parallel": true,
-        "device": "cpu", // 使用哪张显卡
-        "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
-        "n_parallel_frame": 50000000.0,
-        "max_n_episode": 4096.0,
-        "seed": 22334, // 随机数种子
-        "mt_act_order": "new_method",
-        "backup_files": [
-            "ALGORITHM/experimental_conc_mt",
-            "MISSION/dca_multiteam"
-        ]
-    },
-    "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
-        "N_TEAM": 2,
-        "N_AGENT_EACH_TEAM": [35, 35],
-        "introduce_terrain": true,
-        "terrain_parameters": [0.15, 0.2],
-        "size": "5",
-        "random_jam_prob": 0.05,
-        "MaxEpisodeStep": 150,     // 时间限制， 胜利条件：尽量摧毁、存活
-        "render": false,           // 高效渲染,只有0号线程环境会渲染
-        "RewardAsUnity": true,
-        "half_death_reward": true,
-        "TEAM_NAMES": [
-            "ALGORITHM.experimental_conc_mt.foundation->ReinforceAlgorithmFoundation",
-            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt.foundation->ReinforceAlgorithmFoundation",
-        ]
-    },
-    "ALGORITHM.experimental_conc_mt.foundation.py->AlgorithmConfig": {
-        "train_traj_needed": 32,
-        "n_focus_on": 4,
-        "lr": 0.0003,
-        "ppo_epoch": 16,
-        "lr_descent": false,
-        "fuzzy_controller": true,
-        "use_policy_resonance": false,
-        "gamma": 0.99,
-    },
-    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt.foundation.py->AlgorithmConfig": {
-        "train_traj_needed": 32,
-        "n_focus_on": 4,
-        "lr": 0.0003,
-        "ppo_epoch": 16,
-        "lr_descent": false,
-        "use_policy_resonance": false,
-        "gamma": 0.99,
-    },
-}
-"""
 
 
 
@@ -499,7 +434,7 @@ if __name__ == '__main__':
     # Set up the objective function
     parser = argparse.ArgumentParser('Run Experiments')
     parser.add_argument('-p', '--problem', type=str, default='xgboost-mnist')
-    parser.add_argument('--max_iters', type=int, default=150, help='Maximum number of BO iterations.')
+    parser.add_argument('--max_iters', type=int, default=300, help='Maximum number of BO iterations.')
     parser.add_argument('--lamda', type=float, default=1e-6, help='the noise to inject for some problems')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size for BO.')
     parser.add_argument('--n_trials', type=int, default=20, help='number of trials for the experiment')
@@ -519,7 +454,7 @@ if __name__ == '__main__':
     if args.debug: logging.basicConfig(level=logging.INFO)
     # Sanity checks
     assert args.acq in ['ucb', 'ei', 'thompson'], 'Unknown acquisition function choice ' + str(args.acq)
-    mcv = mcom(path = './Temp', rapid_flush = True, draw_mode = 'Img', image_path = 'temp.jpg', tag = 'BayesianOptimisation')
+    mcv = mcom(path = './Temp', rapid_flush = True, draw_mode = 'Img', image_path = f'AUTORL/{MasterAutoRLKey}/decend.jpg', tag = 'BayesianOptimisation')
     mcv.rec_init(color='g')
     BayesianOptimisation(0, mcv, args)
 
