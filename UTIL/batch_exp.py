@@ -45,9 +45,10 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         conf_list.append(conf)
         new_json_paths.append(new_json_path)
 
-    print红('\n')
-    print红('\n')
-    print红('\n')
+    if not auto_rl:
+        print红('\n')
+        print红('\n')
+        print红('\n')
 
     printX = [
         print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛, 
@@ -138,18 +139,18 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         byobu_win_name = '%s--run-%d'%(time_mark_only, ith_run)
         byobu_win_name = byobu_win_name
         stdin, stdout, stderr = ssh.exec_command(command='byobu new-window -t %s'%time_mark_only, timeout=1)
-        print亮紫('byobu new-window -t %s'%time_mark_only)
+        # print亮紫('byobu new-window -t %s'%time_mark_only)
         time.sleep(1)
 
         cmd = 'cd  ' + src_path
         stdin, stdout, stderr = ssh.exec_command(command='byobu send-keys -t %s "%s" C-m'%(time_mark_only, cmd), timeout=1)
-        print亮紫('byobu send-keys "%s" C-m'%cmd)
+        # print亮紫('byobu send-keys "%s" C-m'%cmd)
         time.sleep(1)
 
         
         cmd = ' '.join(['echo',  str(get_info(script_path)) ,'>>', './private_remote_execution.log'])
         stdin, stdout, stderr = ssh.exec_command(command='byobu send-keys -t %s "%s" C-m'%(time_mark_only, cmd), timeout=1)
-        print亮紫('byobu send-keys "%s" C-m'%cmd)
+        # print亮紫('byobu send-keys "%s" C-m'%cmd)
         time.sleep(1)
 
 
@@ -208,7 +209,7 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
 
     def count_down(DELAY):
         while DELAY > 0: 
-            time.sleep(1); DELAY -= 1; print('Counting down ', DELAY)
+            time.sleep(1); DELAY -= 1; print(f'\rCounting down {DELAY}', end='', flush=True)
 
     count_down(5)
 

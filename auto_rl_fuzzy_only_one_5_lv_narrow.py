@@ -4,8 +4,7 @@ import logging, os
 from functools import lru_cache
 from THIRDPARTY.casmopolitan.bo_interface import BayesianOptimizationInterface
 from UTIL.file_lock import FileLock
-
-MasterAutoRLKey = 'auto_rl_fuzzy_only_lr_5mf_debug_cache'
+MasterAutoRLKey = 'auto_rl_fuzzy_only_lr_5mf_narrow'
 os.makedirs(f'AUTORL/{MasterAutoRLKey}', exist_ok=True)
 #####################################################################################################################
 ###################################### 第二部分 ：贝叶斯优化HMAP接口继承父类 ###########################################
@@ -134,6 +133,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
             p3 = self.convert_categorical(from_x = X[2], to_list=[0, 1, 2, 3, 4], p_index=2)
             p4 = self.convert_categorical(from_x = X[3], to_list=[0, 1, 2, 3, 4], p_index=3)
             p5 = self.convert_categorical(from_x = X[4], to_list=[0, 1, 2, 3, 4], p_index=4)
+            p6 = self.convert_continuous( from_x = X[5], to_range=[0.0,     1.0], p_index=5)
 
 
             conf_override.update({
@@ -142,6 +142,14 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
                     [p1,p2,p3,p4,p5],
                     [p1,p2,p3,p4,p5],
                     [p1,p2,p3,p4,p5],
+                ]
+            })
+            conf_override.update({
+                "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->fuzzy_controller_scale_param": [
+                    [p6],
+                    [p6],
+                    [p6],
+                    [p6],
                 ]
             })
 
@@ -178,7 +186,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
 
             y_array = get_score(conclusion_list)
             y = np.array(y_array).mean()
-            self.logger.debug(f'input {X}, [p1,p2,p3,p4,p5] = {[p1,p2,p3,p4,p5]}| output {y_array}, average {y}')
+            self.logger.debug(f'input X={X}, [p1,p2,p3,p4,p5,p6] = {[p1,p2,p3,p4,p5,p6]}| output {y_array}, average {y}')
             y_result_array[b] = (y - self.y_offset)
             if self.optimize_direction == 'maximize':
                 y_result_array[b] = -y_result_array[b]
@@ -191,7 +199,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
 
     def __init__(self, MasterAutoRLKey, normalize=False, seed=None):
         super().__init__(MasterAutoRLKey)
-        self.problem_type = 'categorical' # 'mixed'
+        self.problem_type = 'mixed' # 'categorical' # 'mixed'
         self.seed = seed if seed is not None else 0
         self.n_run = 4
         self.seed_list = [self.seed + i for i in range(self.n_run)]
@@ -200,24 +208,23 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
             {   
                 # "addr": "172.18.116.149:2266",
                 # "addr": "172.18.29.20:20256",
-                "addr": "172.18.29.20:20256",
+                "addr": "172.18.29.24:30414",
                 "usr": "hmp",
                 "pwd": "hmp"
             },
         ]*self.n_run
         self.sum_note = "Bo_AutoRL"
         self.base_conf = json.loads(self.obtain_base_experiment())
-        self.internal_step_cnt = 0
         if self.base_conf["config.py->GlobalConfig"]["max_n_episode"] < 1000:
             input('conf_override["config.py->GlobalConfig-->max_n_episode"] < 1000, confirm?')
-
+        self.internal_step_cnt = 0
 
         self.P_CategoricalDims = np.array([0, 1, 2, 3, 4])
         self.P_NumCategoryList = np.array([5, 5, 5, 5, 5])
 
-        # self.P_ContinuousDims = np.array([2, 3])
-        # self.P_ContinuousLowerBound = np.array([-1] * len(self.P_ContinuousDims))
-        # self.P_ContinuousUpperBound = np.array([1] * len(self.P_ContinuousDims))
+        self.P_ContinuousDims = np.array([5])
+        self.P_ContinuousLowerBound = np.array([-1] * len(self.P_ContinuousDims))
+        self.P_ContinuousUpperBound = np.array([1] * len(self.P_ContinuousDims))
 
         self.normalize = False
         self.y_offset = 0.5
@@ -311,7 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=1, help='batch size for BO.')
     parser.add_argument('--n_trials', type=int, default=20, help='number of trials for the experiment')
     parser.add_argument('--n_init', type=int, default=20, help='number of initialising random points')
-    parser.add_argument('--save_path', type=str, default='output/', help='save directory of the log files')
+    parser.add_argument('--save_path', type=str, default=f'AUTORL/{MasterAutoRLKey}/', help='save directory of the log files')
     parser.add_argument('--ard', action='store_true', help='whether to enable automatic relevance determination')
     parser.add_argument('-a', '--acq', type=str, default='ei', help='choice of the acquisition function.')
     parser.add_argument('--random_seed_objective', type=int, default=20, help='The default value of 20 is provided also in COMBO')
@@ -332,7 +339,7 @@ if __name__ == '__main__':
     if args.debug: logging.basicConfig(level=logging.INFO)
     # Sanity checks
     assert args.acq in ['ucb', 'ei', 'thompson'], 'Unknown acquisition function choice ' + str(args.acq)
-    mcv = mcom(path = 'AUTORL/{MasterAutoRLKey}/', rapid_flush = True, draw_mode = 'Img', image_path = f'AUTORL/{MasterAutoRLKey}/decend.jpg', tag = 'BayesianOptimisation')
+    mcv = mcom(path = f'AUTORL/{MasterAutoRLKey}/', rapid_flush = True, draw_mode = 'Img', image_path = f'AUTORL/{MasterAutoRLKey}/decend.jpg', tag = 'BayesianOptimisation')
     mcv.rec_init(color='g')
     BayesianOptimisation(0, mcv, args, MasterAutoRLKey=MasterAutoRLKey, HmpBayesianOptimizationInterface=HmpBayesianOptimizationInterface)
 

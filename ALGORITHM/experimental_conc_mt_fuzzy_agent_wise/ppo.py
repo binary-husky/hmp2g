@@ -107,10 +107,11 @@ def fuzzy_compute(feedback_sys, win_rate_actual):
 
 
 class PPO():
-    def __init__(self, policy_and_critic, cfg, mcv=None, team=0):
+    def __init__(self, policy_and_critic, cfg, mcv=None, team=0, n_agent=None):
         self.policy_and_critic = policy_and_critic
         self.clip_param = cfg.clip_param
         self.ppo_epoch = cfg.ppo_epoch
+        self.n_agent = n_agent
         self.n_pieces_batch_division = cfg.n_pieces_batch_division
         self.value_loss_coef = cfg.value_loss_coef
         self.entropy_coef = cfg.entropy_coef
@@ -175,13 +176,10 @@ class PPO():
         self.gpu_share_unit = GpuShareUnit(GlobalConfig.device, gpu_party=gpu_party, gpu_ensure_safe=self.gpu_ensure_safe)
 
         self.experimental_useApex = cfg.experimental_useApex
-        if self.experimental_useApex:
-            from apex import amp
-            self.amp_ = amp
-            self.policy_and_critic, optimizers = self.amp_.initialize(self.policy_and_critic, [self.at_optimizer, self.ct_optimizer], opt_level="O1")
-            self.at_optimizer, self.ct_optimizer = optimizers
+
         if self.fuzzy_controller:
             self.fuzzy_adjustment(wr=0.5)
+            self.agent_adjust_factor_flat = np.ones(shape=(self.n_agent,))
 
     def fuzzy_adjustment(self, wr):
         self.feedback_sys = gen_feedback_sys(self.fuzzy_controller_param, self.fuzzy_controller_scale_param)
@@ -252,6 +250,7 @@ class PPO():
         if self.fuzzy_controller:
             wr = np.array([t.win for t in traj_pool]).mean()
             self.fuzzy_adjustment(wr=wr)
+            
 
         if self.lr_descent:
             # self.at_optimizer = optim.Adam(self.at_parameter, lr=self.lr)

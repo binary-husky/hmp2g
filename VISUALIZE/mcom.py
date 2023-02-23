@@ -309,8 +309,8 @@ class DrawProcessThreejs(Process):
             self.tcp_connection.wait_connection() # after this, the queue begin to work
             while True:
                 buff_list = []
-                buff_list.extend(queue.get(timeout=600))
-                for _ in range(queue.qsize()): buff_list.extend(queue.get(timeout=600))
+                buff_list.extend(queue.get(block=True))
+                for _ in range(queue.qsize()): buff_list.extend(queue.get(block=True))
                 self.run_handler(buff_list)
         except KeyboardInterrupt:
             self.__del__()

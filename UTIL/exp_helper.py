@@ -141,3 +141,23 @@ def upload_exp_(cfg):
     sftp.close()
     print亮紫('upload complete')
     
+
+def read_json_handle_empty(fp):
+    import json
+    # create if not exist
+    if not os.path.exists(fp):
+        with open(fp, "w") as f:
+            pass
+    # try to read, otherwise reset
+    try:
+        with open(fp, "r+") as f: 
+            json_data = json.load(f)
+    except:
+        json_data = {}
+    return json_data
+
+def write_json_handle_empty(fp, buf):
+    import json
+    with open(fp, "w") as f:
+        json.dump(buf, fp=f)
+    return

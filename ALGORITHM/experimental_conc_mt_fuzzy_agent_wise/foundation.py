@@ -127,7 +127,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
 
         self.AvgRewardAgentWise = AlgorithmConfig.TakeRewardAsUnity
         from .ppo import PPO
-        self.trainer = PPO(self.policy, cfg=AlgorithmConfig, mcv=mcv, team=self.team)
+        self.trainer = PPO(self.policy, cfg=AlgorithmConfig, mcv=mcv, team=self.team, n_agent=self.n_agent)
         from .trajectory import BatchTrajManager
         self.batch_traj_manager = BatchTrajManager(n_env=n_thread,
                                                    traj_limit=int(self.ScenarioConfig.MaxEpisodeStep), 
