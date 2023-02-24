@@ -9,101 +9,9 @@ from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
 from config import GlobalConfig
 from UTIL.gpu_share import GpuShareUnit
 from ALGORITHM.common.ppo_sampler import TrajPoolSampler
+from .fuzzy import projection, gen_feedback_sys_generic
 
 
-def projection(x, from_range, to_range):
-    return ((x - from_range[0]) * (to_range[1] - to_range[0]) / (from_range[1] - from_range[0])) + to_range[0]
-
-
-def gen_feedback_sys(fuzzy_controller_param, scale_param):
-    import numpy as np
-    import skfuzzy as fuzz
-    from skfuzzy import control as ctrl
-    import matplotlib.pyplot as plt
-    def gen_antecedent(key, min, max):
-        d = (max - min) / 100
-        antecedent = ctrl.Antecedent(np.arange(min, max+1e-10, d), key) # Antecedent 前提变量 [0 ~ 1]
-        default_mf1 = np.array([-0.25, 0,    0.25]); default_mf1 = projection(x=default_mf1, from_range=[0,1], to_range=[min, max])
-        default_mf2 = np.array([0,     0.25,  0.5]); default_mf2 = projection(x=default_mf2, from_range=[0,1], to_range=[min, max])
-        default_mf3 = np.array([0.25, 0.5,   0.75]); default_mf3 = projection(x=default_mf3, from_range=[0,1], to_range=[min, max])
-        default_mf4 = np.array([0.5,  0.75,     1]); default_mf4 = projection(x=default_mf4, from_range=[0,1], to_range=[min, max])
-        default_mf5 = np.array([0.75, 1,     1.25]); default_mf5 = projection(x=default_mf5, from_range=[0,1], to_range=[min, max])
-        antecedent['very small']    = fuzz.trimf(antecedent.universe, default_mf1)
-        antecedent['small']         = fuzz.trimf(antecedent.universe, default_mf2)
-        antecedent['medium']        = fuzz.trimf(antecedent.universe, default_mf3)
-        antecedent['large']         = fuzz.trimf(antecedent.universe, default_mf4)
-        antecedent['very large']    = fuzz.trimf(antecedent.universe, default_mf5)
-
-        # for mfn in  ['very small', 'small', 'medium', 'large', 'very large']:
-        #     plt.plot(antecedent.universe, antecedent[mfn].mf, linewidth=1.5, label=mfn)
-        # plt.title(f'Membership functions of {key}')
-        # plt.legend()
-        # plt.show()
-
-        return antecedent
-
-    def gen_consequent(key, min, max):
-        d = (max - min) / 100
-        consequent = ctrl.Consequent(np.arange(min, max+1e-10, d), key) # consequent 前提变量 [0 ~ 1]
-        default_mf1 = np.array([-0.25, 0,    0.25]); default_mf1 = projection(x=default_mf1, from_range=[0,1], to_range=[min, max])
-        default_mf2 = np.array([0,     0.25,  0.5]); default_mf2 = projection(x=default_mf2, from_range=[0,1], to_range=[min, max])
-        default_mf3 = np.array([0.25, 0.5,   0.75]); default_mf3 = projection(x=default_mf3, from_range=[0,1], to_range=[min, max])
-        default_mf4 = np.array([0.5,  0.75,     1]); default_mf4 = projection(x=default_mf4, from_range=[0,1], to_range=[min, max])
-        default_mf5 = np.array([0.75, 1,     1.25]); default_mf5 = projection(x=default_mf5, from_range=[0,1], to_range=[min, max])
-        consequent['very small']    = fuzz.trimf(consequent.universe, default_mf1)
-        consequent['small']         = fuzz.trimf(consequent.universe, default_mf2)
-        consequent['medium']        = fuzz.trimf(consequent.universe, default_mf3)
-        consequent['large']         = fuzz.trimf(consequent.universe, default_mf4)
-        consequent['very large']    = fuzz.trimf(consequent.universe, default_mf5)
-
-        # for mfn in  ['very small', 'small', 'medium', 'large', 'very large']:
-        #     plt.plot(consequent.universe, consequent[mfn].mf, linewidth=1.5, label=mfn)
-        # plt.title(f'Membership functions of {key}')
-        # plt.legend()
-        # plt.show()
-
-        return consequent
-    
-    win_rate = gen_antecedent(key='win_rate', min=0.0, max=1.0)
-    
-    # scale[0]: std 0~1
-    s1 = projection(x=scale_param[0], from_range=[0,1.0], to_range=[1e-8, 1.0])   # avoid 0 div
-    lr_log_multiplier = gen_consequent(key='lr_log_multiplier', min=-2.5*s1, max=+2.5*s1)
-
-    # input_arr = [consequent_1_select, consequent_2_select, consequent_3_select]
-    def gen_rule_list(input_arr, antecedent, consequent_arr, member_ship = ['small', 'medium', 'large']):
-        assert len(consequent_arr) * len(member_ship) == len(input_arr)
-        rule_list = []
-        p = 0
-        for consequent in consequent_arr:
-            for k in member_ship:
-                # print(f'antecedent {k}, consequent {member_ship[input_arr[p]]}')
-                rule_list.append(ctrl.Rule(antecedent[k],  consequent[member_ship[input_arr[p]]])); p += 1
-        assert p == len(input_arr)
-        return rule_list
-
-    rule_list = gen_rule_list(
-        input_arr=fuzzy_controller_param, 
-        antecedent=win_rate, 
-        consequent_arr=[lr_log_multiplier], 
-        member_ship = ['very small', 'small', 'medium', 'large', 'very large']
-    )
-    controller = ctrl.ControlSystem(rule_list)
-    # controller.view()
-    feedback_sys = ctrl.ControlSystemSimulation(controller)
-    return feedback_sys
-
-def fuzzy_compute(feedback_sys, win_rate_actual):
-    feedback_sys.input['win_rate'] = win_rate_actual
-    feedback_sys.compute()
-        
-    lr_log_multiplier = feedback_sys.output['lr_log_multiplier']
-    # ppo_epoch_floating = feedback_sys.output['ppo_epoch_floating']
-
-    lr_multiplier = 10 ** lr_log_multiplier
-    # lr_multiplier = lr_log_multiplier
-    # ppo_epoch = int(ppo_epoch_floating)
-    return lr_multiplier #, ppo_epoch
 
 
 class PPO():
@@ -178,21 +86,59 @@ class PPO():
         self.experimental_useApex = cfg.experimental_useApex
 
         if self.fuzzy_controller:
-            self.fuzzy_adjustment(wr=0.5)
+            self.fuzzy_adjustment(wr=0.5, pool=None)
             self.agent_adjust_factor_flat = np.ones(shape=(self.n_agent,))
 
-    def fuzzy_adjustment(self, wr):
-        self.feedback_sys = gen_feedback_sys(self.fuzzy_controller_param, self.fuzzy_controller_scale_param)
-        # lr_multiplier, ppo_epoch = fuzzy_compute(self.feedback_sys, win_rate_actual=wr)
-        lr_multiplier = fuzzy_compute(self.feedback_sys, win_rate_actual=wr)
-        # self.ppo_epoch = ppo_epoch
-        self.at_optimizer.param_groups[0]['lr'] = self.lr * lr_multiplier
-        self.mcv.rec(wr, 'wr')
-        self.mcv.rec(self.at_optimizer.param_groups[0]['lr'], 'at_optimizer_lr')
+    def traj_agentwise(self, pool, fuzzy_controller_param, scale_param):
+        print(self.agent_adjust_factor_flat)
+        agents_life_length_all_thread = np.array([traj.agents_life_length for traj in pool])
+        agents_life_length = agents_life_length_all_thread.mean(0)
+        normalized_score = (agents_life_length - agents_life_length.mean() )/ (agents_life_length.std() + 1e-8)
+        clamp_score_1 = np.clip(normalized_score, -1, 1)
 
-    # def train_on_traj(self, traj_pool, task):
-    #     with self.gpu_share_unit:
-    #         self.train_on_traj_(traj_pool, task) 
+        # calculate
+        _scale = projection(x=scale_param[0], from_range=[0,1.0], to_range=[1e-8, 1.0])
+        # generate fuzzy control
+        def fuzzy_compute(feedback_sys, agent_life_std):
+            feedback_sys.input['agent_life_std'] = agent_life_std
+            feedback_sys.compute()
+            adv_log_multiplier = feedback_sys.output['adv_log_multiplier']
+            adv_multiplier = 10 ** adv_log_multiplier
+            return adv_multiplier
+        
+        # expected input [-1, +1], 
+        # expected fuzzy output [-1.5*_scale, +1.5*_scale]
+        # expected final output [10^(-1.5*_scale),10^(+1.5*_scale)]
+        feedback_sys_agent_wise = gen_feedback_sys_generic(
+            antecedent_key='agent_life_std',
+            antecedent_min=-1.0,
+            antecedent_max=+1.0,
+            consequent_key='adv_log_multiplier',
+            consequent_min=-1.5*_scale,
+            consequent_max=+1.5*_scale,
+            fuzzy_controller_param=fuzzy_controller_param,
+            compute_fn=fuzzy_compute
+        )   
+
+        adv_multiplier = np.array([feedback_sys_agent_wise.compute_fn(a) for a in clamp_score_1])
+        self.agent_adjust_factor_flat = adv_multiplier
+        
+
+    def fuzzy_adjustment(self, wr, pool):
+        # self.feedback_sys = gen_feedback_sys(self.fuzzy_controller_param, self.fuzzy_controller_scale_param)
+        # # lr_multiplier, ppo_epoch = fuzzy_compute(self.feedback_sys, win_rate_actual=wr)
+        # lr_multiplier = fuzzy_compute(self.feedback_sys, win_rate_actual=wr)
+        # # self.ppo_epoch = ppo_epoch
+        # self.at_optimizer.param_groups[0]['lr'] = self.lr * lr_multiplier
+
+        if pool is not None: 
+            self.traj_agentwise(pool, 
+                                fuzzy_controller_param=self.fuzzy_controller_param, 
+                                scale_param=self.fuzzy_controller_scale_param) 
+
+        # self.mcv.rec(wr, 'wr')
+        # self.mcv.rec(self.at_optimizer.param_groups[0]['lr'], 'at_optimizer_lr')
+
 
     def calculate_rank(self, arr):
         y = np.zeros_like(arr)
@@ -249,7 +195,7 @@ class PPO():
     def train_on_traj(self, traj_pool, task, progress):
         if self.fuzzy_controller:
             wr = np.array([t.win for t in traj_pool]).mean()
-            self.fuzzy_adjustment(wr=wr)
+            self.fuzzy_adjustment(wr=wr, pool=traj_pool)
             
 
         if self.lr_descent:
@@ -365,6 +311,15 @@ class PPO():
         eprsn = _2tensor(sample['eprsn']) if 'eprsn' in sample else None
 
         batchsize = advantage.shape[0]#; print亮紫(batchsize)
+        if self.fuzzy_controller:
+            
+            adjust_weight_agent_wise = self.agent_adjust_factor_flat
+            adjust_weight_agent_wise = torch.Tensor(adjust_weight_agent_wise).to(obs.device)
+            # expand thread
+            adjust_weight_agent_wise = repeat_at(adjust_weight_agent_wise, insert_dim=0, n_times=batchsize)
+            # unsqueeze
+            adjust_weight_agent_wise = repeat_at(adjust_weight_agent_wise, insert_dim=-1, n_times=1)
+
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
         # if self.experimental_rmDeadSample:  # Warning! This operation will merge Time and Agent dim!
         #     obs, advantage, action, oldPi_actionLogProb, real_value, real_threat, avail_act = \
@@ -405,7 +360,10 @@ class PPO():
         E_clip = torch.where(advantage > 0, torch.clamp(E, max=np.log(1.0+self.clip_param)), E_clip)
         E_clip = torch.where(advantage < 0, torch.clamp(E, min=np.log(1.0-self.clip_param), max=np.log(5) ), E_clip)
         ratio = torch.exp(E_clip)
-        policy_loss = -(ratio*advantage).mean()
+        if self.fuzzy_controller:
+            policy_loss = -(ratio*advantage*adjust_weight_agent_wise).mean()
+        else:
+            policy_loss = -(ratio*advantage).mean()
         entropy_loss = entropy.mean()
         AT_net_loss = policy_loss -entropy_loss*self.entropy_coef
 

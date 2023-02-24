@@ -74,8 +74,8 @@ class AlgorithmConfig:
     lr_descent = False
     lr_descent_coef = 2
     fuzzy_controller = False
-    fuzzy_controller_param = [2,2,2,2,2]
-    fuzzy_controller_scale_param = [0.5]
+    fuzzy_controller_param = [2,2,2,2,2]    # [0~4, ...]
+    fuzzy_controller_scale_param = [0.5]    # [0~1, ...]
 
 def override_cuda_settings(AlgorithmConfig):
     # change Local cuda settings according to AlgorithmConfig
