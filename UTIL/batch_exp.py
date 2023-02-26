@@ -21,7 +21,7 @@ def get_info(script_path):
 def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission', auto_rl=False, debug=False):
     arg_base = ['python', 'main.py']
     time_mark_only = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-    time_mark = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + '-' + sum_note
+    time_mark = time_mark_only + '-' + sum_note
     log_dir = '%s/'%time_mark
     exp_log_dir = log_dir+'exp_log'
     if not os.path.exists('PROFILE/%s'%exp_log_dir):
@@ -269,7 +269,7 @@ def fetch_experiment_conclusion(step, future_list, n_run_mode):
                 return False
         while not remote_exist(future['conclusion'], sftp):
             used_time = time.time() - time_start
-            print('Waiting', future['conclusion'], 'Timeout in:', time_out - used_time)
+            print('Waiting', addr, future['conclusion'], 'Timeout in:', time_out - used_time)
             if used_time > time_out: 
                 clean_byobu_interface(future_list, n_run_mode)
                 raise TimeoutError

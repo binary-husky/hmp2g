@@ -1,64 +1,55 @@
 base = """
 {
     "config.py->GlobalConfig": {
-        "note": "parallel-0",
-        "env_name": "dca_multiteam",
-        "env_path": "MISSION.dca_multiteam",
+        "note": "Run1-Lr-Study",   // 实验存储路径
+        "env_name": "dca_multiteam",  // 环境（任务名称）
+        "env_path": "MISSION.dca_multiteam", 
         "draw_mode": "Img",
-        "num_threads": 32,
+        "num_threads": 32,    // 环境并行数量
         "report_reward_interval": 32,
         "test_interval": 65536,
         "test_epoch": 256,
         "mt_parallel": true,
-        "device": "cpu",
-        "fold": "1",
+        "device": "cpu", // 使用哪张显卡
+        "fold": "1",        // 使用的进程数量 = 环境并行数量/fold
         "n_parallel_frame": 50000000.0,
-        "max_n_episode": 4096.0,
-        "seed": 0,
+        "max_n_episode": 40960.0,
+        "seed": 22334, // 随机数种子
         "mt_act_order": "new_method",
         "backup_files": [
-            "ALGORITHM/experimental_conc_mt_fuzzy_agent_wise",
+            "ALGORITHM/experimental_conc_mt_fuzzy5",
             "MISSION/dca_multiteam"
         ]
     },
     "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
         "N_TEAM": 2,
-        "N_AGENT_EACH_TEAM": [20,20],
+        "N_AGENT_EACH_TEAM": [20, 20],
         "introduce_terrain": true,
-        "terrain_parameters": [0.15,0.2],
+        "terrain_parameters": [0.15, 0.2],
         "size": "5",
         "random_jam_prob": 0.05,
-        "MaxEpisodeStep": 150,
-        "render": false,
+        "MaxEpisodeStep": 150,     // 时间限制， 胜利条件：尽量摧毁、存活
+        "render": false,           // 高效渲染,只有0号线程环境会渲染
         "RewardAsUnity": true,
         "half_death_reward": true,
         "TEAM_NAMES": [
-            "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation->ReinforceAlgorithmFoundation",
-            // "ALGORITHM.random.foundation->RandomController"
-            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation->ReinforceAlgorithmFoundation"
+            "ALGORITHM.experimental_conc_mt_fuzzy5.foundation->ReinforceAlgorithmFoundation",
+            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation->ReinforceAlgorithmFoundation",
         ]
     },
-    "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation.py->AlgorithmConfig": {
+    "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig": {
         "train_traj_needed": 32,
         "n_focus_on": 4,
         "lr": 0.0003,
         "ppo_epoch": 16,
         "lr_descent": false,
         "fuzzy_controller": true,
+        "fuzzy_controller_param": [2, 2, 3, 0, 2],
+        "fuzzy_controller_scale_param": [0.8117568492889404],
         "use_policy_resonance": false,
         "gamma": 0.99,
-        "device_override": "cuda:2",
-        "gpu_party_override": "cuda2_party0",
-        "fuzzy_controller_param": [4, 3, 2, 1, 0],
-        "fuzzy_controller_scale_param": [
-            0.5
-        ]
     },
-    // "ALGORITHM.random.foundation->AlgorithmConfig": {
-
-    // }
-
-    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation.py->AlgorithmConfig": {
+    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig": {
         "train_traj_needed": 32,
         "n_focus_on": 4,
         "lr": 0.0003,
@@ -66,9 +57,7 @@ base = """
         "lr_descent": false,
         "use_policy_resonance": false,
         "gamma": 0.99,
-        "device_override": "cuda:3",
-        "gpu_party_override": "cuda3_party0"
-    }
+    },
 }
 """
 
@@ -86,7 +75,7 @@ n_run_mode = [
 ]*n_run
 assert len(n_run_mode)==n_run
 
-sum_note = "2team-dca-43210"
+sum_note = "test-stable"
 conf_override = {
 
     "config.py->GlobalConfig-->seed":       
@@ -103,7 +92,7 @@ conf_override = {
         ],
 
     ########################################
-    "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation.py->AlgorithmConfig-->device_override":
+    "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->device_override":
         [
             "cuda:2",
             "cuda:2",
@@ -111,29 +100,29 @@ conf_override = {
             "cuda:3",
         ],
 
-    "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation.py->AlgorithmConfig-->gpu_party_override":
+    "ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->gpu_party_override":
         [
-            "cuda2_party0", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
-            "cuda2_party0",
-            "cuda3_party0", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
-            "cuda3_party0",
+            "cuda2_party3", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
+            "cuda2_party3",
+            "cuda3_party3", # 各子实验的party可以相同， 但每个实验的子队伍party建议设置为不同值
+            "cuda3_party3",
         ],
 
     ########################################
-    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation.py->AlgorithmConfig-->device_override":
+    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->device_override":
         [
-            "cuda:4",
-            "cuda:4",
-            "cuda:5",
-            "cuda:5",
+            "cuda:3",
+            "cuda:3",
+            "cuda:2",
+            "cuda:2",
         ],
 
-    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise.foundation.py->AlgorithmConfig-->gpu_party_override":
+    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy5.foundation.py->AlgorithmConfig-->gpu_party_override":
         [
-            "cuda4_party0",
-            "cuda4_party0",
-            "cuda5_party0",
-            "cuda5_party0",
+            "cuda3_party3",
+            "cuda3_party3",
+            "cuda2_party3",
+            "cuda2_party3",
         ],
 
 }
