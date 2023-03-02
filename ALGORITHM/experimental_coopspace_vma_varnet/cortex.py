@@ -163,8 +163,8 @@ class CNet(nn.Module):
         })
 
 
-        self._batch_norm_agent  = DynamicNorm(agent_emb_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True)
-        self._batch_norm_target = DynamicNorm(target_emb_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True)
+        self._batch_norm_agent  = DynamicNorm(agent_emb_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True, sample_limit=CoopAlgConfig.normalization_sample_limit)
+        self._batch_norm_target = DynamicNorm(target_emb_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True, sample_limit=CoopAlgConfig.normalization_sample_limit)
 
         self.is_recurrent = False
         self.apply(weights_init)

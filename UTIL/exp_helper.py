@@ -54,7 +54,7 @@ class MySFTPClient(paramiko.SFTPClient):
         for item in os.listdir(source):
             if item in ignore_list: continue
             if os.path.isfile(os.path.join(source, item)):
-                # print亮靛('uploading: %s --> %s'%(os.path.join(source, item),'%s/%s' % (target, item)))
+                print亮靛('uploading: %s --> %s'%(os.path.join(source, item),'%s/%s' % (target, item)))
                 self.put(os.path.join(source, item), '%s/%s' % (target, item))
             else:
                 self.mkdir('%s/%s' % (target, item), ignore_existing=True)

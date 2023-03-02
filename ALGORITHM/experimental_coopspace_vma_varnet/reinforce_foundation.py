@@ -58,6 +58,10 @@ class CoopAlgConfig(object):
     sub_cluster_size = 1
     dropout_prob = 0.0
 
+    normalization_sample_limit = 3e8
+
+
+
 class ReinforceAlgorithmFoundation():
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         from config import GlobalConfig

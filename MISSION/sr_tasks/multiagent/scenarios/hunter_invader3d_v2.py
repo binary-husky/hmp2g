@@ -30,14 +30,6 @@ def get_uid_dict(hunter_num, invader_num, num_landmarks, num_dummy_coordinate):
     uid_dictionary['entity_uid'] = list(uid_dictionary['invader_uid']) + list(uid_dictionary['landmark_uid']) +  list(uid_dictionary['dummy_uid'])
     return uid_dictionary
 
-# def ChainVarStr(str):
-#     lambda_str = 'num_entity = invader_num + num_landmarks + num_dummy_coordinate'
-#     left_hand = lambda_str.split('lambda_str')[0]
-#     right_hand = lambda_str.split('lambda_str')[1]
-
-# ChainVarStr('num_entity = invader_num + num_landmarks + num_dummy_coordinate')
-
-
 
 class ScenarioConfig():
     hunter_num = 30
@@ -93,8 +85,8 @@ class ScenarioConfig():
     Invader_MaxSpeed = Unit(m=12)   #  12 * 0.05=0.6
 
     Hunter_Size      = Unit(m=1.5)
-    Hunter_Accel     = Unit(m=450)
-    Hunter_MaxSpeed  = Unit(m=16) # 12
+    Hunter_Accel     = Unit(m=400)
+    Hunter_MaxSpeed  = Unit(m=12) # 12
 
     Landmark_Size = Unit(m=6)
     Invader_Kill_Range = Unit(m=5.999) #
@@ -259,28 +251,33 @@ class Scenario(BaseScenario):
 
             invader.state.p_vel = invader.state.previous_vel * (1 - world.damping)
             if (invader.force is not None): # use force to update vel
-                if len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.6:
-                    # (0.0 ~ 0.6)之间，无变化 无影响
-                    invader.force_real = invader.force
-                    invader.max_speed = self.Invader_MaxSpeed
-                elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.7:
-                    # (0.6 ~ 0.8)之间
-                    invader.force_real = invader.force
-                    invader.max_speed = self.Invader_MaxSpeed * 0.5
-                elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.9999:
-                    # (0.8 ~ 0.9999)之间
-                    invader.force_real = invader.force
-                    invader.max_speed = self.Invader_MaxSpeed * 0.1
-                else:
-                    # > 1
-                    invader.force_real = invader.force +  (-invader.force) * 2.0
-                    invader.max_speed = self.Invader_MaxSpeed
-                    
+                invader.force_real = invader.force +  (-invader.force) * len(invader.tracked_by) * 0.55
                 invader.state.p_vel += (invader.force_real / invader.mass) * world.dt
-
-            # invader.state.p_vel = invader.state.previous_vel * (1 - world.damping)  # read vel
             # if (invader.force is not None): # use force to update vel
-            #     invader.force_real = invader.force +  (-invader.force) * len(invader.tracked_by) * 0.55
+            #     if len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.6:
+            #         # (0.0 ~ 0.6)之间，无变化 无影响
+            #         invader.force_real = invader.force
+            #         invader.max_speed = self.Invader_MaxSpeed
+            #     elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.7:
+            #         # (0.6 ~ 0.8)之间
+            #         invader.force_real = invader.force +  (-invader.force) * 0.9
+            #         invader.max_speed = self.Invader_MaxSpeed * 0.8
+            #     elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.8:
+            #         # (0.6 ~ 0.8)之间
+            #         invader.force_real = invader.force +  (-invader.force) * 0.9
+            #         invader.max_speed = self.Invader_MaxSpeed * 0.2
+            #     elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.9:
+            #         # (0.6 ~ 0.8)之间
+            #         invader.force_real = invader.force +  (-invader.force) * 0.9
+            #         invader.max_speed = self.Invader_MaxSpeed * 0.1
+            #     elif len(invader.tracked_by) < ScenarioConfig.intercept_unit_needed*0.9999:
+            #         # (0.8 ~ 0.9999)之间
+            #         invader.force_real = invader.force +  (-invader.force) * 0.9
+            #         invader.max_speed = self.Invader_MaxSpeed * 0.05
+            #     else:
+            #         # > 1
+            #         invader.force_real = invader.force +  (-invader.force) * 2.0
+            #         invader.max_speed = self.Invader_MaxSpeed
             #     invader.state.p_vel += (invader.force_real / invader.mass) * world.dt
 
             # limit max speed
@@ -417,7 +414,7 @@ class Scenario(BaseScenario):
         while True:
             theta = (np.random.rand() * 2 * np.pi - np.pi)*0.35
             phi = (np.random.rand() * 2 * np.pi - np.pi)
-            d = self.rand(low= 0.8 * self.invader_spawn_limit, high= 1.4 * self.invader_spawn_limit)
+            d = self.rand(low=1.0 * self.invader_spawn_limit, high=1.1 * self.invader_spawn_limit)
             agent.state.p_pos = d * np.array([ np.cos(theta)*np.cos(phi), np.cos(theta)*np.sin(phi), np.sin(theta) ]) + self.nest_center_pos
             agent.state.previous_pos = agent.state.p_pos.copy()
             x = agent.state.p_pos[0]

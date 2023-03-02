@@ -15,7 +15,7 @@ from UTIL.tensor_ops import Args2tensor_Return2numpy
 
 class DynamicNorm(nn.Module):
     # ! warning! this module will mess with multi-gpu setting!!
-    def __init__(self, input_size, only_for_last_dim, exclude_one_hot=True, exclude_nan=False):
+    def __init__(self, input_size, only_for_last_dim, exclude_one_hot=True, exclude_nan=False, sample_limit=None):
         super().__init__()
         assert only_for_last_dim
         self.exclude_one_hot = exclude_one_hot
@@ -27,8 +27,12 @@ class DynamicNorm(nn.Module):
         self.input_size = input_size
         self.exclude_nan = exclude_nan
         self.patience = 1000
+        self.sample_limit = sample_limit
 
     def forward(self, x, get_mu_var=False):
+        if (self.sample_limit is not None) and (self.n_sample > self.sample_limit):
+            x = torch.clip_((x - self.mean) / torch.sqrt_(self.var + 1e-8), -10, 10)
+            return x
         assert self.input_size == x.shape[-1], ('self.input_size',self.input_size,'x.shape[-1]',x.shape[-1])
         _2dx = x.detach().reshape(-1, self.input_size)
         if self.exclude_nan: _2dx = _2dx[~torch.isnan(_2dx).any(axis=-1)]
@@ -38,7 +42,7 @@ class DynamicNorm(nn.Module):
             print('Warning! An empty batch just being normalized')
             x = torch.clip_((x - self.mean) / torch.sqrt_(self.var + 1e-8), -10, 10)
             return x
-            
+
         if self.training:
             with torch.no_grad():
                 this_batch_mean = torch.mean(_2dx, dim=0)
