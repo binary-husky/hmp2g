@@ -119,7 +119,7 @@ class trajectory(TRAJ_BASE):
         SAFE_LIMIT = 8
         threat = np.clip(threat, -1, SAFE_LIMIT)
         setattr(self, 'threat', np.expand_dims(threat, -1))
-        if AlgorithmConfig.fuzzy_controller and (not self.win):
+        if AlgorithmConfig.fuzzy_controller and (self.win):
             # assert "intrisic_reward_controller" in GlobalConfig
             sigma = 10
             normalized_score = (self.agents_life_length - self.agents_life_length.mean() ) / sigma

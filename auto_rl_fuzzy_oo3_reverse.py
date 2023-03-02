@@ -2,10 +2,10 @@
 写给自己的备忘录：
 实验checklist：
     1. 修改代码 y
-    2. 修改MasterAutoRLKey
-    3. 修改配置
-    4. 修改服务器
-    5. 修改显卡分配
+    2. 修改MasterAutoRLKey y
+    3. 修改配置 y
+    4. 修改服务器  y
+    5. 修改显卡分配 y
 """
 
 
@@ -15,7 +15,7 @@ import logging, os
 from functools import lru_cache
 from THIRDPARTY.casmopolitan.bo_interface import BayesianOptimizationInterface
 from UTIL.file_lock import FileLock
-MasterAutoRLKey = 'auto_rl_fuzzy_ppoepoch_and_trajnum_again'
+MasterAutoRLKey = 'auto_rl_reward_engineering_reverse'
 os.makedirs(f'AUTORL/{MasterAutoRLKey}', exist_ok=True)
 #####################################################################################################################
 ###################################### 第二部分 ：贝叶斯优化HMAP接口继承父类 ###########################################
@@ -31,8 +31,8 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         "env_name": "dca_multiteam",
         "env_path": "MISSION.dca_multiteam",
         "draw_mode": "Img",
-        "num_threads": 16,
-        "report_reward_interval": 16,
+        "num_threads": 32,
+        "report_reward_interval": 32,
         "test_interval": 65536,
         "test_epoch": 256,
         "mt_parallel": true,
@@ -43,7 +43,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         "seed": 0,
         "mt_act_order": "new_method",
         "backup_files": [
-            "ALGORITHM/experimental_conc_mt_fuzzy_eppoch_and_trajnum",
+            "ALGORITHM/experimental_conc_mt_fuzzy_agent_wise_3",
             "MISSION/dca_multiteam"
         ]
     },
@@ -61,12 +61,12 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         "half_death_reward": true,
         "TEAM_NAMES": [
             // "ALGORITHM.random.foundation->RandomController"
-            "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation->ReinforceAlgorithmFoundation",
-            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation->ReinforceAlgorithmFoundation",
+            "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation->ReinforceAlgorithmFoundation",
+            "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation->ReinforceAlgorithmFoundation",
         ]
     },
 
-    "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig": {
+    "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig": {
         "train_traj_needed": 32,
         "n_focus_on": 3,
         "lr": 0.0003,
@@ -76,12 +76,12 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         "gamma": 0.99,
         "device_override": "cuda:6",
         "fuzzy_controller": true,
-        "fuzzy_controller_param": [ 0, 1, 2, 2, 3,     0, 1, 2, 2, 3 ],
-        "fuzzy_controller_scale_param": [0.5],
+        "fuzzy_controller_param": [ 1,2,3,4,5,6,7,8,9 ],
+        "fuzzy_controller_scale_param": [-99],
         "gpu_party_override": "cuda6_party0"
     },
 
-    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig": {
+    "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig": {
         "train_traj_needed": 32,
         "n_focus_on": 3,
         "lr": 0.0003,
@@ -89,7 +89,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         "lr_descent": false,
         "use_policy_resonance": false,
         "gamma": 0.99,
-        "device_override": "cuda:5",
+        "device_override": "cuda:0",
         "gpu_party_override": "cuda5_party0",
     },
 }
@@ -159,18 +159,12 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         p6 = self.convert_categorical(from_x = X[6],  to_list=[0, 1, 2, 3, 4, 5, 6], p_index=6)
         p7 = self.convert_categorical(from_x = X[7],  to_list=[0, 1, 2, 3, 4, 5, 6], p_index=7)
         p8 = self.convert_categorical(from_x = X[8],  to_list=[0, 1, 2, 3, 4, 5, 6], p_index=8)
-        p9 = self.convert_categorical(from_x = X[9],  to_list=[0, 1, 2, 3, 4, 5, 6], p_index=9)
-        p10 = self.convert_continuous( from_x = X[10], to_range=[0,          1], p_index=10)
 
-        self.logger.info(f'input X={X} | parsed {[p0,p1,p2,p3,p4,p5,p6,p7,p8,p9]}')
+        self.logger.info(f'input X={X} | parsed {[p0,p1,p2,p3,p4,p5,p6,p7,p8]}')
 
         conf_override.update({
-                "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->fuzzy_controller_param": \
-                    [[p0,p1,p2,p3,p4,p5,p6,p7,p8,p9]] * self.n_run
-            })
-        conf_override.update({
-                "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->fuzzy_controller_scale_param": \
-                    [[p10]] * self.n_run,
+                "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->fuzzy_controller_param": \
+                    [[p0,p1,p2,p3,p4,p5,p6,p7,p8]] * self.n_run
             })
 
         self.internal_step_cnt += 1
@@ -182,58 +176,58 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         if batch==0:
             return {
                 ########################################
-                "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->device_override":
+                "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->device_override":
                     [
-                        "cuda:2",
-                        "cuda:2",
-                        "cuda:3",
-                        "cuda:3",
-                        "cuda:4",
-                        "cuda:4",
-                        "cuda:5",
-                        "cuda:5",
+                        "cuda:0",
+                        "cuda:0",
+                        "cuda:1",
+                        "cuda:1",
+                        "cuda:0",
+                        "cuda:0",
+                        "cuda:1",
+                        "cuda:1",
                     ],
-                "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->gpu_party_override":
+                "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->gpu_party_override":
                     [
                         "#0",
                         "#0",
                         "#0",
                         "#0",
-                        "#0",
-                        "#0",
-                        "#0",
-                        "#0",
+                        "#1",
+                        "#1",
+                        "#1",
+                        "#1",
                     ],
 
                 ########################################
-                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->device_override":
+                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->device_override":
                     [
-                        "cuda:2",
-                        "cuda:2",
-                        "cuda:3",
-                        "cuda:3",
-                        "cuda:4",
-                        "cuda:4",
-                        "cuda:5",
-                        "cuda:5",
+                        "cuda:0",
+                        "cuda:0",
+                        "cuda:1",
+                        "cuda:1",
+                        "cuda:0",
+                        "cuda:0",
+                        "cuda:1",
+                        "cuda:1",
                     ],
-                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->gpu_party_override":
+                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->gpu_party_override":
                     [
-                        "#1",
-                        "#1",
-                        "#1",
-                        "#1",
-                        "#1",
-                        "#1",
-                        "#1",
-                        "#1",
+                        "#2",
+                        "#2",
+                        "#2",
+                        "#2",
+                        "#3",
+                        "#3",
+                        "#3",
+                        "#3",
                     ],
 
             }
         elif batch==1:
             return {
                 ########################################
-                "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->device_override":
+                "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->device_override":
                     [
                         "cuda:2",
                         "cuda:2",
@@ -241,10 +235,10 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
                         "cuda:3",
                         "cuda:4",
                         "cuda:4",
-                        "cuda:5",
-                        "cuda:5",
+                        "cuda:0",
+                        "cuda:0",
                     ],
-                "ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->gpu_party_override":
+                "ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->gpu_party_override":
                     [
                         "#2", 
                         "#2",
@@ -257,7 +251,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
                     ],
 
                 ########################################
-                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->device_override":
+                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->device_override":
                     [
                         "cuda:2",
                         "cuda:2",
@@ -265,10 +259,10 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
                         "cuda:3",
                         "cuda:4",
                         "cuda:4",
-                        "cuda:5",
-                        "cuda:5",
+                        "cuda:0",
+                        "cuda:0",
                     ],
-                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_eppoch_and_trajnum.foundation.py->AlgorithmConfig-->gpu_party_override":
+                "TEMP.TEAM2.ALGORITHM.experimental_conc_mt_fuzzy_agent_wise_3.foundation.py->AlgorithmConfig-->gpu_party_override":
                     [
                         "#3", 
                         "#3",
@@ -285,7 +279,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
 
     def __init__(self, MasterAutoRLKey, normalize=False, seed=None):
         super().__init__(MasterAutoRLKey)
-        self.problem_type = 'mixed' # 'categorical' # 'mixed'
+        self.problem_type = 'categorical' # 'categorical' # 'mixed'
         self.seed = seed if seed is not None else 0
         self.n_run = 8
         self.seed_list = [self.seed + i for i in range(self.n_run)]
@@ -293,7 +287,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         self.n_run_mode_withbatch = [
             [
                 {   
-                    "addr": "localhost:2266",
+                    "addr": "210.75.240.143:2236",
                     "usr": "hmp",
                     "pwd": "hmp"
                 },
@@ -313,12 +307,12 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
             input('conf_override["config.py->GlobalConfig-->max_n_episode"] < 1000, confirm?')
         self.internal_step_cnt = 0
 
-        self.P_CategoricalDims = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        self.P_NumCategoryList = np.array([7, 7, 7, 7, 7, 7, 7, 7, 7, 7])
+        self.P_CategoricalDims = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+        self.P_NumCategoryList = np.array([7, 7, 7, 7, 7, 7, 7, 7, 7])
 
-        self.P_ContinuousDims       = np.array([10])
-        self.P_ContinuousLowerBound = np.array([-1] * len(self.P_ContinuousDims))
-        self.P_ContinuousUpperBound = np.array([+1] * len(self.P_ContinuousDims))
+        # self.P_ContinuousDims       = np.array([10])
+        # self.P_ContinuousLowerBound = np.array([-1] * len(self.P_ContinuousDims))
+        # self.P_ContinuousUpperBound = np.array([+1] * len(self.P_ContinuousDims))
 
         self.normalize = False
         self.y_offset = 0
@@ -405,14 +399,14 @@ if __name__ == '__main__':
 
     # Set up the objective function
     parser = argparse.ArgumentParser('Run Experiments')
-    parser.add_argument('-p', '--problem', type=str, default='xgboost-mnist')
     parser.add_argument('--max_iters', type=int, default=300, help='Maximum number of BO iterations.')
     parser.add_argument('--lamda', type=float, default=1e-6, help='the noise to inject for some problems')
-    parser.add_argument('--batch_size', type=int, default=2, help='batch size for BO.')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size for BO.')
     parser.add_argument('--n_trials', type=int, default=20, help='number of trials for the experiment')
     parser.add_argument('--n_init', type=int, default=20, help='number of initialising random points')
     parser.add_argument('--save_path', type=str, default=f'AUTORL/{MasterAutoRLKey}/', help='save directory of the log files')
-    parser.add_argument('--ard', action='store_true', help='whether to enable automatic relevance determination')
+    # parser.add_argument('--ard', action='store_true', help='whether to enable automatic relevance determination')
+    parser.add_argument('--ard', action='store_false', help='whether to enable automatic relevance determination')
     parser.add_argument('-a', '--acq', type=str, default='ei', help='choice of the acquisition function.')
     parser.add_argument('--random_seed_objective', type=int, default=20, help='The default value of 20 is provided also in COMBO')
     parser.add_argument('-d', '--debug', action='store_true', help='Whether to turn on debugging mode (a lot of output will be generated).')
@@ -420,6 +414,8 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=2023, help='**initial** seed setting')
     parser.add_argument('-k', '--kernel_type', type=str, default=None, help='specifies the kernel type')
     parser.add_argument('--infer_noise_var', action='store_true')
+    parser.add_argument('--global_bo', action='store_true', help='whether to use global BO modelling only (disabling the local BO modelling)')
+
     args = parser.parse_args()
     options = vars(args)
     print(options)

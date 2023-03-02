@@ -120,8 +120,8 @@ class PPO():
 
         ## --- <2>  --- ##
         # expected input [0, +1], 
-        # expected fuzzy output [1, 15] floating
-        # expected final output [4, 60] int
+        # expected fuzzy output [1, 7] floating * 8
+        # expected final output [8, 56] int
         def compute_output_trajnum_multiplier_floating(feedback_sys, winrate):
             feedback_sys.input['winrate'] = winrate
             feedback_sys.compute()
@@ -132,8 +132,8 @@ class PPO():
             antecedent_min=0.5-wr_input_expand,
             antecedent_max=0.5+wr_input_expand,
             consequent_key='trajnum_multiplier_floating',
-            consequent_min=8 - 7,
-            consequent_max=8 + 7,
+            consequent_min=4 - 3,
+            consequent_max=4 + 3,
             consequent_num_mf=7,
             fuzzy_controller_param=fuzzy_controller_param[5:10],
             compute_fn=compute_output_trajnum_multiplier_floating

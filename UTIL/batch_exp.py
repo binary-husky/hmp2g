@@ -18,7 +18,7 @@ def get_info(script_path):
         info['DockerContainerHash'] = 'None'
     return info
 
-def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission', auto_rl=False, debug=False):
+def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission', auto_rl=False, debug=False, logger=None):
     arg_base = ['python', 'main.py']
     time_mark_only = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
     time_mark = time_mark_only + '-' + sum_note
@@ -36,7 +36,7 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         conf = copy.deepcopy(base_conf)
         new_json_path = 'PROFILE/%s/run-%d.json'%(exp_json_dir, i+1)
         for key in conf_override:
-            assert n_run == len(conf_override[key]), ('检查！n_run是否对应')
+            assert n_run == len(conf_override[key]), ('检查！n_run是否对应', key)
             tree_path, item = key.split('-->')
             conf[tree_path][item] = conf_override[key][i]
         with open(new_json_path,'w') as f:
@@ -121,7 +121,7 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
             try:
                 sftp.mkdir(src_path, ignore_existing=False)
                 if auto_rl:
-                    ignore_list=['__pycache__','TEMP','ZHECKPOINT', '.git', 'threejsmod', 'md_imgs', 'ZDOCS']
+                    ignore_list=['__pycache__','TEMP','ZHECKPOINT', '.git', 'threejsmod', 'md_imgs', 'ZDOCS', 'AUTORL']
                 else:
                     ignore_list=['__pycache__','TEMP','ZHECKPOINT']
                 sftp.put_dir('./', src_path, ignore_list=ignore_list)
@@ -133,6 +133,12 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
 
         print('byobu attach -t %s'%time_mark_only)
         addr_ip, addr_port = addr.split(':')
+
+
+        if logger is not None and ith_run==0:
+            logger.info("Attach cmd: ssh %s@%s -p %s -t \"byobu attach -t %s\""%(usr, addr_ip, addr_port, time_mark_only))
+
+
         print亮蓝("Attach cmd: ssh %s@%s -p %s -t \"byobu attach -t %s\""%(usr, addr_ip, addr_port, time_mark_only))
         
         stdin, stdout, stderr = ssh.exec_command(command='byobu new-session -d -s %s'%time_mark_only, timeout=1)
@@ -250,7 +256,7 @@ def fetch_experiment_conclusion(step, future_list, n_run_mode):
     n_run = len(future_list)
     conclusion_list = []
 
-    time_out = 1 * 3600 # 在一个小时后timeout
+    time_out = 4 * 3600 # 在一个小时后timeout
     time_start = time.time()
 
     for ith_run, future in enumerate(future_list):

@@ -78,17 +78,21 @@ class AlgorithmConfig:
     fuzzy_controller_scale_param = [0.5]
 
 def override_cuda_settings(AlgorithmConfig):
+    if AlgorithmConfig.device_override != "no-override":
+        GlobalConfig.gpu_party = AlgorithmConfig.gpu_party_override
     # change Local cuda settings according to AlgorithmConfig
     if AlgorithmConfig.device_override != "no-override":
         assert GlobalConfig.device == 'cpu', "please set GlobalConfig.device=cpu if you want to use different GPUs for different teams"
         # reflesh the cuda setting inherited from main.py
         GlobalConfig.device = AlgorithmConfig.device_override
         GlobalConfig.gpu_fraction = AlgorithmConfig.gpu_fraction_override
+        # parse gpu_party, e.g. cuda-1#2
+        if GlobalConfig.gpu_party.startswith('#'): 
+            AlgorithmConfig.gpu_party_override = GlobalConfig.gpu_party = f"{GlobalConfig.device.replace(':', '-')}{GlobalConfig.gpu_party}"
         from main import pytorch_gpu_init; pytorch_gpu_init(GlobalConfig)
         # reflesh the cached cuda setting in tensor_ops
         from UTIL.tensor_ops import cuda_cfg; cuda_cfg.read_cfg()
-    if AlgorithmConfig.device_override != "no-override":
-        GlobalConfig.gpu_party = AlgorithmConfig.gpu_party_override
+
 
 class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):

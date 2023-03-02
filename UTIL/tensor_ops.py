@@ -774,6 +774,16 @@ def distance_matrix(A):
     dis = np.linalg.norm(dis, axis=-1)
     return dis
 
+
+"""
+    calculate distance matrix for a position vector array A, support 3d and 2d
+"""
+def distance_matrix_efficient(X):
+    n_samples = X.shape[0]
+    XX = np.sum(X**2, axis=1).reshape(-1,1) 
+    dis = np.sqrt(np.maximum(XX + XX.T - 2*X.dot(X.T),0)) # aij^2 + aji^2 - 2*aij*aji
+    return dis
+
 """
     calculate delta matrix for a position vector array A
 """
