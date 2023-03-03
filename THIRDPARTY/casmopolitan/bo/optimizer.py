@@ -163,7 +163,7 @@ class Optimizer:
                                                                                        n_training_steps=300,
                                                                                        hypers={})[-n_adapt:, :]
         else:
-            print('not enough init points')
+            print('[bo/optimizer.py] not enough init points, skip')
         suggestions = X_next
         return suggestions
 

@@ -242,7 +242,7 @@ class TrajManagerBase(object):
         self.live_trajs = [trajectory(self.traj_limit, env_id=i) for i in range(self.n_env)]
         self.live_traj_frame = [0 for _ in range(self.n_env)]
         self._traj_lock_buf = None
-        self.patience = 1000
+        self.patience = 10
         pass
     
     def __check_integraty(self, traj_frag):

@@ -51,7 +51,7 @@ class MySFTPClient(paramiko.SFTPClient):
         self.transmitted_file_cnt = 0
 
     def on_file_transmitted(self, file):
-        self.transmitted_file_cnt
+        self.transmitted_file_cnt += 1
         print(f'\r transfering file {self.transmitted_file_cnt}', end='', flush=True)
 
 

@@ -45,11 +45,7 @@ def ordinal2onehot(x, n_categories):
         offset += cat
     return torch.tensor(res)
 
-def check_device(module):
-    for child in module.children():
-        return check_device(child)
-    for param in module.parameters():
-        return param.device
+
 # GP Model
 class GP(ExactGP):
     def __init__(self, train_x, train_y, kern, likelihood,

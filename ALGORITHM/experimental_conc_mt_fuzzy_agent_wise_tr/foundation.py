@@ -151,7 +151,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         # data integraty check
         self._unfi_frag_ = None
         # Skip currupt data integraty check after this patience is exhausted
-        self.patience = 150
+        self.patience = 10
 
     # _____________________Redirection____________________
     # this is a redirect to shell_env.interact_with_env

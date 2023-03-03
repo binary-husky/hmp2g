@@ -173,7 +173,6 @@ class CASMOPOLITANCat:
             device, dtype = torch.device("cpu"), torch.float32
         else:
             device, dtype = self.device, self.dtype
-
         with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
             X_torch = torch.tensor(X).to(device=device, dtype=dtype)
             y_torch = torch.tensor(fX).to(device=device, dtype=dtype)
