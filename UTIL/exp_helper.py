@@ -46,6 +46,15 @@ from stat import S_ISDIR
 # great thank to skoll for sharing this at stackoverflow:
 # https://stackoverflow.com/questions/4409502/directory-transfers-with-paramiko
 class MySFTPClient(paramiko.SFTPClient):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.transmitted_file_cnt = 0
+
+    def on_file_transmitted(self, file):
+        self.transmitted_file_cnt
+        print(f'\r transfering file {self.transmitted_file_cnt}', end='', flush=True)
+
+
     def put_dir(self, source, target, ignore_list=[]):
         ''' Uploads the contents of the source directory to the target path. The
             target directory needs to exists. All subdirectories in source are 
@@ -56,6 +65,7 @@ class MySFTPClient(paramiko.SFTPClient):
             if os.path.isfile(os.path.join(source, item)):
                 # print亮靛('uploading: %s --> %s'%(os.path.join(source, item),'%s/%s' % (target, item)))
                 self.put(os.path.join(source, item), '%s/%s' % (target, item))
+                self.on_file_transmitted(file = os.path.join(source, item))
             else:
                 self.mkdir('%s/%s' % (target, item), ignore_existing=True)
                 self.put_dir(os.path.join(source, item), '%s/%s' % (target, item), ignore_list)
