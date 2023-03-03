@@ -344,7 +344,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
 if __name__ == '__main__':
 
     # from THIRDPARTY.casmopolitan.mixed_test_func import *
-    import logging, torch
+    import logging, torch, gpytorch
     import argparse
     import time
     from THIRDPARTY.casmopolitan.test_funcs.random_seed_config import *
@@ -379,7 +379,8 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(args.seed)
 
 
-    if args.debug: logging.basicConfig(level=logging.INFO)
+    if args.debug: 
+        logging.basicConfig(level=logging.INFO)
     # Sanity checks
     assert args.acq in ['ucb', 'ei', 'thompson'], 'Unknown acquisition function choice ' + str(args.acq)
     mcv = mcom(path = f'AUTORL/{MasterAutoRLKey}/', rapid_flush = True, draw_mode = 'Img', image_path = f'AUTORL/{MasterAutoRLKey}/decend.jpg', tag = 'BayesianOptimisation')
