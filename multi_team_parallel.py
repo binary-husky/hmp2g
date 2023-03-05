@@ -1,5 +1,5 @@
 import numpy as np
-import importlib, copy
+import importlib, copy, atexit
 from UTIL.data_struct import UniqueList
 from UTIL.shm_pool import SmartPool
 
@@ -26,6 +26,11 @@ class alg_parallel_wrapper(object):
         assert self._hook_deligate_ is not None
         self._hook_deligate_(callback_arg)
         self._hook_deligate_ = None
+
+    def notify_teams(self, message, kargs):
+        if (not hasattr(self.alg, 'on_notify')) or (not callable(self.alg.on_notify)): 
+            return
+        self.alg.on_notify(message, **kargs)
 
     # -- you may delete it or replace it with Tensorboard --
     def init_alg_logger(self):
@@ -69,7 +74,6 @@ class MMPlatform(object):
 
         space = envs.get_space()    # get observation space and action space
         arg_list = []
-        self.algo_foundations = []  # import and initialize algorithms
         for t in range(self.n_t):
             assert len(self.t_member_list[t]) == n_agents_each_t[t]
             assert '->' in self.t_name[t]
@@ -84,6 +88,8 @@ class MMPlatform(object):
 
         print('[multi_team_parallel] distributing algorithm to independent process')
         self.alg_parallel_exe = SmartPool(fold=1, proc_num=self.n_t, base_seed=GlobalConfig.seed)
+        atexit.register(self.alg_parallel_exe.party_over)  # failsafe, handles shm leak
+
         self.alg_parallel_exe.add_target(
             name='alg_parallel_exe', 
             lam=alg_parallel_wrapper, 
@@ -222,9 +228,9 @@ class MMPlatform(object):
             hook(arg)
 
     def notify_teams(self, message, **kargs):
-        for algo_fdn in self.algo_foundations:
-            if (not hasattr(algo_fdn, 'on_notify')) or (not callable(algo_fdn.on_notify)): continue
-            algo_fdn.on_notify(message, **kargs)
+        args_list = [(message, kargs)] * self.n_t
+        self.alg_parallel_exe.exec_target(name='alg_parallel_exe', dowhat='notify_teams', args_list=args_list, ensure_safe=True)
+
 
     def __split_obs(self, obs, t_index):
         # obs [n_thread, n_team/n_agent, coredim]

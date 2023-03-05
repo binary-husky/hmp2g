@@ -1,4 +1,4 @@
-import os, copy, atexit, time, gzip, threading, setproctitle
+import os, copy, atexit, time, gzip, threading, setproctitle, traceback, json
 import numpy as np
 from multiprocessing import Process
 from UTIL.colorful import *
@@ -159,6 +159,11 @@ class mcom():
     def rec_save(self):
         self.send('>>rec_save\n')
 
+    def rec_get(self):
+        self.send('>>rec_get\n')
+        res = self.draw_tcp_client.wait_reply()
+        return json.loads(res)
+
     def rec_end_hold(self):
         self.send('>>rec_end_hold\n')
 
@@ -304,8 +309,8 @@ class DrawProcessThreejs(Process):
             self.tcp_connection.wait_connection() # after this, the queue begin to work
             while True:
                 buff_list = []
-                buff_list.extend(queue.get(timeout=600))
-                for _ in range(queue.qsize()): buff_list.extend(queue.get(timeout=600))
+                buff_list.extend(queue.get(block=True))
+                for _ in range(queue.qsize()): buff_list.extend(queue.get(block=True))
                 self.run_handler(buff_list)
         except KeyboardInterrupt:
             self.__del__()
@@ -476,11 +481,17 @@ class DrawProcess(Process):
         while True:
             if len(buff_list) == 0: break
             buff = buff_list.pop(0)
-            if (buff=='>>rec_show\n') and ('>>rec_show\n' in buff_list): continue # skip
-            try:
-                self.process_cmd(buff)
-            except:
-                print亮红(f'[mcom.py] We have encountered error processing command: {buff}')
+            if (buff=='>>rec_show\n') and ('>>rec_show\n' in buff_list): 
+                continue # skip
+            elif (buff=='>>rec_get\n'): 
+                result = self.rec.rec_get()
+                self.tcp_connection.tcpServerP2P.reply_last_client(result)
+            else:
+                try:
+                    self.process_cmd(buff)
+                except:
+                    traceback.print_exc()
+                    print亮红(f'[mcom.py] We have encountered error processing command: {buff}')
 
         #     # print('成功处理指令:', buff)
 
@@ -496,7 +507,7 @@ class DrawProcess(Process):
                 cmd_str_ = cmd_str_+'()'
             prefix = self.get_cmd_lib(cmd_str_)
             if prefix is not None: 
-                eval('%s.%s'%(prefix, cmd_str_))
+                eval(f'{prefix}.{cmd_str_}')
 
     def get_cmd_lib(self, cmd):
         cmd_key = None

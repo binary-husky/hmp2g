@@ -39,9 +39,13 @@ def pytorch_gpu_init(cfg):
     # e.g. device='cpu'
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     if not 'cuda' in device: return
-    if device == 'cuda': gpu_index = sel_gpu().auto_choice()
+    if device == 'cuda': 
+        gpu_index = sel_gpu().auto_choice()
     else: # e.g. device='cuda:0'
         gpu_index = int(device.split(':')[-1])
+        # parse gpu_party, e.g. cuda-1#2
+        if cfg.gpu_party.startswith('#'): 
+            cfg.gpu_party = f"{cfg.device.replace(':', '-')}{cfg.gpu_party}"
         cfg.manual_gpu_ctl = True
         if cfg.gpu_fraction!=1: torch.cuda.set_per_process_memory_fraction(cfg.gpu_fraction, gpu_index)
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_index)
@@ -82,6 +86,7 @@ if __name__ == '__main__':
     runner = Runner(process_pool=smart_pool)
     # GO! GO! GO!
     runner.run() 
+    runner.conclude_experiment()
 
     # DONE!
     print绿('--- All jobs finished ---')

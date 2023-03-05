@@ -6,6 +6,7 @@ from ALGORITHM.common.traj_gae import BatchTrajManager
 from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 from ALGORITHM.common.onfly_config import ConfigOnFly
 from UTIL.tensor_ops import __hash__, repeat_at
+from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -108,7 +109,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         logdir = GlobalConfig.logdir
         # makedirs if not exists
         if not os.path.exists(f'{logdir}/history_cpt/'):
-            os.makedirs(f'{logdir}/history_cpt/')
+            os.makedirs(f'{logdir}/history_cpt/', exist_ok=True)
         if self.load_checkpoint:
             manual_dir = AlgorithmConfig.load_specific_checkpoint
             ckpt_dir = f'{logdir}/model.pt' if manual_dir == '' else f'{logdir}/{manual_dir}'

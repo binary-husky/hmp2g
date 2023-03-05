@@ -5,27 +5,28 @@ import torch.optim as optim
 import numpy as np
 from UTIL.colorful import *
 from UTIL.tensor_ops import _2tensor, __hash__
-from config import GlobalConfig as cfg
+from config import GlobalConfig
 from UTIL.gpu_share import GpuShareUnit
 from ALGORITHM.common.ppo_sampler import TrajPoolSampler
 
 
 class PPO():
-    def __init__(self, policy_and_critic, ppo_config, mcv=None):
+    def __init__(self, policy_and_critic, cfg, mcv=None):
         self.policy_and_critic = policy_and_critic
-        self.clip_param = ppo_config.clip_param
-        self.ppo_epoch = ppo_config.ppo_epoch
-        self.use_conc_net = ppo_config.use_conc_net
-        self.n_pieces_batch_division = ppo_config.n_pieces_batch_division
-        self.value_loss_coef = ppo_config.value_loss_coef
-        self.entropy_coef = ppo_config.entropy_coef
-        self.max_grad_norm = ppo_config.max_grad_norm
-        self.add_prob_loss = ppo_config.add_prob_loss
-        self.prevent_batchsize_oom = ppo_config.prevent_batchsize_oom
-        self.BlockInvalidPg = ppo_config.BlockInvalidPg
-        self.advantage_norm = ppo_config.advantage_norm
-        self.lr = ppo_config.lr
-        self.extral_train_loop = ppo_config.extral_train_loop
+        self.cfg = cfg
+        self.clip_param = cfg.clip_param
+        self.ppo_epoch = cfg.ppo_epoch
+        self.use_conc_net = cfg.use_conc_net
+        self.n_pieces_batch_division = cfg.n_pieces_batch_division
+        self.value_loss_coef = cfg.value_loss_coef
+        self.entropy_coef = cfg.entropy_coef
+        self.max_grad_norm = cfg.max_grad_norm
+        self.add_prob_loss = cfg.add_prob_loss
+        self.prevent_batchsize_oom = cfg.prevent_batchsize_oom
+        self.BlockInvalidPg = cfg.BlockInvalidPg
+        self.advantage_norm = cfg.advantage_norm
+        self.lr = cfg.lr
+        self.extral_train_loop = cfg.extral_train_loop
         self.policy_and_critic = policy_and_critic
         self.all_parameter = list(policy_and_critic.named_parameters())
         self.at_parameter = [(p_name, p) for p_name, p in self.all_parameter if ('at_' in p_name)]
@@ -61,7 +62,7 @@ class PPO():
         self.n_div = 1
         # print亮红(self.n_div)
 
-        self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party)
+        self.gpu_share_unit = GpuShareUnit(GlobalConfig.device, gpu_party=GlobalConfig.gpu_party)
 
     def train_on_traj(self, traj_pool, task):
         with self.gpu_share_unit:
@@ -69,21 +70,23 @@ class PPO():
 
     def train_on_traj_(self, traj_pool, task):
         ppo_valid_percent_list = []
+
+        req_dict = [
+            'obs', 'state', 'eprsn', 'randl', 'action', 'actionLogProb', 
+            'return', 'reward', 'threat', 'value']
         sampler = TrajPoolSampler(
             n_div=self.n_div, 
             traj_pool=traj_pool, 
             flag=task, 
-            req_dict=[
-                'obs', 'state', 'eprsn', 'randl', 'action', 'actionLogProb', 
-                'value_selected', 'return_selected',
-                'BAL_return_all_level', 'reward', 'threat', 'BAL_value_all_level'], 
-            return_rename='return_selected',
-            value_rename='value_selected',
-            advantage_rename='advantage_selected',
+            req_dict=req_dict, 
+            return_rename = 'return',
+            value_rename = 'value',
+            advantage_rename='advantage',
             prevent_batchsize_oom=False, 
             advantage_norm = self.advantage_norm,
             mcv=None
         )
+
         assert self.n_div == len(sampler)
         for e in range(self.ppo_epoch):
             # print亮紫('pulse')
@@ -137,95 +140,63 @@ class PPO():
 
 
     def establish_pytorch_graph(self, flag, sample, n):
-        # req_dict=[
-        #     'obs', 'state', 'eprsn', 'randl', 'action', 'actionLogProb', 
-        #     'value_selected', 'return_selected',
-        #     'BAL_return_all_level', 'reward', 'threat', 'BAL_value_all_level'], 
-        # return_rename='return_selected',
-        # value_rename='value_selected',
-        # advantage_rename='advantage_selected',
         obs = _2tensor(sample['obs'])
         state = _2tensor(sample['state']) if 'state' in sample else None
+        advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
         oldPi_actionLogProb = _2tensor(sample['actionLogProb'])
+        real_value = _2tensor(sample['return'])
         real_threat = _2tensor(sample['threat'])
         avail_act = _2tensor(sample['avail_act']) if 'avail_act' in sample else None
         eprsn = _2tensor(sample['eprsn']) if 'eprsn' in sample else None
-        randl = _2tensor(sample['randl']) if 'randl' in sample else None
 
-        # BAL_advantage_all_level = _2tensor(sample['BAL_advantage_all_level'])
-        # BAL_return_all_level = _2tensor(sample['BAL_return_all_level'])
-
-        # def select_value_level(BAL_all_level, randl):
-        #     n_agent = BAL_all_level.shape[1]
-        #     tmp_index = repeat_at(randl, -1, n_agent).unsqueeze(-1)
-        #     return gather_righthand(src=BAL_all_level, index=tmp_index, check=False)
-
-        # advantage = select_value_level(BAL_all_level=BAL_advantage_all_level, randl=randl)
-        # real_return = select_value_level(BAL_all_level=BAL_return_all_level, randl=randl)
-
-        real_return = _2tensor(sample['return_selected'])
-        advantage = _2tensor(sample['advantage_selected'])
-
-        batch_agent_size_raw = advantage.shape[0]*advantage.shape[1]
+        batchsize = advantage.shape[0]#; print亮紫(batchsize)
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
         assert flag == 'train'
         newPi_value, newPi_actionLogProb, entropy, probs, others = self.policy_and_critic.evaluate_actions(obs, 
-            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn, randl=randl)
+            state=state, eval_actions=action, test_mode=False, avail_act=avail_act, eprsn=eprsn, randl=None)
+        entropy_loss = entropy.mean()
 
-        if self.use_conc_net:
-            # threat approximation
-            SAFE_LIMIT = 8
-            filter = (real_threat<SAFE_LIMIT) & (real_threat>=0)
-            threat_loss = F.mse_loss(others['threat'][filter], real_threat[filter])
 
-        # remove the Non-PR agents' policy
-        no_pr = ~eprsn
-        oldPi_actionLogProb = oldPi_actionLogProb[no_pr]
-        advantage = advantage[no_pr]
-        newPi_actionLogProb = newPi_actionLogProb[no_pr]
-        entropy = entropy[no_pr]
-        batch_agent_size = advantage.shape[0]
-        # dual clip ppo core: input oldPi_actionLogProb, advantage, newPi_actionLogProb
+        n_actions = probs.shape[-1]
+
+        # dual clip ppo core
         E = newPi_actionLogProb - oldPi_actionLogProb
         E_clip = torch.zeros_like(E)
         E_clip = torch.where(advantage > 0, torch.clamp(E, max=np.log(1.0+self.clip_param)), E_clip)
         E_clip = torch.where(advantage < 0, torch.clamp(E, min=np.log(1.0-self.clip_param), max=np.log(5) ), E_clip)
         ratio = torch.exp(E_clip)
         policy_loss = -(ratio*advantage).mean()
-        entropy_loss = entropy.mean()
 
         # add all loses
-        value_loss = 0.5 * F.mse_loss(real_return, newPi_value)
+        value_loss = 0.5 * F.mse_loss(real_value, newPi_value)
         if 'motivation value' in others:
-            value_loss += 0.5 * F.mse_loss(real_return, others['motivation value'])
+            value_loss += 0.5 * F.mse_loss(real_value, others['motivation value'])
 
-        AT_net_loss = policy_loss -entropy_loss*self.entropy_coef
-        if self.use_conc_net:
-            CT_net_loss = value_loss * 1.0 + threat_loss * 0.1 # + friend_threat_loss*0.01
-        else:
-            CT_net_loss = value_loss * 1.0
+        AT_net_loss = policy_loss - entropy_loss*self.entropy_coef 
+        CT_net_loss = value_loss * 1.0 
 
         loss_final =  AT_net_loss + CT_net_loss  # + AE_new_loss
 
         ppo_valid_percent = ((E_clip == E).int().sum()/batch_agent_size)
 
-        nz_mask = real_return!=0
-        value_loss_abs = (real_return[nz_mask] - newPi_value[nz_mask]).abs().mean()
+        nz_mask = real_value!=0
+        value_loss_abs = (real_value[nz_mask] - newPi_value[nz_mask]).abs().mean()
         others = {
             # 'Policy loss':              policy_loss,
             # 'Entropy loss':             entropy_loss,
             'Value loss Abs':           value_loss_abs,
             # 'friend_threat_loss':       friend_threat_loss,
             'PPO valid percent':        ppo_valid_percent,
-            # 'threat loss':              threat_loss,
             # 'Auto encoder loss':        ae_loss,
             'CT_net_loss':              CT_net_loss,
             'AT_net_loss':              AT_net_loss,
-            # 'AE_new_loss':              AE_new_loss,
         }
 
 
         return loss_final, others
+
+
+
 

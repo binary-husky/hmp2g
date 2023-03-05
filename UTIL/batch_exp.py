@@ -36,10 +36,7 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
         conf = copy.deepcopy(base_conf)
         new_json_path = 'PROFILE/%s/run-%d.json'%(exp_json_dir, i+1)
         for key in conf_override:
-            try:
-                assert n_run == len(conf_override[key]), ('检查！n_run是否对应', key)
-            except:
-                pass
+            assert n_run == len(conf_override[key]), ('检查！n_run是否对应', key)
             tree_path, item = key.split('-->')
             conf[tree_path][item] = conf_override[key][i]
         with open(new_json_path,'w') as f:

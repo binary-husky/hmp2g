@@ -171,8 +171,6 @@ class PPO():
 
         assert self.n_pieces_batch_division == 1
         self.n_div = 1
-        # print亮红(self.n_div)
-
         self.gpu_share_unit = GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party)
 
     def train_on_traj(self, traj_pool, task):

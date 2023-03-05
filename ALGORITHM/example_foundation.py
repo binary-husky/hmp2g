@@ -3,7 +3,7 @@ import copy
 import math
 import random
 
-class ExampleFoundation():
+class ExampleAlgorithm():
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         self.n_thread = n_thread
         self.n_agent = n_agent

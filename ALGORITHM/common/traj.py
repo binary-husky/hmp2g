@@ -57,7 +57,7 @@ class TRAJ_BASE():
                 TRAJ_BASE.key_data_type[key] = content_type
                 TRAJ_BASE.key_data_shape[key] = content_shape
             return content_type, content_shape
-        assert key in TRAJ_BASE.key_data_type
+        assert key in TRAJ_BASE.key_data_type, f"key:{key}, key_data_type:{TRAJ_BASE.key_data_type}"
         return TRAJ_BASE.key_data_type[key], TRAJ_BASE.key_data_shape[key]
 
     # create track, executed used when a key showing up for the first time in 'self.remember'

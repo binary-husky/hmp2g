@@ -50,6 +50,7 @@ class AlgorithmConfig:
     dual_conc = True
     use_my_attn = True
     use_policy_resonance = False
+    policy_resonance_method = 'level'
 
     # net
     shell_obs_add_id = True
@@ -95,13 +96,13 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
             rawob_dim = rawob_dim + self.n_agent
         if AlgorithmConfig.shell_obs_add_previous_act:
             rawob_dim = rawob_dim + n_actions
-        self.policy = Net(rawob_dim=rawob_dim, state_dim=self.state_dim, n_action=n_actions, n_agent=n_agent, stage_planner=self.stage_planner)
+        self.policy = Net(rawob_dim=rawob_dim, state_dim=self.state_dim, n_action=n_actions, n_agent=n_agent, stage_planner=self.stage_planner, alg=AlgorithmConfig)
         self.policy = self.policy.to(self.device)
 
         # initialize optimizer and trajectory (batch) manager
         from .ppo import PPO
         from ALGORITHM.common.traj_gae import BatchTrajManager
-        self.trainer = PPO(self.policy, ppo_config=AlgorithmConfig, mcv=mcv)
+        self.trainer = PPO(self.policy, cfg=AlgorithmConfig, mcv=mcv)
         self.batch_traj_manager = BatchTrajManager(
             n_env=n_thread, traj_limit=int(self.ScenarioConfig.MaxEpisodeStep),
             trainer_hook=self.trainer.train_on_traj, alg_cfg=AlgorithmConfig)
@@ -113,7 +114,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         logdir = GlobalConfig.logdir
         # makedirs if not exists
         if not os.path.exists(f'{logdir}/history_cpt/'):
-            os.makedirs(f'{logdir}/history_cpt/')
+            os.makedirs(f'{logdir}/history_cpt/', exist_ok=True)
         if self.load_checkpoint:
             manual_dir = AlgorithmConfig.load_specific_checkpoint
             ckpt_dir = f'{logdir}/model.pt' if manual_dir == '' else f'{logdir}/{manual_dir}'
@@ -142,13 +143,12 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
         randl = StateRecall['randl'] if 'randl' in StateRecall else None
 
         with torch.no_grad():
-            action, BAL_value_all_level, action_log_prob = self.policy.act(
+            action, v, action_log_prob = self.policy.act(
                 obs, state=state, test_mode=test_mode, avail_act=avail_act, eprsn=eprsn, randl=randl)
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {
             "_SKIP_":        ~threads_active_flag,
-            "BAL_value_all_level":      BAL_value_all_level,
             "actionLogProb": action_log_prob,
             "obs":           obs,
             "alive":         alive,
@@ -157,6 +157,11 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase, ConfigOnFly):
             "state":         state,
             "action":        action,
         }
+        if AlgorithmConfig.policy_resonance_method == 'level':
+            traj_framefrag.update({"BAL_value_all_level":      v})
+        else:
+            traj_framefrag.update({"value":      v})
+
         if avail_act is not None: traj_framefrag.update({'avail_act':  avail_act})
         # deal with rollout later when the reward is ready, leave a hook as a callback here
         if not test_mode: StateRecall['_hook_'] = self.commit_traj_frag(traj_framefrag, req_hook = True)

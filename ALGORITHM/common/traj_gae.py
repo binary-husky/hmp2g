@@ -98,7 +98,7 @@ class trajectory(TRAJ_BASE):
         setattr(self, 'threat', np.expand_dims(threat, -1))
 
         # ! Use GAE to calculate return
-        if self.alg_cfg.use_policy_resonance:
+        if self.alg_cfg.use_policy_resonance and self.alg_cfg.policy_resonance_method == 'level':
             self.gae_finalize_return_pr(reward_key='reward', value_key='BAL_value_all_level', new_return_name='BAL_return_all_level')
         else:
             self.gae_finalize_return(reward_key='reward', value_key='value', new_return_name='return')

@@ -40,6 +40,10 @@ result
 # .vscode/
 forattack-train/
 full-cargo/
+<<<<<<< HEAD
+=======
+# T*/
+>>>>>>> origin/master-mt
 checkpoint/
 
 PROFILE/
@@ -163,7 +167,7 @@ raw_exp.jsonc
 info.json
 UTIL/mem_watcher.py
 
-
 ALGORITHM/mirror*
 AUTORL
 THIRDPARTY/casmopolitan/Temp/
+.gitignore
