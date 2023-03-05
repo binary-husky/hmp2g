@@ -116,7 +116,7 @@ class PPO():
         # expected input [-1, +1], 
         # expected fuzzy output [-1.5*_scale, +1.5*_scale]
         # expected final output [10^(-1.5*_scale),10^(+1.5*_scale)]
-        feedback_sys_agent_wise = gen_feedback_sys_generic_multi_input(
+        feedback_sys_agent_wise_lose = gen_feedback_sys_generic_multi_input(
             antecedent_list = [
                 ('lifelen_norm', -1.5, 1.5),
                 ('recent_winrate', 0.2, 0.8),
@@ -124,26 +124,25 @@ class PPO():
             consequent_key='intrisic_reward',
             consequent_min=-5,
             consequent_max=+5,
-            fuzzy_controller_param=fuzzy_controller_param,
+            fuzzy_controller_param=fuzzy_controller_param[0:9],
+            consequent_num_mf=7,
+            compute_fn=fuzzy_compute
+        )
+        feedback_sys_agent_wise_win = gen_feedback_sys_generic_multi_input(
+            antecedent_list = [
+                ('lifelen_norm', -1.5, 1.5),
+                ('recent_winrate', 0.2, 0.8),
+            ],
+            consequent_key='intrisic_reward',
+            consequent_min=-5,
+            consequent_max=+5,
+            fuzzy_controller_param=fuzzy_controller_param[9:18],
             consequent_num_mf=7,
             compute_fn=fuzzy_compute
         )
 
-        # feedback_sys_agent_wise = gen_feedback_sys_generic(
-        #     antecedent_key='lifelen_norm',
-        #     antecedent_min=-1.0,
-        #     antecedent_max=+1.0,
-        #     consequent_key='intrisic_reward',
-        #     consequent_min=-5,
-        #     consequent_max=+5,
-        #     fuzzy_controller_param=fuzzy_controller_param,
-        #     consequent_num_mf=7,
-        #     compute_fn=fuzzy_compute
-        # )
-
-        # intrisic_reward = np.array([feedback_sys_agent_wise.compute_fn(a) for a in normalized_score])
-
-        GlobalConfig.intrisic_reward_controller = feedback_sys_agent_wise
+        GlobalConfig.intrisic_reward_controller_lose = feedback_sys_agent_wise_lose
+        GlobalConfig.intrisic_reward_controller_win = feedback_sys_agent_wise_win
         GlobalConfig.recent_winrate = wr
 
 

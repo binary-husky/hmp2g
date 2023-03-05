@@ -127,7 +127,19 @@ class trajectory(TRAJ_BASE):
             normalized_score = np.clip(normalized_score, -1.5, 1.5)
             wr = np.clip(GlobalConfig.recent_winrate, 0.2, 0.8) 
 
-            ll = np.array([GlobalConfig.intrisic_reward_controller.compute_fn((l, wr)) for l in normalized_score])
+            ll = np.array([GlobalConfig.intrisic_reward_controller_lose.compute_fn((l, wr)) for l in normalized_score])
+            n_agent = len(ll)
+            for i in range(n_agent): 
+                self.reward[ self.agents_life_length[i]-1 , i] += ll[i]
+        if AlgorithmConfig.fuzzy_controller and (self.win):
+            # assert "intrisic_reward_controller" in GlobalConfig
+            sigma = 10
+            normalized_score = (self.agents_life_length - self.agents_life_length.mean() ) / sigma
+
+            normalized_score = np.clip(normalized_score, -1.5, 1.5)
+            wr = np.clip(GlobalConfig.recent_winrate, 0.2, 0.8) 
+
+            ll = np.array([GlobalConfig.intrisic_reward_controller_win.compute_fn((l, wr)) for l in normalized_score])
             n_agent = len(ll)
             for i in range(n_agent): 
                 self.reward[ self.agents_life_length[i]-1 , i] += ll[i]
