@@ -46,6 +46,15 @@ from stat import S_ISDIR
 # great thank to skoll for sharing this at stackoverflow:
 # https://stackoverflow.com/questions/4409502/directory-transfers-with-paramiko
 class MySFTPClient(paramiko.SFTPClient):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.transmitted_file_cnt = 0
+
+    def on_file_transmitted(self, file):
+        self.transmitted_file_cnt += 1
+        print(f'\r transfering file {self.transmitted_file_cnt}', end='', flush=True)
+
+
     def put_dir(self, source, target, ignore_list=[]):
         ''' Uploads the contents of the source directory to the target path. The
             target directory needs to exists. All subdirectories in source are 
@@ -54,8 +63,9 @@ class MySFTPClient(paramiko.SFTPClient):
         for item in os.listdir(source):
             if item in ignore_list: continue
             if os.path.isfile(os.path.join(source, item)):
-                print亮靛('uploading: %s --> %s'%(os.path.join(source, item),'%s/%s' % (target, item)))
+                # print亮靛('uploading: %s --> %s'%(os.path.join(source, item),'%s/%s' % (target, item)))
                 self.put(os.path.join(source, item), '%s/%s' % (target, item))
+                self.on_file_transmitted(file = os.path.join(source, item))
             else:
                 self.mkdir('%s/%s' % (target, item), ignore_existing=True)
                 self.put_dir(os.path.join(source, item), '%s/%s' % (target, item), ignore_list)
@@ -141,3 +151,23 @@ def upload_exp_(cfg):
     sftp.close()
     print亮紫('upload complete')
     
+
+def read_json_handle_empty(fp):
+    import json
+    # create if not exist
+    if not os.path.exists(fp):
+        with open(fp, "w") as f:
+            pass
+    # try to read, otherwise reset
+    try:
+        with open(fp, "r+") as f: 
+            json_data = json.load(f)
+    except:
+        json_data = {}
+    return json_data
+
+def write_json_handle_empty(fp, buf):
+    import json
+    with open(fp, "w") as f:
+        json.dump(buf, fp=f)
+    return
