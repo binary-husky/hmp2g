@@ -40,7 +40,6 @@ result
 # .vscode/
 forattack-train/
 full-cargo/
-T*/
 checkpoint/
 
 PROFILE/
@@ -167,3 +166,4 @@ UTIL/mem_watcher.py
 
 ALGORITHM/mirror*
 AUTORL
+THIRDPARTY/casmopolitan/Temp/
