@@ -252,11 +252,11 @@ def clean_byobu_interface(future_list, n_run_mode):
         print亮紫('byobu kill-session -t %s'%(time_mark_only))
         time.sleep(1)
 
-def fetch_experiment_conclusion(step, future_list, n_run_mode):
+def fetch_experiment_conclusion(step, future_list, n_run_mode, timeout_hour=4):
     n_run = len(future_list)
     conclusion_list = []
 
-    time_out = 4 * 3600 # 在一个小时后timeout
+    time_out = timeout_hour * 3600 # 在一个小时后timeout
     time_start = time.time()
 
     for ith_run, future in enumerate(future_list):

@@ -8,6 +8,7 @@ base = """
             "pwd": "hmp"
         },
         "master_seed": 2132,
+        "timeout_hour": 999,
         "n_run_average": 4,
         "n_init": 20,
         "acq": "ei",
@@ -21,18 +22,19 @@ base = """
         "draw_mode": "Img",
         "num_threads": 32,
         "report_reward_interval": 32,              // reporting interval
-        "test_interval": 128,  // 2048,                      // test every $test_interval episode
+        "test_interval": 2048,                     // test every $test_interval episode
+        // "test_interval": 128,                   // test every $test_interval episode
         "test_epoch": 128,                         // test every $test_interval episode
-        "fold": 1,                                   // this 'folding' is designed for IPC efficiency, you can thank python GIL for such a strange design... 
-        // "n_parallel_frame": 5e5,
-        "n_parallel_frame": 512,
-        "max_n_episode": 2e6,
+        "fold": 1,                                 // this 'folding' is designed for IPC efficiency, you can thank python GIL for such a strange design... 
+        "n_parallel_frame": 5e7,
+        "max_n_episode": 5e5,
+        // "max_n_episode": 2e6,
         "backup_files": [                               // backup files, pack them up
            "ALGORITHM/experimental_coopspace_vma_varnet_2", 
            "MISSION/sr_tasks/multiagent"
         ],
         "device": "cuda",                             // choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU) 
-        "gpu_party": "off"                              // default is 'off', 
+        "gpu_party": "off"                            // default is 'off', 
     },
 
     "MISSION.sr_tasks.multiagent.scenarios.hunter_invader3d_v2.py->ScenarioConfig": {
@@ -49,7 +51,7 @@ base = """
 
 
     "ALGORITHM.experimental_coopspace_vma_varnet_2.reinforce_foundation.py->CoopAlgConfig": {
-        "train_traj_needed": 256,
+        "train_traj_needed": 128,
         "n_pieces_batch_division": 1,
         "ppo_epoch": 16,
         "dropout_prob": 0.0,
@@ -57,12 +59,14 @@ base = """
         "lr": 0.0001,                           "__AutorlDealWithScalar__lr":                       {"Type":"ContinuousLog", "Range":[ -3,  -5  ]}, // 10**-3, 10**-5
         "max_internal_step": 3,                 "__AutorlDealWithScalar__max_internal_step":        {"Type":"Discrete",      "Range":[ 1,2,3,4,5,6 ]},
         "g_num": 6,                             "__AutorlDealWithScalar__g_num":                    {"Type":"Discrete",      "Range":[ 4,5,6,7,8,9 ]},
-        "fuzzy_controller_param": [ 1,2,3 ],    "__AutorlDealWithList__fuzzy_controller_param":   [
-            {"Type":"Discrete",   "Range":[ 4,5,6 ]},
-            {"Type":"Discrete",   "Range":[ 4,5,6 ]},
-            {"Type":"Discrete",   "Range":[ 4,5,6 ]},
-            {"Type":"Discrete",   "Range":[ 4,5,6 ]},
-        ],
+
+        // "fuzzy_controller_param": [ 1,2,3 ],    "__AutorlDealWithList__fuzzy_controller_param":   [
+        //     {"Type":"Discrete",   "Range":[ 4,5,6 ]},
+        //     {"Type":"Discrete",   "Range":[ 4,5,6 ]},
+        //     {"Type":"Discrete",   "Range":[ 4,5,6 ]},
+        //     {"Type":"Discrete",   "Range":[ 4,5,6 ]},
+        // ],
+
         "decision_interval": 25,
         "head_start_cnt": 4,
         "head_start_hold_n": 1,
@@ -78,15 +82,15 @@ device = """
     [
         "cuda:6",
         "cuda:6",
-        "cuda:7",
-        "cuda:7",
+        "cuda:5",
+        "cuda:5",
     ],
     "config.py->GlobalConfig-->gpu_party":
     [
         "cuda-6#1",
-        "cuda-6#1",
-        "cuda-7#1",
-        "cuda-7#1",
+        "cuda-6#2",
+        "cuda-5#1",
+        "cuda-5#2",
     ],
 
 
@@ -109,7 +113,7 @@ def get_score_acc_win(conclusion_list):
     for c in conclusion_list:
         conclusion_parsed = {}
         # parse
-        for name, line, time in zip(c['name_list'],c['line_list'],c['time_list']):
+        for name, line, time in zip(c['name_list'], c['line_list'], c['time_list']):
             conclusion_parsed[name] = line
         s = conclusion_parsed['acc win ratio of=team-0']
         score_list.append(s[-1])
@@ -121,10 +125,10 @@ def get_score_max_win_rate(conclusion_list):
     for c in conclusion_list:
         conclusion_parsed = {}
         # parse
-        for name, line, time in zip(c['name_list'],c['line_list'],c['time_list']):
+        for name, line, time in zip(c['name_list'], c['line_list'], c['time_list']):
             conclusion_parsed[name] = line
-        s = conclusion_parsed['acc win ratio of=team-0']
-        score_list.append(s[-1])
+        s = np.array(conclusion_parsed['test top-rank ratio of=team-1']).max()
+        score_list.append(s)
     return score_list
 
 
@@ -198,7 +202,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
     
     def post_part(self, X, get_score, future_list, batch):
         from UTIL.batch_exp import fetch_experiment_conclusion
-        conclusion_list = fetch_experiment_conclusion(step=self.internal_step_cnt, future_list=future_list, n_run_mode=self.n_run_mode_withbatch[batch])
+        conclusion_list = fetch_experiment_conclusion(step=self.internal_step_cnt, future_list=future_list, n_run_mode=self.n_run_mode_withbatch[batch], timeout_hour=self.timeout_hour)
         y_array = get_score(conclusion_list)
         y = np.array(y_array).mean()
         self.logger.info(f'input X={X} | output {y_array}, average {y}')
@@ -267,7 +271,7 @@ class HmpBayesianOptimizationInterface(BayesianOptimizationInterface):
         import shutil, os
         shutil.copyfile(__file__, os.path.join(os.path.dirname(__file__), 'batch_experiment_backup.py'))
         # run experiments remotely
-        from UTIL.batch_exp import run_batch_exp, fetch_experiment_conclusion
+        from UTIL.batch_exp import run_batch_exp
         print('Execute in server:', self.n_run_mode_withbatch[batch][0])
         future = run_batch_exp(self.sum_note, self.n_run, self.n_run_mode_withbatch[batch], self.base_conf, conf_override, __file__, skip_confirm=True, master_folder='AutoRL', logger=self.logger)
         return future
@@ -332,6 +336,7 @@ class AutoRlTask():
         f = HmpBayesianOptimizationInterface(MasterAutoRLKey=MasterAutoRLKey, base_conf=self.base_conf, device_conf=self.device_conf, n_run=self.n_run)
         f.n_run_mode_withbatch =  [[self.base_conf["AutoRL"]["target_server"]]*self.n_run, ]
         f.sum_note = "Bo_AutoRL"
+        f.timeout_hour = self.base_conf["AutoRL"]["timeout_hour"]
 
         self.read_conf(f, self.base_conf)
         BayesianOptimisation(0, mcv, args, MasterAutoRLKey=MasterAutoRLKey, interface=f)

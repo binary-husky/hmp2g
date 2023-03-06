@@ -108,7 +108,7 @@ class MixedOptimizer(Optimizer):
                 # y_init = self.auxiliary_gp(X_init_torch).variance.cpu().detach().numpy()
             self.X_init = np.ones((self.casmopolitan.n_init, self.true_dim))
             indbest = np.argmin(y_cand)
-            # cThe initial trust region centre for the restart
+            # The initial trust region centre for the restart
             centre = deepcopy(X_init[indbest, :])
             # Separate the continuous and categorical parts of the centre.
             centre_cat, centre_cont = centre[self.d_cat], centre[self.d_cont]
