@@ -31,6 +31,7 @@ class PPO():
         self.preserve_history_pool_size = cfg.preserve_history_pool_size
         self.fuzzy_controller_param = cfg.fuzzy_controller_param
         self.fuzzy_controller_param_group2 = cfg.fuzzy_controller_param_group2
+        self.fuzzy_controller_scale_param_group2 = cfg.fuzzy_controller_scale_param_group2
         self.fuzzy_controller = cfg.fuzzy_controller
         self.fuzzy_controller_scale_param = cfg.fuzzy_controller_scale_param
         self.stablize_pool = cfg.stablize_pool
@@ -103,32 +104,38 @@ class PPO():
             agents_life_length = agents_life_length_all_thread.mean()
             self.mcv.rec(agents_life_length, 'agents_life_length')
 
-        # generate fuzzy control
-        def fuzzy_compute(feedback_sys, antecedents ):
-            lifelen_norm = antecedents[0]
-            recent_winrate = antecedents[1]
-            feedback_sys.input['lifelen_norm'] = lifelen_norm
-            feedback_sys.input['recent_winrate'] = recent_winrate
-            feedback_sys.compute()
-            intrisic_reward = feedback_sys.output['intrisic_reward']
-            return intrisic_reward
-        feedback_sys_agent_wise_lose = gen_feedback_sys_generic_multi_input(
-            antecedent_list = [
-                ('lifelen_norm', -1.5, 1.5),
-                ('recent_winrate', 0.2, 0.8),
-            ],
-            consequent_key='intrisic_reward',
-            consequent_min=-5,
-            consequent_max=+5,
-            fuzzy_controller_param=self.fuzzy_controller_param,
-            consequent_num_mf=7,
-            compute_fn=fuzzy_compute
-        )
-
+        # # generate fuzzy control
+        # def fuzzy_compute(feedback_sys, antecedents ):
+        #     lifelen_norm = antecedents[0]
+        #     recent_winrate = antecedents[1]
+        #     feedback_sys.input['lifelen_norm'] = lifelen_norm
+        #     feedback_sys.input['recent_winrate'] = recent_winrate
+        #     feedback_sys.compute()
+        #     intrisic_reward = feedback_sys.output['intrisic_reward']
+        #     return intrisic_reward
+        # feedback_sys_agent_wise_lose = gen_feedback_sys_generic_multi_input(
+        #     antecedent_list = [
+        #         ('lifelen_norm', -1.5, 1.5),
+        #         ('recent_winrate', 0.2, 0.8),
+        #     ],
+        #     consequent_key='intrisic_reward',
+        #     consequent_min=-5,
+        #     consequent_max=+5,
+        #     fuzzy_controller_param=self.fuzzy_controller_param,
+        #     consequent_num_mf=7,
+        #     compute_fn=fuzzy_compute
+        # )
+        def crr_adjust(c_min_app, c_max_app, crr):
+            c_min = c_min_app*(1+crr)/2 + c_max_app*(1-crr)/2
+            c_max = c_min_app*(1-crr)/2 + c_max_app*(1+crr)/2
+            return c_min, c_max
 
         # expected input [-1, +1], 
         # expected fuzzy output (-6, -2)
         # expected final output (1e-6, 1e-2)
+        crr = self.fuzzy_controller_scale_param_group2[0]
+        c_min, c_max = crr_adjust(c_min_app = -6, c_max_app = -2, crr=crr)
+
         def fuzzy_compute_actor_lr(feedback_sys, antecedents):
             recent_winrate = antecedents[0]
             feedback_sys.input['recent_winrate'] = recent_winrate
@@ -140,8 +147,8 @@ class PPO():
                 ('recent_winrate', 0.2, 0.8),
             ],
             consequent_key='log_actor_lr',
-            consequent_min=-6,
-            consequent_max=-2,
+            consequent_min=c_min,
+            consequent_max=c_max,
             fuzzy_controller_param=self.fuzzy_controller_param_group2[0:3],
             consequent_num_mf=7,
             compute_fn=fuzzy_compute_actor_lr
@@ -150,6 +157,8 @@ class PPO():
         # expected input [-1, +1], 
         # expected fuzzy output (-5, -1)
         # expected final output (1e-5, 1e-1)
+        crr = self.fuzzy_controller_scale_param_group2[1]
+        c_min, c_max = crr_adjust(c_min_app = -5, c_max_app = -1, crr=crr)
         def fuzzy_compute_sys_critic_lr(feedback_sys, antecedents):
             recent_winrate = antecedents[0]
             feedback_sys.input['recent_winrate'] = recent_winrate
@@ -161,14 +170,14 @@ class PPO():
                 ('recent_winrate', 0.2, 0.8),
             ],
             consequent_key='log_critic_lr',
-            consequent_min=-5,
-            consequent_max=-1,
+            consequent_min=c_min,
+            consequent_max=c_max,
             fuzzy_controller_param=self.fuzzy_controller_param_group2[3:6],
             consequent_num_mf=7,
             compute_fn=fuzzy_compute_sys_critic_lr
         )
 
-        GlobalConfig.intrisic_reward_controller_lose = feedback_sys_agent_wise_lose
+        # GlobalConfig.intrisic_reward_controller_lose = feedback_sys_agent_wise_lose
         GlobalConfig.feedback_sys_actor_lr = feedback_sys_actor_lr
         GlobalConfig.feedback_sys_critic_lr = feedback_sys_critic_lr
         GlobalConfig.recent_winrate = wr

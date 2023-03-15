@@ -3,6 +3,7 @@ import numpy as np
 import commentjson as json
 import logging
 from UTIL.exp_helper import read_json_handle_empty, write_json_handle_empty
+from UTIL.tensor_ops import objdumpf, objloadf
 from UTIL.colorful import *
 
 
@@ -29,19 +30,19 @@ class BayesianOptimizationInterface:
     problem_type = 'categorical'
     
     def compute(self, X, normalize=False):
-        print亮绿('*********************** computing f({X}) *********************** ')
+        print亮绿(f'*** computing f({X}) ***')
         with FileLock(self.recall_cache_path+'.lock'): 
             X_Y_already_calculated = read_json_handle_empty(self.recall_cache_path)
 
         if str(X) in X_Y_already_calculated:
-            print亮靛('*********************** find cache, skip computing f({X}) *********************** ')
+            print亮靛(f'*** find cache, skip computing f({X}) ***')
             return np.array(X_Y_already_calculated[str(X)])
         else:
             result = self.compute_(X, normalize=normalize)
             X_Y_already_calculated.update({str(X): result.tolist()})
             with FileLock(self.recall_cache_path+'.lock'): 
                 write_json_handle_empty(self.recall_cache_path, X_Y_already_calculated)
-            print亮绿('*********************** computing f({X}) done *********************** ')
+            print亮绿(f'*** computing f({X}) done ***')
             return np.array(X_Y_already_calculated[str(X)])
 
     def __init__(self, MasterAutoRLKey='aurl', normalize=True, **kwargs):
@@ -112,7 +113,6 @@ class BayesianOptimizationInterface:
 import numpy as np
 import commentjson as json
 import logging, os
-from THIRDPARTY.casmopolitan.bo_interface import BayesianOptimizationInterface
 from UTIL.file_lock import FileLock
 from THIRDPARTY.casmopolitan.bo.optimizer_mixed import MixedOptimizer
 from THIRDPARTY.casmopolitan.bo.optimizer import Optimizer
@@ -168,7 +168,14 @@ def BayesianOptimisation(nth_trial, mcv, args, MasterAutoRLKey, interface):
             kernel_type=kernel_type,
             noise_variance=noise_variance, **kwargs)
         
-    for i in range(args.max_iters):
+    if os.path.exists(f"{args.save_path}/opti.bo"):
+        input('warning, loading and overriding old checkpoint! confirm?')
+        optim = objloadf(f"{args.save_path}/opti.bo")
+        begin_iter = objloadf(f"{args.save_path}/opti_step.bo")
+    else:
+        begin_iter = 0
+        
+    for i in range(begin_iter, args.max_iters):
         start = time.time()
 
         x_next = optim.suggest(args.batch_size) 
@@ -182,7 +189,6 @@ def BayesianOptimisation(nth_trial, mcv, args, MasterAutoRLKey, interface):
 
         # 时间    optim.suggest + f.compute + optim.observe
         end = time.time()
-
 
         # Save the full history: optim.casmopolitan.fX.shape = (iters, 1)
         if f.normalize:
@@ -216,6 +222,12 @@ def BayesianOptimisation(nth_trial, mcv, args, MasterAutoRLKey, interface):
                      float(Y[-1]),
                      ''.join([str(int(i)) for i in optim.casmopolitan.X[:i * args.batch_size][argmin].flatten()]),
                      Y[:i*args.batch_size][argmin]))
+            objdumpf(optim, f"{args.save_path}/opti.bo")
+            objdumpf(i, f"{args.save_path}/opti_step.bo")
+
+        #             import pickle
+        # res = pickle.dumps(optim)
+
 
     if args.seed is not None:
         args.seed += 1

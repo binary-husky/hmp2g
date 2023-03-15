@@ -23,6 +23,7 @@ class PPO():
         self.n_pieces_batch_division = cfg.n_pieces_batch_division
         self.value_loss_coef = cfg.value_loss_coef
         self.entropy_coef = cfg.entropy_coef
+        self.raw_entropy_coef = cfg.entropy_coef
         self.max_grad_norm = cfg.max_grad_norm
         self.add_prob_loss = cfg.add_prob_loss
         self.prevent_batchsize_oom = cfg.prevent_batchsize_oom
@@ -103,74 +104,36 @@ class PPO():
             agents_life_length = agents_life_length_all_thread.mean()
             self.mcv.rec(agents_life_length, 'agents_life_length')
 
-        # generate fuzzy control
-        def fuzzy_compute(feedback_sys, antecedents ):
+
+        # expected input 
+                # ('lifelen_norm', -1.5, 1.5),
+                # ('recent_winrate', 0.2, 0.8),
+        # expected fuzzy output (-2, 2)
+        # expected final output (1e-2, 1e+2) * self.raw_entropy_coef(0.05)
+        def fuzzy_compute_entropy(feedback_sys, antecedents ):
             lifelen_norm = antecedents[0]
             recent_winrate = antecedents[1]
             feedback_sys.input['lifelen_norm'] = lifelen_norm
             feedback_sys.input['recent_winrate'] = recent_winrate
             feedback_sys.compute()
-            intrisic_reward = feedback_sys.output['intrisic_reward']
-            return intrisic_reward
-        feedback_sys_agent_wise_lose = gen_feedback_sys_generic_multi_input(
+            entropy_log = feedback_sys.output['entropy_log']
+            return (10**entropy_log) * self.raw_entropy_coef
+        
+        entropy_controller = gen_feedback_sys_generic_multi_input(
             antecedent_list = [
                 ('lifelen_norm', -1.5, 1.5),
                 ('recent_winrate', 0.2, 0.8),
             ],
-            consequent_key='intrisic_reward',
-            consequent_min=-5,
-            consequent_max=+5,
+            consequent_key='entropy_log',
+            consequent_min=-2,
+            consequent_max=+2,
             fuzzy_controller_param=self.fuzzy_controller_param,
             consequent_num_mf=7,
-            compute_fn=fuzzy_compute
+            compute_fn=fuzzy_compute_entropy
         )
 
 
-        # expected input [-1, +1], 
-        # expected fuzzy output (-6, -2)
-        # expected final output (1e-6, 1e-2)
-        def fuzzy_compute_actor_lr(feedback_sys, antecedents):
-            recent_winrate = antecedents[0]
-            feedback_sys.input['recent_winrate'] = recent_winrate
-            feedback_sys.compute()
-            o = feedback_sys.output['log_actor_lr']
-            return 3*10**o
-        feedback_sys_actor_lr = gen_feedback_sys_generic_multi_input(
-            antecedent_list = [
-                ('recent_winrate', 0.2, 0.8),
-            ],
-            consequent_key='log_actor_lr',
-            consequent_min=-6,
-            consequent_max=-2,
-            fuzzy_controller_param=self.fuzzy_controller_param_group2[0:3],
-            consequent_num_mf=7,
-            compute_fn=fuzzy_compute_actor_lr
-        )
-
-        # expected input [-1, +1], 
-        # expected fuzzy output (-5, -1)
-        # expected final output (1e-5, 1e-1)
-        def fuzzy_compute_sys_critic_lr(feedback_sys, antecedents):
-            recent_winrate = antecedents[0]
-            feedback_sys.input['recent_winrate'] = recent_winrate
-            feedback_sys.compute()
-            o = feedback_sys.output['log_critic_lr']
-            return 3*10**o
-        feedback_sys_critic_lr = gen_feedback_sys_generic_multi_input(
-            antecedent_list = [
-                ('recent_winrate', 0.2, 0.8),
-            ],
-            consequent_key='log_critic_lr',
-            consequent_min=-5,
-            consequent_max=-1,
-            fuzzy_controller_param=self.fuzzy_controller_param_group2[3:6],
-            consequent_num_mf=7,
-            compute_fn=fuzzy_compute_sys_critic_lr
-        )
-
-        GlobalConfig.intrisic_reward_controller_lose = feedback_sys_agent_wise_lose
-        GlobalConfig.feedback_sys_actor_lr = feedback_sys_actor_lr
-        GlobalConfig.feedback_sys_critic_lr = feedback_sys_critic_lr
+        GlobalConfig.entropy_controller = entropy_controller
         GlobalConfig.recent_winrate = wr
 
 
@@ -228,16 +191,16 @@ class PPO():
 
     def train_on_traj(self, traj_pool, task, progress):
 
-        if self.fuzzy_controller:
-            wr = np.array([t.win for t in traj_pool]).mean()
+        # if self.fuzzy_controller:
+        #     wr = np.array([t.win for t in traj_pool]).mean()
 
-            lr_actor = GlobalConfig.feedback_sys_actor_lr.compute_fn((wr, ))
-            lr_critic = GlobalConfig.feedback_sys_critic_lr.compute_fn((wr, ))
+        #     lr_actor = GlobalConfig.feedback_sys_actor_lr.compute_fn((wr, ))
+        #     lr_critic = GlobalConfig.feedback_sys_critic_lr.compute_fn((wr, ))
 
-            self.at_optimizer.param_groups[0]['lr'] = lr_actor
-            self.ct_optimizer.param_groups[0]['lr'] = lr_critic
-            self.mcv.rec(self.at_optimizer.param_groups[0]['lr'], 'lr_actor')
-            self.mcv.rec(self.ct_optimizer.param_groups[0]['lr'], 'lr_critic')
+        #     self.at_optimizer.param_groups[0]['lr'] = lr_actor
+        #     self.ct_optimizer.param_groups[0]['lr'] = lr_critic
+        #     self.mcv.rec(self.at_optimizer.param_groups[0]['lr'], 'lr_actor')
+        #     self.mcv.rec(self.ct_optimizer.param_groups[0]['lr'], 'lr_critic')
 
 
         if self.preserve_history_pool:
@@ -259,6 +222,9 @@ class PPO():
             req_dict += ['current_agent_filter',]
         if self.use_policy_resonance:
             req_dict += ['eprsn', 'randl']
+        if self.fuzzy_controller:
+            req_dict += ['entropy_reg', ]
+            
         sampler = TrajPoolSampler(
             n_div=self.n_div, traj_pool=traj_pool, flag=task, 
             req_dict = req_dict,
@@ -337,6 +303,7 @@ class PPO():
         real_threat = _2tensor(sample['threat'])
         avail_act = _2tensor(sample['avail_act']) if 'avail_act' in sample else None
         eprsn = _2tensor(sample['eprsn']) if 'eprsn' in sample else None
+        entropy_reg = _2tensor(sample['entropy_reg']) if 'entropy_reg' in sample else None
 
         batchsize = advantage.shape[0]#; print亮紫(batchsize)
         # if self.fuzzy_controller:
@@ -392,8 +359,12 @@ class PPO():
         # if self.fuzzy_controller:
             # entropy_loss = (entropy*adjust_weight_agent_wise.squeeze(-1)).mean()
         # else:
-        entropy_loss = entropy.mean()
-        AT_net_loss = policy_loss - entropy_loss*self.entropy_coef
+        if self.fuzzy_controller:
+            entropy_loss = (entropy * entropy_reg).mean()
+            AT_net_loss = policy_loss - entropy_loss
+        else:
+            entropy_loss = entropy.mean()
+            AT_net_loss = policy_loss - entropy_loss*self.entropy_coef
 
         # Part2: critic regression
         value_loss = 0.5 * F.mse_loss(real_value, newPi_value)

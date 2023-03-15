@@ -74,8 +74,12 @@ class AlgorithmConfig:
     lr_descent = False
     lr_descent_coef = 2
     fuzzy_controller = False
+    
     fuzzy_controller_param = []    # [0~4, ...]
-    fuzzy_controller_scale_param = [0.5]    # [0~1, ...]
+    fuzzy_controller_scale_param = []    # [0~1, ...]
+
+    fuzzy_controller_param_group2 = []    # [0~4, ...]
+    fuzzy_controller_scale_param_group2 = []    # [0~1, ...]
 
     stablize_pool = True
 

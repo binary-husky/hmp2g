@@ -875,6 +875,20 @@ def objload():
     with open('objdump.tmp', 'rb') as f:
         return pickle.load(f)
 
+def objdumpf(obj, path):
+    import pickle
+    with open(path, 'wb+') as f:
+        pickle.dump(obj, f)
+    return
+
+def objloadf(path):
+    import pickle, os
+    if not os.path.exists(path): 
+        return
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+
 def stack_padding(l, padding=np.nan):
     max_len = max([t.shape[0] for t in l])
     shape_desired = (len(l), max_len, *(l[0].shape[1:]))

@@ -14,6 +14,7 @@ from gpytorch.models import ExactGP
 from collections.abc import Callable
 import random
 from copy import deepcopy
+from UTIL.tensor_ops import Args2tensor
 import time
 from .kernels import *
 # debug
@@ -64,6 +65,9 @@ class GP(ExactGP):
         covar_x = self.covar_module(x)  # , cat_dims, int_dims)
         return MultivariateNormal(mean_x, covar_x)
 
+    @Args2tensor
+    def cd(self, x):
+        return x
 
 def train_gp(train_x, train_y, use_ard, num_steps, kern='transformed_overlap', hypers={},
              cat_dims=None, cont_dims=None,
@@ -168,7 +172,7 @@ def train_gp(train_x, train_y, use_ard, num_steps, kern='transformed_overlap', h
     # Switch to eval mode
     model.eval()
     likelihood.eval()
-    model.to(device='cpu')
+    # model.to(device='cpu')
 
     return model
 

@@ -29,19 +29,19 @@ class BayesianOptimizationInterface:
     problem_type = 'categorical'
     
     def compute(self, X, normalize=False):
-        print亮绿('*********************** computing f({X}) *********************** ')
+        print亮绿(f'*** computing f({X}) ***')
         with FileLock(self.recall_cache_path+'.lock'): 
             X_Y_already_calculated = read_json_handle_empty(self.recall_cache_path)
 
         if str(X) in X_Y_already_calculated:
-            print亮靛('*********************** find cache, skip computing f({X}) *********************** ')
+            print亮靛(f'*** find cache, skip computing f({X}) ***')
             return np.array(X_Y_already_calculated[str(X)])
         else:
             result = self.compute_(X, normalize=normalize)
             X_Y_already_calculated.update({str(X): result.tolist()})
             with FileLock(self.recall_cache_path+'.lock'): 
                 write_json_handle_empty(self.recall_cache_path, X_Y_already_calculated)
-            print亮绿('*********************** computing f({X}) done *********************** ')
+            print亮绿(f'*** computing f({X}) done ***')
             return np.array(X_Y_already_calculated[str(X)])
 
     def __init__(self, MasterAutoRLKey='aurl', normalize=True, **kwargs):
@@ -112,7 +112,6 @@ class BayesianOptimizationInterface:
 import numpy as np
 import commentjson as json
 import logging, os
-from THIRDPARTY.casmopolitan.bo_interface import BayesianOptimizationInterface
 from UTIL.file_lock import FileLock
 from THIRDPARTY.casmopolitan.bo.optimizer_mixed import MixedOptimizer
 from THIRDPARTY.casmopolitan.bo.optimizer import Optimizer
