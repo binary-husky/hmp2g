@@ -18,10 +18,10 @@ def get_info(script_path):
         info['DockerContainerHash'] = 'None'
     return info
 
-def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission', auto_rl=False, debug=False, logger=None):
+def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, script_path, skip_confirm=False, master_folder='MultiServerMission', auto_rl=False, debug=False, logger=None):
     arg_base = ['python', 'main.py']
     time_mark_only = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-    time_mark = time_mark_only + '-' + sum_note
+    time_mark = time_mark_only + '-' + summary_note
     log_dir = '%s/'%time_mark
     exp_log_dir = log_dir+'exp_log'
     if not os.path.exists('PROFILE/%s'%exp_log_dir):
@@ -131,12 +131,13 @@ def run_batch_exp(sum_note, n_run, n_run_mode, base_conf, conf_override, script_
                 sftp.close()
                 print紫('do not need upload')
 
-        print('byobu attach -t %s'%time_mark_only)
         addr_ip, addr_port = addr.split(':')
 
-
         if logger is not None and ith_run==0:
-            logger.info("Attach cmd: ssh %s@%s -p %s -t \"byobu attach -t %s\""%(usr, addr_ip, addr_port, time_mark_only))
+            logger.info(f"{summary_note} [Deploy Code] Attach cmd: ssh {usr}@{addr_ip} -p {addr_port} -t \"byobu attach -t {time_mark_only}\"")
+        
+        if logger is None:
+            print('byobu attach -t %s'%time_mark_only)
 
 
         print亮蓝("Attach cmd: ssh %s@%s -p %s -t \"byobu attach -t %s\""%(usr, addr_ip, addr_port, time_mark_only))

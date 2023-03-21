@@ -101,7 +101,7 @@ device = """
 
 import numpy as np
 import commentjson as json
-from THIRDPARTY.casmopolitan.bo_interface import BayesianOptimizationInterface
+from THIRDPARTY.casmopolitan.bo_interface_new import BayesianOptimizationInterface
 
 
 def get_score(conclusion_list):

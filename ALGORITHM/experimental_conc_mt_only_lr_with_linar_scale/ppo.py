@@ -134,19 +134,19 @@ class PPO():
         # expected fuzzy output (-6, -2)
         # expected final output (1e-6, 1e-2)
         crr = self.fuzzy_controller_scale_param_group2[0]
-        c_min1, c_max1 = crr_adjust(c_min_app = -6, c_max_app = 0, crr=crr)
+        c_min1, c_max1 = crr_adjust(c_min_app = 0.00001, c_max_app = 0.00100, crr=crr)
 
         def fuzzy_compute_actor_lr(feedback_sys, antecedents):
             recent_winrate = antecedents[0]
             feedback_sys.input['recent_winrate'] = recent_winrate
             feedback_sys.compute()
-            o = feedback_sys.output['log_actor_lr']
-            return 10**o
+            o = feedback_sys.output['actor_lr']
+            return o
         feedback_sys_actor_lr = gen_feedback_sys_generic_multi_input(
             antecedent_list = [
                 ('recent_winrate', 0., 1.0),
             ],
-            consequent_key='log_actor_lr',
+            consequent_key='actor_lr',
             consequent_min=c_min1,
             consequent_max=c_max1,
             fuzzy_controller_param=self.fuzzy_controller_param_group2[0:3],
@@ -158,18 +158,18 @@ class PPO():
         # expected fuzzy output (-5, -1)
         # expected final output (1e-5, 1e-1)
         crr = self.fuzzy_controller_scale_param_group2[1]
-        c_min2, c_max2 = crr_adjust(c_min_app = -6, c_max_app = 0, crr=crr)
+        c_min2, c_max2 = crr_adjust(c_min_app = 0.0001, c_max_app = 0.0100, crr=crr)
         def fuzzy_compute_sys_critic_lr(feedback_sys, antecedents):
             recent_winrate = antecedents[0]
             feedback_sys.input['recent_winrate'] = recent_winrate
             feedback_sys.compute()
-            o = feedback_sys.output['log_critic_lr']
-            return 10**o
+            o = feedback_sys.output['critic_lr']
+            return o
         feedback_sys_critic_lr = gen_feedback_sys_generic_multi_input(
             antecedent_list = [
                 ('recent_winrate', 0., 1.0),
             ],
-            consequent_key='log_critic_lr',
+            consequent_key='critic_lr',
             consequent_min=c_min2,
             consequent_max=c_max2,
             fuzzy_controller_param=self.fuzzy_controller_param_group2[3:6],
