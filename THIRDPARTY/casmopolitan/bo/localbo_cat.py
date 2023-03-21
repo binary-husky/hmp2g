@@ -203,7 +203,7 @@ class CASMOPOLITANCat:
             ])
             with torch.no_grad(), gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
                 X_cand_torch = torch.tensor(X_cand, dtype=torch.float32)
-                y_cand = gp.likelihood(gp(X_cand_torch)).sample(torch.Size([self.batch_size])).t().cpu().detach().numpy()
+                y_cand = gp.likelihood(gp(gp.cd(X_cand_torch))).sample(torch.Size([self.batch_size])).t().cpu().detach().numpy()
             # Revert the normalization process
             # y_cand = mu + sigma * y_cand
 
@@ -224,14 +224,15 @@ class CASMOPOLITANCat:
                 X = torch.tensor(X, dtype=torch.float32)
             if X.dim() == 1:
                 X = X.reshape(1, -1)
-            gauss = Normal(torch.zeros(1), torch.ones(1))
+            from config import GlobalConfig as cfg
+            gauss = Normal(torch.zeros(1).to(cfg.device), torch.ones(1).to(cfg.device))
             # flip for minimization problems
-            preds = gp(X)
+            preds = gp(gp.cd(X))
             mean, std = -preds.mean, preds.stddev
             # use in-fill criterion
-            mu_star = -gp.likelihood(gp(torch.tensor(x_center[0].reshape(1, -1), dtype=torch.float32))).mean
-
-            u = (mean - mu_star) / std
+            mu_star = -gp.likelihood(gp(gp.cd(torch.tensor(x_center[0].reshape(1, -1), dtype=torch.float32)))).mean
+            mu_star = mu_star
+            u = ((mean - mu_star) / std)
             ucdf = gauss.cdf(u)
             updf = torch.exp(gauss.log_prob(u))
             ei = std * updf + (mean - mu_star) * ucdf
@@ -239,7 +240,7 @@ class CASMOPOLITANCat:
                 sigma_n = gp.likelihood.noise
                 sigma_n_th = sigma_n.clone().detach()  # requires_grad: True ---> False
                 ei *= (1. - torch.sqrt(sigma_n_th) / torch.sqrt(sigma_n + std ** 2))
-            return ei
+            return ei.cpu()
 
         def _ucb(X, beta=5.):
             """Upper confidence bound"""
@@ -249,7 +250,7 @@ class CASMOPOLITANCat:
                 X = X.reshape(1, -1)
             # Invoked when you supply X in one-hot representations
 
-            preds = gp.likelihood(gp(X))
+            preds = gp.likelihood(gp(gp.cd(X)))
             mean, std = preds.mean, preds.stddev
             return -(mean + beta * std)
 
@@ -272,7 +273,7 @@ class CASMOPOLITANCat:
                         x_next, acq = local_search(x_center[0], _ucb, self.config, length, 3, 1)
                     x_next = torch.tensor(x_next, dtype=torch.float32)
                     # The fantasy point is filled by the posterior mean of the Gaussian process.
-                    y_next = gp(x_next).mean.detach()
+                    y_next = gp(gp.cd(x_next)).mean.detach()
                     with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
                         X_torch = torch.cat((X_torch, x_next), dim=0)
                         y_torch = torch.cat((y_torch, y_next), dim=0)

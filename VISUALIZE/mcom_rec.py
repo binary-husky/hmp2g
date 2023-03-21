@@ -318,6 +318,7 @@ class rec_family(object):
             target_subplot.set_ylabel(tar_true_name)
             self.change_target_figure_lim(target_subplot, _xdata_min_, _xdata_max_, _ydata_min_, _ydata_max_)
             target_subplot.grid(visible=True)
+            # target_subplot.ticklabel_format(useOffset=False)
             target_subplot.legend(loc='best')
 
 
@@ -365,11 +366,13 @@ class rec_family(object):
                 target_subplot.set_title(name_tmp)
                 target_subplot.set_xlabel('time')
                 target_subplot.set_ylabel(name_tmp)
+                # target_subplot.ticklabel_format(useOffset=False)
                 target_subplot.grid(visible=True)
             else:
                 target_subplot.set_title(self.name_list[index])
                 target_subplot.set_xlabel('time')
                 target_subplot.set_ylabel(self.name_list[index])
+                # target_subplot.ticklabel_format(useOffset=False)
                 target_subplot.grid(visible=True)
 
             _xdata_min_ = _xdata_.min() #target_subplot.dataLim.xmin

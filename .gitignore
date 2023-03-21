@@ -169,5 +169,6 @@ UTIL/mem_watcher.py
 
 ALGORITHM/mirror*
 AUTORL
+AUTORL_BK
 THIRDPARTY/casmopolitan/Temp/
 .gitignore
