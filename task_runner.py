@@ -276,24 +276,24 @@ class Runner(object):
             win_rate = np.array(info_runner['Recent-Win']).mean()
             self.mcv.rec(win_rate, f'{prefix}win rate of=team-{team}')
 
-        if not testing:
-            self.info_runner['t0_win_cnt_avg'].append(win_rate_each_team[0])
-            self.info_runner['t1_win_cnt_avg'].append(win_rate_each_team[1])
-            if self.n_team == 3: 
-                self.info_runner['t2_win_cnt_avg'].append(win_rate_each_team[2])
-                self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[2]-win_rate_each_team[1]-win_rate_each_team[0])
-            else:
-                self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[1]-win_rate_each_team[0])
+        # if not testing:
+        #     self.info_runner['t0_win_cnt_avg'].append(win_rate_each_team[0])
+        #     self.info_runner['t1_win_cnt_avg'].append(win_rate_each_team[1])
+        #     if self.n_team == 3: 
+        #         self.info_runner['t2_win_cnt_avg'].append(win_rate_each_team[2])
+        #         self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[2]-win_rate_each_team[1]-win_rate_each_team[0])
+        #     else:
+        #         self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[1]-win_rate_each_team[0])
 
-            t0 = np.array(self.info_runner['t0_win_cnt_avg']).mean()
-            t1 = np.array(self.info_runner['t1_win_cnt_avg']).mean()
-            td = np.array(self.info_runner['td_win_cnt_avg']).mean()
-            self.mcv.rec(t0, f'{prefix}acc win ratio of=team-0')
-            self.mcv.rec(t1, f'{prefix}acc win ratio of=team-1')
-            if self.n_team == 3: 
-                t2 = np.array(self.info_runner['t2_win_cnt_avg']).mean()
-                self.mcv.rec(t2, f'{prefix}acc win ratio of=team-2')
-            self.mcv.rec(td, f'{prefix}acc win ratio of=draw')
+        #     t0 = np.array(self.info_runner['t0_win_cnt_avg']).mean()
+        #     t1 = np.array(self.info_runner['t1_win_cnt_avg']).mean()
+        #     td = np.array(self.info_runner['td_win_cnt_avg']).mean()
+        #     self.mcv.rec(t0, f'{prefix}acc win ratio of=team-0')
+        #     self.mcv.rec(t1, f'{prefix}acc win ratio of=team-1')
+        #     if self.n_team == 3: 
+        #         t2 = np.array(self.info_runner['t2_win_cnt_avg']).mean()
+        #         self.mcv.rec(t2, f'{prefix}acc win ratio of=team-2')
+        #     self.mcv.rec(td, f'{prefix}acc win ratio of=draw')
 
         # plot the figure
         self.mcv.rec_show()
