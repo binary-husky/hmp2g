@@ -469,41 +469,7 @@ How to use third-party framework(pymarl2): [UsePymarl2 ](./ZDOCS/use_pymarl2.md)
 How to use Unreal-Engine-Based HMP: [UseUHMP](./ZDOCS/use_unreal_hmap.md)
 
 
-##  Papers Supported by HMP
 
-```
-@article{fu2022concentration,
-    title        = {Concentration Network for Reinforcement Learning of Large-Scale Multi-Agent Systems},
-    author       = {Fu, Qingxu and Qiu, Tenghai and Yi, Jianqiang and Pu, Zhiqiang and Wu, Shiguang},
-    year         = 2022,
-    month        = {Jun.},
-    journal      = {Proceedings of the AAAI Conference on Artificial Intelligence},
-    volume       = 36,
-    number       = 9,
-    pages        = {9341--9349},
-    doi          = {10.1609/aaai.v36i9.21165},
-    url          = {https://ojs.aaai.org/index.php/AAAI/article/view/21165}
-}
-
-
-@inproceedings{fu2022cooperation,
-    title        = {A Cooperation Graph Approach for Multiagent Sparse Reward Reinforcement Learning},
-    author       = {Fu, Qingxu and Qiu, Tenghai and Pu, Zhiqiang and Yi, Jianqiang and Yuan, Wanmai},
-    year         = 2022,
-    booktitle    = {2022 International Joint Conference on Neural Networks (IJCNN)},
-    pages        = {1--8},
-    doi          = {10.1109/IJCNN55064.2022.9891991}
-}
-
-@article{fu2022solving,
-    title        = {Solving the Diffusion of Responsibility Problem in Multiagent Reinforcement Learning with a Policy Resonance Approach},
-    author       = {Fu, Qingxu and Qiu, Tenghai and Yi, Jianqiang and Pu, Zhiqiang and Ai, Xiaolin and Yuan, Wanmai},
-    year         = 2022,
-    journal      = {arXiv preprint arXiv:2208.07753}
-}
-
-
-```
 
 
 
