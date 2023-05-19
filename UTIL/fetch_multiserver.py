@@ -45,11 +45,11 @@ for ith_run in range(len(n_run_mode)):
         if consider_days is None:
             consider_days = (time_now - time.mktime(time.strptime(after_date,"%Y-%m-%d-%H-%M-%S")))/3600/24
         if diff_time_days > consider_days: continue
-        path_ckpt = './MultiServerMission/%s/src/ZHECKPOINT/'%exp_time
+        path_ckpt = './MultiServerMission/%s/src/RESULT/'%exp_time
         try:
             list_of_sub_exp = sftp.listdir(path=path_ckpt)
         except:
-            print('No ZHECKPOINT directory found!')
+            print('No RESULT directory found!')
             continue
         key = str(ith_run)+'-'+str(index)
         print亮绿(key,':',exp_time)

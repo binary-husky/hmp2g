@@ -31,14 +31,14 @@ if __name__ == '__main__':
 '''
 
 note=RVE-drone1-fixaa-run2
-cp -r ./ZHECKPOINT/$note ./ZHECKPOINT/$note-bk
-cp -r ./ZHECKPOINT/$note/experiment.jsonc ./ZHECKPOINT/$note/experiment-bk.jsonc
-cp -r ./ZHECKPOINT/$note/experiment.jsonc ./ZHECKPOINT/$note/train.jsonc
-cp -r ./ZHECKPOINT/$note/experiment.jsonc ./ZHECKPOINT/$note/test.jsonc
+cp -r ./RESULT/$note ./RESULT/$note-bk
+cp -r ./RESULT/$note/experiment.jsonc ./RESULT/$note/experiment-bk.jsonc
+cp -r ./RESULT/$note/experiment.jsonc ./RESULT/$note/train.jsonc
+cp -r ./RESULT/$note/experiment.jsonc ./RESULT/$note/test.jsonc
 
 python << __EOF__
 import commentjson as json
-file = "./ZHECKPOINT/$note/test.jsonc"
+file = "./RESULT/$note/test.jsonc"
 print(file)
 with open(file, encoding='utf8') as f:
     json_data = json.load(f)
@@ -51,7 +51,7 @@ with open(file, 'w') as f:
     json.dump(json_data, f, indent=4)
 __EOF__
 
-python main.py -c ./ZHECKPOINT/$note/test.jsonc
+python main.py -c ./RESULT/$note/test.jsonc
 
 
 

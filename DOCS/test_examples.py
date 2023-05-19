@@ -14,7 +14,7 @@ import json
 from UTIL.network import get_host_ip
 from UTIL.colorful import *
 
-test_subjects = glob.glob('ZDOCS/examples/**/*.jsonc',recursive=True)
+test_subjects = glob.glob('DOCS/examples/**/*.jsonc',recursive=True)
 print(test_subjects)
 
 n_run = len(test_subjects)
@@ -111,7 +111,7 @@ def run_batch_exp(n_run, n_run_mode, test_subjects, script_path, sum_note='run-h
             src_path = '/home/%s/MultiServerMission/%s/src'%(usr, time_mark)
             try:
                 sftp.mkdir(src_path, ignore_existing=False)
-                sftp.put_dir('./', src_path, ignore_list=['.vscode', '__pycache__','TEMP','ZHECKPOINT'])
+                sftp.put_dir('./', src_path, ignore_list=['.vscode', '__pycache__','TEMP','RESULT'])
                 sftp.close()
                 print紫('upload complete')
             except:

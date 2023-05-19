@@ -20,7 +20,7 @@ from UTIL.config_args import ChainVar
         - note (str):
             Name you experiment carefully with note setting.
             The note defines where the results of a single experiment will go. 
-            for example, if note='conc', everything produced in the experiment will be save in ZHECKPOINT/conc/*,
+            for example, if note='conc', everything produced in the experiment will be save in RESULT/conc/*,
             including images, saved pytorch model, 
         
         - env_name:
@@ -57,10 +57,10 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
 
     seed = np.random.randint(0, 100000)                 # seed for numpy and pytorch
 
-    # ! warning, the note also determine where the experiment log is stored, typically at ./ZHECKPOINT/$note/*
+    # ! warning, the note also determine where the experiment log is stored, typically at ./RESULT/$note/*
     note = 'more_testing'                               # in case you forget the purpose of this trainning session, write a note
-    logdir = './ZHECKPOINT/%s/'%note
-    logdir_cv = ChainVar(lambda note: './ZHECKPOINT/%s/'%note, chained_with=['note']) 
+    logdir = './RESULT/%s/'%note
+    logdir_cv = ChainVar(lambda note: './RESULT/%s/'%note, chained_with=['note']) 
     recall_previous_session = False                     # continue previously interrupted training session
 
     test_only = False                                   # only testing and no training, it controlls a flag sending to Alg side
@@ -104,7 +104,7 @@ class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
     
     cfg_ready = False                                   # DO NOT change! automatically set to True when Json configuration is all locked-and-loaded
 
-    # ! uploading "./ZHECKPOINT/$note" to a data storage server 
+    # ! uploading "./RESULT/$note" to a data storage server 
     allow_res_upload = True                             # upload results to a data storage server when exiting
     upload_after_test = False                           # upload results to a data storage server when completing a test run
     machine_info = 'auto load, do not change this var!'

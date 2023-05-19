@@ -109,10 +109,10 @@ After getting ```inside``` the HMP container:
 (hmp-container)$ cd hmp2g
 
 # run an trained model to find out if everthing works well ^_^
-(hmp-container)$ git pull && python main.py -c ZHECKPOINT/50RL-55opp/test-50RL-55opp.jsonc
+(hmp-container)$ git pull && python main.py -c RESULT/50RL-55opp/test-50RL-55opp.jsonc
 
 ```
-<img src="../ZHECKPOINT/test-50+50/butterfly.webp" width="200" >
+<img src="../RESULT/test-50+50/butterfly.webp" width="200" >
 
 # Docker in Docker (If need to run air combat env)
 
@@ -125,7 +125,7 @@ docker run -itd   --name  hmp-$USER \
 --shm-size=16G \
 fuqingxu/hmp:latest
 ```
-<img src="../ZHECKPOINT/test-50+50/butterfly.webp" width="200" >
+<img src="../RESULT/test-50+50/butterfly.webp" width="200" >
 
 # Appendix：requirement.txt (install on Windows)
 If possible, please ```use docker``` to Avoid following

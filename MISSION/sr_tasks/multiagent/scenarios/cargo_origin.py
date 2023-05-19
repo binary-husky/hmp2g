@@ -105,7 +105,7 @@ class Scenario(BaseScenario):
 
     def render(self):
         if self.mcv is None: return
-        if not os.path.exists('./ZHECKPOINT/%s/live_game.txt'%self.note): return
+        if not os.path.exists('./RESULT/%s/live_game.txt'%self.note): return
         uid = 0
         for index, worker in enumerate(self.workers):
             if worker.dragging < 0:

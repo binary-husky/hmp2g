@@ -121,9 +121,9 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
             try:
                 sftp.mkdir(src_path, ignore_existing=False)
                 if auto_rl:
-                    ignore_list=['__pycache__','TEMP','ZHECKPOINT', '.git', 'threejsmod', 'md_imgs', 'ZDOCS', 'AUTORL']
+                    ignore_list=['__pycache__','TEMP','RESULT', '.git', 'threejsmod', 'md_imgs', 'DOCS', 'AUTORL']
                 else:
-                    ignore_list=['__pycache__','TEMP','ZHECKPOINT']
+                    ignore_list=['__pycache__','TEMP','RESULT']
                 sftp.put_dir('./', src_path, ignore_list=ignore_list)
                 sftp.close()
                 print紫('upload complete')
@@ -179,8 +179,8 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
         # stdin, stdout, stderr = ssh.exec_command(command='byobu kill-session -t %s'%byobu_win_name, timeout=1)
         note = conf_list[ith_run]['config.py->GlobalConfig']['note']
         future = {
-            'checkpoint': '/home/%s/%s/%s/src/ZHECKPOINT/%s'%(usr, master_folder, time_mark, note),
-            'conclusion': '/home/%s/%s/%s/src/ZHECKPOINT/%s/experiment_conclusion.pkl'%(usr, master_folder, time_mark, note),
+            'checkpoint': '/home/%s/%s/%s/src/RESULT/%s'%(usr, master_folder, time_mark, note),
+            'conclusion': '/home/%s/%s/%s/src/RESULT/%s/experiment_conclusion.pkl'%(usr, master_folder, time_mark, note),
             'mark': time_mark,
             'time_mark': time_mark_only,
         }
@@ -281,9 +281,9 @@ def fetch_experiment_conclusion(step, future_list, n_run_mode, timeout_hour=4):
                 clean_byobu_interface(future_list, n_run_mode)
                 raise TimeoutError
             time.sleep(10)
-        if not os.path.exists('./ZHECKPOINT/AutoRL/'): os.makedirs('./ZHECKPOINT/AutoRL/')
-        sftp.get(future['conclusion'], f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl')
-        conclusion_list.append(objload(f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl'))
+        if not os.path.exists('./RESULT/AutoRL/'): os.makedirs('./RESULT/AutoRL/')
+        sftp.get(future['conclusion'], f'./RESULT/AutoRL/conclusion_{step}_{ith_run}.pkl')
+        conclusion_list.append(objload(f'./RESULT/AutoRL/conclusion_{step}_{ith_run}.pkl'))
 
     clean_byobu_interface(future_list, n_run_mode)
     return conclusion_list

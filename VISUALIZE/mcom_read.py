@@ -95,7 +95,7 @@ party = [
     {
         "Method": "AddBn",
         "path": [
-            "ZHECKPOINT/Run1_wr_reward_T0addhist",
+            "RESULT/Run1_wr_reward_T0addhist",
         ]
     },
 

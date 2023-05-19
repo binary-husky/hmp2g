@@ -159,8 +159,8 @@ note_list = [
 
 data = []
 for note_name in note_list:
-    target_json = 'ZHECKPOINT/%s/experiment_test.jsonc'%note_name
-    target_dir = 'ZHECKPOINT/%s/matrix'%note_name
+    target_json = 'RESULT/%s/experiment_test.jsonc'%note_name
+    target_dir = 'RESULT/%s/matrix'%note_name
     method = note_name.split('-')[0] + '-'+ note_name.split('-')[-2]
     print(method)
     search_res = glob.glob(target_dir+'/*')

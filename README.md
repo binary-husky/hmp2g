@@ -67,16 +67,16 @@ If the problem does not go away, do not hesitate to [contact us](#contact-us) or
 
 ### 1. Unreal-Engine-Based Simulation
 <div align="center">
-<img src="ZDOCS/examples/uhmap/uhmp_demo.gif" width="300" >
+<img src="DOCS/examples/uhmap/uhmp_demo.gif" width="300" >
 </div>
 
 
 ``` sh
-git pull && python main.py -c ZHECKPOINT/uhmap_hete10vs10/render_result.jsonc
+git pull && python main.py -c RESULT/uhmap_hete10vs10/render_result.jsonc
 ```
 To visualize:
 - (Option 1) Run trained model on Windows, switch ```"render": false``` option to ```true```.
-- (Option 2) Link to a headless simulation remotely. Download Windows client [UHMP.exe](./ZDOCS/use_unreal_hmap.md), run it with ```./UHMP.exe -OpenLevel=Ip:Port``` (Port is random, see program terminal output).
+- (Option 2) Link to a headless simulation remotely. Download Windows client [UHMP.exe](./DOCS/use_unreal_hmap.md), run it with ```./UHMP.exe -OpenLevel=Ip:Port``` (Port is random, see program terminal output).
 
 
 Redirection to another MARL project: Building high efficient multiagent environment with Unreal Engine! Please refer to resp ```https://github.com/binary-husky/unreal-hmp```.
@@ -90,38 +90,38 @@ Redirection to another MARL project: Building high efficient multiagent environm
 http://cloud.fuqingxu.top:11601/
 ```
 <div align="center">
-<img src="ZHECKPOINT/test-50+50/test50.gif" width="300" >
+<img src="RESULT/test-50+50/test50.gif" width="300" >
 </div>
 
 
 ```
-git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
-git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
+git pull && python main.py -c RESULT/test-50+50/test-50+50.jsonc --skip
+git pull && python main.py -c RESULT/test-100+100/test-100+100.jsonc --skip
 ```
 
 #### (Improved Version, more Difficult than AAAI Paper Version)
 
 ```
-git pull && python main.py -c ZHECKPOINT/50RL-55opp/test-50RL-55opp.jsonc
+git pull && python main.py -c RESULT/50RL-55opp/test-50RL-55opp.jsonc
 (Also see https://www.bilibili.com/video/BV1vF411M7N9/)
 ```
 
 ### 3. Anti-Invasion Interception
 <div align="center">
-<img src="ZHECKPOINT/test-aii515/aii.jpg" width="300" >
+<img src="RESULT/test-aii515/aii.jpg" width="300" >
 </div>
 
 ```
-git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip 
+git pull && python main.py -c RESULT/test-aii515/test-aii515.jsonc --skip 
 ```
 
 ### 4. Hazardous Cargo Transport
 <div align="center">
-<img src="ZHECKPOINT/test-cargo50/cargo50.jpg" width="300" >
+<img src="RESULT/test-cargo50/cargo50.jpg" width="300" >
 </div>
 
 ```
-git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
+git pull && python main.py -c RESULT/test-cargo50/test-cargo50.jsonc --skip
 ```
 
 
@@ -202,7 +202,7 @@ For details, please refer to ```config.py``` and ```UTIL/config_args.py```,
 it is straightforward to understand once you read an example of this.
 
 ### <4> How to Recover Configuration's Auto Backup:
-When the experiment starts, the Json config override will be stored in ```ZHECKPOINT/the-experiment-note-you-defined/experiment.json```.
+When the experiment starts, the Json config override will be stored in ```RESULT/the-experiment-note-you-defined/experiment.json```.
 If the experiment later produces surprising results,
 you can consistently reproduce it again using this config backup.
 
@@ -282,11 +282,11 @@ More details of VHMAP can be found in [VHMAP README](./VISUALIZE/README.md).
 
 
 ##  Dependency
-We use docker to solve dependency: [SetupDocker](./ZDOCS/setup_docker.md).
+We use docker to solve dependency: [SetupDocker](./DOCS/setup_docker.md).
 
 Please do not run on WindowsOS (low efficiency), 
 but if you have to, 
-also refer to the last part of [SetupDocker](./ZDOCS/setup_docker.md) for pip requirements list. 
+also refer to the last part of [SetupDocker](./DOCS/setup_docker.md) for pip requirements list. 
 
 
 
@@ -294,15 +294,15 @@ also refer to the last part of [SetupDocker](./ZDOCS/setup_docker.md) for pip re
 
 ### 1. Dependency
 We use docker to solve dependency: 
-[SetupDocker](./ZDOCS/setup_docker.md). 
+[SetupDocker](./DOCS/setup_docker.md). 
 This project uses techniques such as shared memory for extreme training efficiency, 
 as a cost, 
 WindowsOS+GPU training is not well supported (using pipe IO for Windows compat).
 
 For Windows (Not recommended, please do NOT run under Windows if possible), 
-also refer to the last part of [SetupDocker](./ZDOCS/setup_docker.md) for pip requirements list. 
+also refer to the last part of [SetupDocker](./DOCS/setup_docker.md) for pip requirements list. 
 
-Please read [setup_docker.md](./ZDOCS/setup_docker.md) first, and then set up the container using:
+Please read [setup_docker.md](./DOCS/setup_docker.md) first, and then set up the container using:
 ```bash
 $ docker run -itd   --name  hmp-$USER \
 --net host \
@@ -319,8 +319,8 @@ $ cd ~   # (go to home directory)
 ### 2. AAAI 2022
 ### 2.1. All Default: Testing
 ```
-git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
-git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
+git pull && python main.py -c RESULT/test-50+50/test-50+50.jsonc --skip
+git pull && python main.py -c RESULT/test-100+100/test-100+100.jsonc --skip
 ```
 When the testing starts, open the revealed URL for ```monitoring```. The front end is done by JavaScript and ThreeJS.
 ```
@@ -332,8 +332,8 @@ JS visualizer online (localhost): http://localhost:aRandomPort
 ### 2.2. All Default: Training
 
 ```
-git pull && python main.py -c ZDOCS/examples/dca/example_dca.jsonc
-git pull && python main.py -c ZDOCS/examples/dca/train_old_dca.jsonc
+git pull && python main.py -c DOCS/examples/dca/example_dca.jsonc
+git pull && python main.py -c DOCS/examples/dca/train_old_dca.jsonc
 ```
 
 
@@ -347,15 +347,15 @@ python main.py --cfg xx.json
 ### 3. IJCNN 2022
 ### 
 ```
-git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip 
-git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
+git pull && python main.py -c RESULT/test-aii515/test-aii515.jsonc --skip 
+git pull && python main.py -c RESULT/test-cargo50/test-cargo50.jsonc --skip
 ```
 
 ### 4. Others
 
 ```
-git pull && python main.py --cfg ZHECKPOINT/adca-demo/test.json
-git pull && python main.py --cfg ZHECKPOINT/basic-ma-40-demo/test.json
+git pull && python main.py --cfg RESULT/adca-demo/test.json
+git pull && python main.py --cfg RESULT/basic-ma-40-demo/test.json
 ```
 
 
@@ -453,19 +453,19 @@ If you are interested in something, you may continue to read:
 ## Other READMEs
 This resp is frequently updating.
 
-For more information on how to use HMP, please check out the README list below, most of other READMEs are located in ./ZDOCS/*.
+For more information on how to use HMP, please check out the README list below, most of other READMEs are located in ./DOCS/*.
 
 How to change environments(missions): [MISSION README](./MISSION/readme.md)
 
-How to solve dependency with Docker: [SetupDocker](./ZDOCS/setup_docker.md) 
+How to solve dependency with Docker: [SetupDocker](./DOCS/setup_docker.md) 
 
-How to solve dependency without Docker: [SetupNODocker](./ZDOCS/setup_no_docker.md) 
+How to solve dependency without Docker: [SetupNODocker](./DOCS/setup_no_docker.md) 
 
-How to get Docker with unreal engine: [SetupUEDocker](./ZDOCS/setup_ue_docker.md)
+How to get Docker with unreal engine: [SetupUEDocker](./DOCS/setup_ue_docker.md)
 
-How to use third-party framework(pymarl2): [UsePymarl2 ](./ZDOCS/use_pymarl2.md)
+How to use third-party framework(pymarl2): [UsePymarl2 ](./DOCS/use_pymarl2.md)
 
-How to use Unreal-Engine-Based HMP: [UseUHMP](./ZDOCS/use_unreal_hmap.md)
+How to use Unreal-Engine-Based HMP: [UseUHMP](./DOCS/use_unreal_hmap.md)
 
 
 
