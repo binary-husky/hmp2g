@@ -53,7 +53,7 @@ class CoopAlgConfig(object):
     invalid_penalty = 0.1
     upper_training_epoch = 5
     use_normalization = True
-    
+
 class ReinforceAlgorithmFoundation(object):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         from config import GlobalConfig
@@ -122,22 +122,21 @@ class ReinforceAlgorithmFoundation(object):
             self.save_model(update_cnt)
 
     def get_internal_step(self, n_step):
-        #n_internal_step = [np.ceil(self.max_internal_step  / 4**x ) if x<10 else 1.0 for x in n_step]
 
         n_internal_step = [np.ceil(self.max_internal_step) if x<self.head_start_cnt 
-                                else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]  # [5, 2, 1, 1, 1, 1, 1
+                                else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]  
         n_internal_step = np.array(n_internal_step, dtype=np.int)
 
-        hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]        # [5, 2, 1, 0, 0, 0,
+        hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]      
         hold_n = np.array(hold_n, dtype=np.int)
 
         return n_internal_step, hold_n
 
     def action_making(self, State_Recall):
-        # print亮紫(self.cnt); self.cnt+=1
+        # test mode
         test_mode = State_Recall['Test-Flag']
         active_env = ~State_Recall['ENV-PAUSE']
-        # 使用上一次的traj_frag和刚获取的奖励值，向轨迹中加入新的样本点
+        # read loop back
         raw_obs, co_step, cter_fifoR, subj_div_R, cter_fifoL, subj_div_L = self.read_loopback(State_Recall)
         all_emb, act_dec = self.regroup_obs(raw_obs, div_R=subj_div_R, div_L=subj_div_L)
 
@@ -145,7 +144,6 @@ class ReinforceAlgorithmFoundation(object):
         thread_internal_step_o,  hold_n_o = self.get_internal_step(State_Recall['Current-Obs-Step'])
         thread_internal_step = thread_internal_step_o
         iter_n = np.max(thread_internal_step)
-        
         for _ in range(iter_n):
             threads_active_flag = active_env & (thread_internal_step > 0)
             if not threads_active_flag.any():
@@ -510,57 +508,6 @@ class ReinforceAlgorithmFoundation(object):
         vec = np_mat3d_normalize_each_line(vec_dx+vec_dv)
         return vec
 
-        # def np_mat3d_normalize_each_line(mat):
-        #     return mat / np.expand_dims(np.linalg.norm(mat, axis=2) + 1e-16, axis=-1)
-        # vec = np_mat3d_normalize_each_line(vec)
-
-        # e_u = np.array([0  ,1  , 0 ])
-        # e_d = np.array([0  ,-1 , 0 ])
-        # e_r = np.array([1  ,0  , 0 ])
-        # e_l = np.array([-1 ,0  , 0 ])
-        # e_a = np.array([0  ,0  , 1 ])
-        # e_b = np.array([0  ,0  ,-1 ])
-
-        # vel_u = np_mat3d_normalize_each_line(vel + e_u * 0.1)
-        # vel_d = np_mat3d_normalize_each_line(vel + e_d * 0.1)
-        # vel_r = np_mat3d_normalize_each_line(vel + e_r * 0.1)
-        # vel_l = np_mat3d_normalize_each_line(vel + e_l * 0.1)
-        # vel_a = np_mat3d_normalize_each_line(vel + e_a * 0.1)
-        # vel_b = np_mat3d_normalize_each_line(vel + e_b * 0.1)
-
-        # proj_u = (vel_u * vec).sum(-1)
-        # proj_d = (vel_d * vec).sum(-1)
-        # proj_r = (vel_r * vec).sum(-1)
-        # proj_l = (vel_l * vec).sum(-1)
-        # proj_a = (vel_a * vec).sum(-1)
-        # proj_b = (vel_b * vec).sum(-1)
-
-        # _u = ((vec * e_u).sum(-1)>0).astype(np.int)
-        # _d = ((vec * e_d).sum(-1)>0).astype(np.int)
-        # _r = ((vec * e_r).sum(-1)>0).astype(np.int)
-        # _l = ((vec * e_l).sum(-1)>0).astype(np.int)
-        # _a = ((vec * e_a).sum(-1)>0).astype(np.int)
-        # _b = ((vec * e_b).sum(-1)>0).astype(np.int)
-
-        # proj_u = proj_u + _u*2
-        # proj_d = proj_d + _d*2
-        # proj_r = proj_r + _r*2
-        # proj_l = proj_l + _l*2
-        # proj_a = proj_a + _a*2
-        # proj_b = proj_b + _b*2
-
-        # dot_stack = np.stack([proj_u, proj_d, proj_r, proj_l, proj_a, proj_b])
-        # direct = np.argmax(dot_stack, 0)
-
-        # action = np.where(direct == 0, 2, 0)
-        # action += np.where(direct == 1, 4, 0)
-        # action += np.where(direct == 2, 1, 0)
-        # action += np.where(direct == 3, 3, 0)
-
-        # action += np.where(direct == 4, 5, 0)
-        # action += np.where(direct == 5, 6, 0)
-
-        # return np.expand_dims(action, axis=-1)
 
     # debugging functions
     def __check_data_hash(self):

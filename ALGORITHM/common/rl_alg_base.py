@@ -35,6 +35,7 @@ class RLAlgorithmBase(AlgorithmBase):
             note that keys starting with _ must have shape (self.n_thread, ...), details see fn:mask_paused_env()
         '''
         # strip info, since it is not array
+        info_allth = traj_framedata.pop('info')
         items_to_pop = ['info', 'Latest-Obs']
         for k in items_to_pop:
             if k in traj_framedata:
@@ -44,10 +45,26 @@ class RLAlgorithmBase(AlgorithmBase):
             traj_framedata['reward'] = repeat_at(traj_framedata['reward'], insert_dim=-1, n_times=self.n_agent)
         # change the name of done to be recognised (by trajectory manager)
         traj_framedata['_DONE_'] = traj_framedata.pop('done')
+
+        for th, d in enumerate(traj_framedata['_DONE_']):
+            if not d: 
+                continue
+            info = info_allth[th]
+            if 'win' in info:
+                win = info['win']
+            elif 'team_ranking' in info: 
+                win = (info['team_ranking'][self.team] == 0)
+            else:
+                assert False, 'cannot get win/lose info'
+            self.batch_traj_manager.mark_win_or_lose(thread_index=th, res=win)
+
+
+
         traj_framedata['_TOBS_'] = traj_framedata.pop(
             'Terminal-Obs-Echo') if 'Terminal-Obs-Echo' in traj_framedata else None
         # mask out pause thread
         traj_framedata = self.mask_paused_env(traj_framedata)
+        # 
         # put the frag into memory
         self.batch_traj_manager.feed_traj(traj_framedata)
 

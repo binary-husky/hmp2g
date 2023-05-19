@@ -1,0 +1,59 @@
+{
+    "config.py->GlobalConfig": {
+        "note": "adca-100+",
+        "env_name": "dca",
+        "env_path": "MISSION.dca",
+        "draw_mode": "Img",
+        "num_threads": 1,
+        "test_only": true,
+        "report_reward_interval": "64",
+        "test_interval": "2048",
+        "device": "cuda",
+        "fold": "1",
+        "n_parallel_frame": 50000000.0,
+        "max_n_episode": 1000000.0,
+        "seed": 7223,
+        "backup_files": [
+            "ALGORITHM/experimental_conc_4hist",
+            "MISSION/dca"
+        ],
+    },
+    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
+        "size": "5",
+        "random_jam_prob": 0.1,
+        "num_guards": 100,
+        "num_attackers": 150,
+        "introduce_terrain": "True",
+        "enable_attacker_fluctuation": true,
+        "attacker_fluctuation": 50,
+        "terrain_parameters": [
+            0.15,
+            0.2
+        ],
+        "render": true,
+        "REWARD_DEBUG": "True",
+        "REWARD_DEBUG_Value": 3,
+        "half_death_reward": "True",
+        "TEAM_NAMES": [
+            "ALGORITHM.experimental_conc_4hist.foundation->ReinforceAlgorithmFoundation"
+        ]
+    },
+    "ALGORITHM.experimental_conc_4hist.foundation.py->AlgorithmConfig": {
+        "train_traj_needed": 64,
+        "n_focus_on": 3,
+        "ppo_epoch": 24,
+        "gamma": 0.99,
+        "lr": 0.0005,
+        "load_checkpoint": "True",
+        "load_specific_checkpoint": "model_95wr.pt",
+        "prevent_batchsize_oom": "True",
+        "gamma_in_reward_forwarding": "True",
+        "gamma_in_reward_forwarding_value": 0.95,
+        "pg_target_distribute": [
+            7
+        ],
+        "ct_target_distribute": [
+            7
+        ]
+    }
+}

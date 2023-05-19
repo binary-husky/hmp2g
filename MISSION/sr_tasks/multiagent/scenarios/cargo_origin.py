@@ -1,6 +1,6 @@
 import numpy as np
-from multiagent.core import World, Agent
-from multiagent.scenario import BaseScenario
+from ..core import World, Agent
+from ..scenario import BaseScenario
 import cmath, math, os
 try:
     from numba import jit

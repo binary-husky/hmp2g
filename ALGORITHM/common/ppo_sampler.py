@@ -12,10 +12,22 @@ from config import GlobalConfig as cfg
 from UTIL.gpu_share import GpuShareUnit
 
 class TrajPoolSampler():
-    def __init__(self, n_div, traj_pool, flag, req_dict, req_dict_rename, prevent_batchsize_oom=False, mcv=None):
+    def __init__(self, 
+            n_div, 
+            traj_pool, 
+            flag, 
+            req_dict, 
+            return_rename,
+            value_rename,
+            advantage_rename,
+            prevent_batchsize_oom=False, 
+            advantage_norm=True,
+            exclude_eprsn_in_norm=False,
+            mcv=None):
         self.n_pieces_batch_division = n_div
         self.prevent_batchsize_oom = prevent_batchsize_oom    
         self.mcv = mcv
+        self.advantage_norm = advantage_norm
         if self.prevent_batchsize_oom:
             assert self.n_pieces_batch_division==1, 'self.n_pieces_batch_division should be 1'
 
@@ -23,14 +35,10 @@ class TrajPoolSampler():
         self.container = {}
         self.warned = False
         assert flag=='train'
-        # req_dict =        ['obs', 'state', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'value']
-        # req_dict_rename = ['obs', 'state', 'action', 'actionLogProb', 'return', 'reward', 'threat', 'state_value']
+        req_dict_rename = req_dict
         if cfg.ScenarioConfig.AvailActProvided:
             req_dict.append('avail_act')
             req_dict_rename.append('avail_act')
-        return_rename = "return"
-        value_rename =  "state_value"
-        advantage_rename = "advantage"
         # replace 'obs' to 'obs > xxxx'
         for key_index, key in enumerate(req_dict):
             key_name =  req_dict[key_index]
@@ -58,7 +66,17 @@ class TrajPoolSampler():
 
         # normalize advantage inside the batch
         self.container[advantage_rename] = self.container[return_rename] - self.container[value_rename]
-        self.container[advantage_rename] = ( self.container[advantage_rename] - self.container[advantage_rename].mean() ) / (self.container[advantage_rename].std() + 1e-5)
+        if self.advantage_norm:
+            if exclude_eprsn_in_norm:
+                assert 'eprsn' in self.container
+                no_pr = ~self.container['eprsn'].all(-1)
+                m = self.container[advantage_rename][no_pr].mean()
+                s = self.container[advantage_rename][no_pr].std()
+            else:
+                m = self.container[advantage_rename].mean()
+                s = self.container[advantage_rename].std()
+
+            self.container[advantage_rename] = ( self.container[advantage_rename] - m ) / (s + 1e-5)
         # size of minibatch for each agent
         self.mini_batch_size = math.ceil(self.big_batch_size / self.n_pieces_batch_division)  
 
@@ -83,7 +101,6 @@ class TrajPoolSampler():
 
     def get_sampler(self):
         if not self.prevent_batchsize_oom:
-            # 
             sampler = BatchSampler(SubsetRandomSampler(range(self.big_batch_size)), self.mini_batch_size, drop_last=False)
         else:
             max_n_sample = self.determine_max_n_sample()

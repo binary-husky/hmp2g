@@ -40,7 +40,7 @@ result
 # .vscode/
 forattack-train/
 full-cargo/
-T*/
+# T*/
 checkpoint/
 
 PROFILE/
@@ -129,6 +129,13 @@ ZHECKPOINT/uhmap_hete10vs10/logger
 !ZHECKPOINT/uhmap_hete10vs10/model_trained.pt
 ZHECKPOINT/uhmap_hete10vs10/experiment.jsonc
 
+!ZHECKPOINT/adca-100+
+ZHECKPOINT/adca-100+/backup_files
+ZHECKPOINT/adca-100+/logger
+!ZHECKPOINT/adca-100+/model_95wr.pt
+ZHECKPOINT/adca-100+/experiment.jsonc
+
+
 
 cmd_io.txt
 rec.jpg
@@ -157,5 +164,10 @@ raw_exp.jsonc
 info.json
 UTIL/mem_watcher.py
 
-
 ALGORITHM/mirror*
+AUTORL
+AUTORL_BK
+THIRDPARTY/casmopolitan/Temp/
+.gitignore
+
+THIRDPARTY/pymarl2/pymarl2src

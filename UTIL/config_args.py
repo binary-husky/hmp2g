@@ -1,4 +1,4 @@
-import argparse, os, time, func_timeout
+import argparse, os, time, func_timeout, re
 from ast import Global
 from shutil import copyfile, copytree, ignore_patterns, rmtree
 from .colorful import *
@@ -13,6 +13,21 @@ class ChainVar(object):
     def __init__(self, chain_func, chained_with):
         self.chain_func = chain_func
         self.chained_with = chained_with
+
+class ChainVarSimple(object):
+    def __init__(self, str):
+        self.chained_with = re.findall(re.compile(r'\$(.*?)\$'), str)
+        self.chain_func_str = re.sub(r'\$(.*?)\$', r"cfg.\1", str)
+
+
+
+
+def perform_varible_chain_react(cv:ChainVarSimple, cfg):
+    res = [None]    # wrap a list because it is a mutable python type
+    exec(f'res[0]={cv.chain_func_str}')
+    assert res[0] is not None
+    return res[0]
+        
 
 # ChainVar relationship must end with '_cv' or '_CV'
 def is_chained_key(key):
@@ -117,7 +132,10 @@ def secure_chained_vars(default_cfg, new_cfg, vb):
         for chain_by_var in chain_var.chained_with:
             if chain_by_var in new_cfg: need_reflesh = True
         if not need_reflesh: continue
-        replace_item = chain_var.chain_func(*[getattr(default_cfg, v) for v in chain_var.chained_with])
+        if isinstance(chain_var, ChainVarSimple): 
+            replace_item = perform_varible_chain_react(cv=chain_var, cfg=default_cfg)
+        else:
+            replace_item = chain_var.chain_func(*[getattr(default_cfg, v) for v in chain_var.chained_with])
         original_item = getattr(default_cfg, o_key)
         if vb: print靛('[config] warning, %s is chained by %s, automatic modifying:'%(o_key,
                             str(chain_var.chained_with)), original_item, '-->', replace_item)

@@ -10,7 +10,7 @@ numpy scipy torch gym scikit-learn pygame
 
 ## Group 2: Unreal-HMAP and Starcraft
 ```
-lz4
+lz4   protobuf==3.19.5   pysc2   s2clientprotocol   absl-py   pygame
 (Note: our platform modifies ```smac``` to support fast switch between different Starcraft versions. Thus you must use our docker if you'd like to run ```smac```.)
 ```
 
@@ -26,7 +26,7 @@ numba cython
 
 ## Group 5: Functional
 ```
-func_timeout commentjson PyYAML onedrivedownloader redis filelock
+func_timeout commentjson PyYAML onedrivedownloader redis filelock scikit-fuzzy
 ```
 
 ## Group 6: Remote and management

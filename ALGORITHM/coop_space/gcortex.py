@@ -25,8 +25,6 @@ def weights_init(m):
         return
     elif classname ==  'ReLU':
         m.inplace=True
-    elif classname ==  'Py_Dynamic_Norm':
-        return
     elif classname ==  'Linear':
         nn.init.orthogonal_(m.weight.data)
         if m.bias is not None: m.bias.data.fill_(0)
@@ -90,21 +88,18 @@ class GNet(nn.Module):
         cluster_emb_dim = _n_cluster              +  n_agent           +  n_entity
 
         self.cluster_enter_encoder = nn.Sequential(
-            # Py_Dynamic_Norm(cluster_emb_dim, only_for_last_dim=True),
             nn.Linear(cluster_emb_dim, h_dim),
             activation_func(),
             nn.Linear(h_dim, h_dim)
         )
 
         self.entity_enter_encoder = nn.Sequential(
-            # Py_Dynamic_Norm(entity_emb_dim, only_for_last_dim=True),
             nn.Linear(entity_emb_dim, h_dim),
             activation_func(),
             nn.Linear(h_dim, h_dim)
         )
 
         self.agent_enter_encoder = nn.Sequential(
-            # Py_Dynamic_Norm(agent_emb_dim, only_for_last_dim=True),
             nn.Linear(agent_emb_dim, h_dim),
             activation_func(),
             nn.Linear(h_dim, h_dim)
@@ -284,8 +279,6 @@ class GNet(nn.Module):
         central_enc_vbottom = torch.cat(tensors=(right_attn_enc_vbottom, left_attn_enc_vbottom), dim=2)
         value_bottom = self._get_value_way2bottom(central_enc_vbottom)
 
-
-
         top_attn_enc    = self._attention(src=central_enc, passive=agent_enc, attn_key='top')
         bottom_attn_enc = self._attention(src=central_enc, passive=entity_enc, attn_key='bottom')
         top_feature     = self._merge_top_feature(top_attn_enc)
@@ -461,46 +454,3 @@ class LinearFinal(nn.Module):
             self.in_features, self.out_features, self.bias is not None
         )
 
-
-
-class Py_Dynamic_Norm(nn.Module):
-    def __init__(self, input_size, only_for_last_dim):
-        super().__init__()
-        assert only_for_last_dim
-        self.mean = nn.Parameter(torch.zeros(input_size, requires_grad=False), requires_grad=False)
-        self.var = nn.Parameter(torch.ones(input_size, requires_grad=False), requires_grad=False)
-        self.n_sample = nn.Parameter(torch.ones(1, requires_grad=False)*(1e-4), requires_grad=False)
-        self.input_size = input_size
-
-    # 这里加入no_grad
-    def forward(self, x):
-        assert self.input_size == x.shape[-1], ('self.input_size',self.input_size,'x.shape[-1]',x.shape[-1])
-        _2dx = x.detach().view(-1, self.input_size)
-        this_batch_size = _2dx.shape[0]
-        assert this_batch_size>=1
-
-        if self.training:
-            with torch.no_grad():
-                this_batch_mean = torch.mean(_2dx, dim=0)
-                this_batch_var = torch.var(_2dx, dim=0, unbiased=False)
-                if torch.isnan(this_batch_var).any():
-                    print(x.shape, _2dx.shape, _2dx)
-                assert _2dx.dim() == 2
-                delta = this_batch_mean - self.mean
-                tot_count = self.n_sample + this_batch_size
-                new_mean = self.mean + delta * this_batch_size / tot_count
-                m_a = self.var * (self.n_sample)
-                m_b = this_batch_var * (this_batch_size)
-                M2 = m_a + m_b + torch.square(delta) * self.n_sample * this_batch_size / (self.n_sample + this_batch_size)
-                new_var = M2 / (self.n_sample + this_batch_size)
-                self.mean.data = new_mean
-                self.var.data = torch.clamp(new_var, min=1e-6)
-                self.n_sample.data = tot_count
-
-        x = torch.clip((x - self.mean) / torch.sqrt(self.var + 1e-8), -20, 20)
-        return x
-'''
-python main.py --note norm-no-limit-1
-python main.py --note norm-no-limit-2
-python main.py --note norm-no-limit-3
-'''

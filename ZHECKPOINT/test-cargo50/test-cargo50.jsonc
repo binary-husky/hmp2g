@@ -25,7 +25,7 @@
         "n_worker": 50,
         "weight_percent": 0.8,
         "n_cargo": 4,
-        "render": "True",
+        "render": true,
         "TEAM_NAMES": [
             "ALGORITHM.coop_space.reinforce_foundation->ReinforceAlgorithmFoundation"
         ]

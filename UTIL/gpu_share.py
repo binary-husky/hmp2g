@@ -71,6 +71,8 @@ class GpuShareUnit():
         self.manual_gpu_ctl = True
         self.lock_path=lock_path
         self.gpu_party = gpu_party
+        if self.gpu_party.startswith('#'):
+            raise RuntimeError
         self.gpu_lock = None
         self.ensure_gpu_safe = gpu_ensure_safe
         self.pid_str = str(os.getpid())

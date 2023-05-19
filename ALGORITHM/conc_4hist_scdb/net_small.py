@@ -2,8 +2,8 @@ import torch, math, copy
 import numpy as np
 import torch.nn as nn
 from torch.distributions.categorical import Categorical
-from UTIL.tensor_ops import Args2tensor_Return2numpy, Args2tensor, __hashn__, my_view
-from UTIL.tensor_ops import pt_inf
+from UTIL.tensor_ops import Args2tensor_Return2numpy, Args2tensor, __hashn__, repeat_at
+from UTIL.tensor_ops import gather_righthand, _2tensor
 from UTIL.exp_helper import changed
 from .ccategorical import CCategorical
 from .foundation import AlgorithmConfig
@@ -50,13 +50,20 @@ class Net(Logit2Act, nn.Module):
         self.at_policy_head = nn.Sequential(
             nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
             nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
-            nn.Linear(h_dim, self.n_action))
+            nn.Linear(h_dim, self.n_action)
+        )
         assert self.n_action <= h_dim
 
         # # # # # # # # # # critic # # # # # # # # # # # #
-        self.ct_encoder = nn.Sequential(nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True), nn.Linear(h_dim, h_dim))
+        self.ct_encoder = nn.Sequential(
+            nn.Linear(h_dim+state_dim, h_dim), nn.ReLU(inplace=True), 
+            nn.Linear(h_dim, h_dim)
+        )
         self.ct_attention_layer = SimpleAttention(h_dim=h_dim)
-        self.ct_get_value = nn.Sequential(nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),nn.Linear(h_dim, 1))
+        self.ct_get_value = nn.Sequential(
+            nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
+            nn.Linear(h_dim, AlgorithmConfig.distribution_precision)
+        )
 
 
         self.is_recurrent = False
@@ -82,22 +89,39 @@ class Net(Logit2Act, nn.Module):
         logit2act = self._logit2act_rsn if self.use_policy_resonance and self.stage_planner.is_resonance_active() else self._logit2act
         
         # apply action selector
-        act, actLogProbs, distEntropy, probs = logit2act(   logits, 
+        act, actLogProbs, distEntropy, probs = logit2act(   logits,
                                                             eval_mode=eval_mode,
-                                                            greedy=test_mode, 
-                                                            eval_actions=eval_act, 
+                                                            greedy=test_mode,
+                                                            eval_actions=eval_act,
                                                             avail_act=avail_act,
                                                             eprsn=eprsn)
         
         # # # # # # # # # # critic # # # # # # # # # # # #
-        ct_bac = self.ct_encoder(bac)
+        n_agent = bac.shape[-2]
+
+        state_cp = repeat_at(state, -2, n_agent)
+        ct_bac = torch.cat((bac, state_cp), dim=-1)
+        ct_bac = self.ct_encoder(ct_bac)
         ct_bac = self.ct_attention_layer(k=ct_bac,q=ct_bac,v=ct_bac)
-        value = self.ct_get_value(ct_bac)
-        
-        if not eval_mode: return act, value, actLogProbs
+        BAL_value_all_level = self.ct_get_value(ct_bac)
+        value = self.select_value_level(BAL_value_all_level, eprsn, n_agent)
+
+        # in this mode, value is used for advantage calculation
+        if not eval_mode: return act, BAL_value_all_level, actLogProbs
+        # in this mode, value is used for critic regression
         else:             return value, actLogProbs, distEntropy, probs, others
 
-        
+    def select_value_level(self, BAL_value_all_level, eprsn, n_agent):
+        def get_lv(eprsn):
+            with torch.no_grad():
+                asum = eprsn.sum(-1).cpu().numpy()
+                lv = np.array(list(map(self.stage_planner.mapPrNum2Level, asum)))
+                lv = _2tensor(lv).long()
+                return repeat_at(lv, -1, n_agent).unsqueeze(-1)
+        lv = get_lv(eprsn)
+        value = gather_righthand(src=BAL_value_all_level, index=lv, check=False)
+        return value
+    
     @Args2tensor_Return2numpy
     def act(self, *args, **kargs):
         return self._act(*args, **kargs)

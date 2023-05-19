@@ -1,8 +1,8 @@
 {
     "config.py->GlobalConfig": {
         "note": "adca-demo",
-        "env_name": "collective_assult_debug",
-        "env_path": "MISSION.collective_assult_debug",
+        "env_name": "dca",
+        "env_path": "MISSION.dca",
         "draw_mode": "Img",
         "num_threads": "1",
         "report_reward_interval": "1",
@@ -21,7 +21,7 @@
             "MISSION/collective_assult"
         ]
     },
-    "MISSION.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
         "size": "5",
         "random_jam_prob": 0.05,
         "num_guards": 50,

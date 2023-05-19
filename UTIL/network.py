@@ -563,6 +563,13 @@ class TcpClientP2P(StreamingPackageSep):
         if DEBUG_NETWORK: print('get_reply :', self.client, ' data :', data)
         return data
 
+    def wait_reply(self):
+        data, _ = self.lower_recv(self.client)
+        if self.convert_str: data = data.decode('utf8')
+        if self.use_pickle: data = pickle.loads(data)
+        if DEBUG_NETWORK: print('get_reply :', self.client, ' data :', data)
+        return data
+
     def __del__(self):
         self.close()
         return
@@ -658,6 +665,9 @@ class QueueOnTcpClient():
     def send_str(self, b_msg):
         self.tcpClientP2P.send_dgram_to_target(b_msg)
 
+    def wait_reply(self):
+        return self.tcpClientP2P.wait_reply()
+    
     def close(self):
         self.tcpClientP2P.close()
 

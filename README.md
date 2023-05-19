@@ -159,13 +159,12 @@ Then:
 - (Step2, Use It !) Anywhere you want to use the ```HP_MAX```, first ```from xxx.collective_assult_parallel_run import ScenarioConfig```,
 then use the parameter by ```init_hp_of_some_agent = ScenarioConfig.HP_MAX```.
 - (Step3, Change It !) To override the default value ```HP_MAX=100``` in JSON (e.g., in ```./example_dca.jsonc```), 
-you just need to add a line in the field ```"MISSION.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig"```,
-
+you just need to add a line in the field ```"MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig"```,
 for example:
 ```Jsonc
 {
     ...... (other field)
-    "MISSION.collective_assult_debug.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
         "HP_MAX": 222,  # <------ add this!
         "random_jam_prob": 0.05,    # (other config override in ScenarioConfig)
         ......

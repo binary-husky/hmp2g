@@ -41,7 +41,7 @@ class MMPlatform(object):
         pass
 
 
-    def act(self, runner_info):
+    def act(self, runner_info:dict):
         actions_list = []
         for t_name, t_members, algo_fdn, t_index in zip(self.t_name, self.t_member_list, self.algo_foundations, range(self.n_t)):
             # split intel such as reward and observation into different teams
@@ -50,7 +50,7 @@ class MMPlatform(object):
             _act_, _t_intel_ = algo_fdn.interact_with_env(_t_intel_)
             # concat actions of each agent ('_act_' --> 'actions_list')
             actions_list = self._append_act_to_list(_act_, actions_list, t_members)
-            # loop back internal states registered in _t_intel_  (e.g._division_obs_)
+            # loop back internal states registered in _t_intel_  (e.g._previous_obs_)
             if _t_intel_ is None: continue
             # process internal states loop back, featured with keys that startswith and endswith '_'
             for key in _t_intel_:
@@ -65,24 +65,9 @@ class MMPlatform(object):
         ENV_PAUSE = runner_info['ENV-PAUSE']
         if ENV_PAUSE.any() and self.align_episode: actions_list[ENV_PAUSE,:] = np.nan
         return actions_list, runner_info
-
-    def before_terminate(self, runner_info):
-        for t_name, t_members, t_index in zip(self.t_name, self.t_member_list, range(self.n_t)):
-            # split info such as reward and observation
-            self._split_intel(runner_info, t_members, t_name, t_index)
-
-
-    def _update_runner(self, runner_info, ENV_PAUSE, t_name, key, content):
-        u_key = t_name+key
-        if (u_key in runner_info) and hasattr(content, '__len__') and \
-                len(content)==self.n_thread and ENV_PAUSE.any():
-            runner_info[u_key][~ENV_PAUSE] = content[~ENV_PAUSE]
-            return
-        runner_info[u_key] = content
-        return
-
+    
     # seperate observation between teams
-    def _split_intel(self, runner_info, t_members, t_name, t_index):
+    def _split_intel(self, runner_info:dict, t_members:range, t_name:str, t_index:int):
         # RUNNING = ~runner_info['ENV-PAUSE']
         # Team_Info and ter_obs_echo are None when runner_info['Latest-Team-Info'] is absent
         Team_Info = None
@@ -129,14 +114,29 @@ class MMPlatform(object):
         # t_intel_basic = self.filter_running(t_intel_basic, RUNNING)
         return t_intel_basic
 
-    def _append_act_to_list(self, _act_, actions_list, t_members):
+    def before_terminate(self, runner_info:dict):
+        for t_name, t_members, t_index in zip(self.t_name, self.t_member_list, range(self.n_t)):
+            # split info such as reward and observation
+            self._split_intel(runner_info, t_members, t_name, t_index)
+
+    def _update_runner(self, runner_info:dict, ENV_PAUSE, t_name, key, content):
+        u_key = t_name+key
+        if (u_key in runner_info) and hasattr(content, '__len__') and \
+                len(content)==self.n_thread and ENV_PAUSE.any():
+            runner_info[u_key][~ENV_PAUSE] = content[~ENV_PAUSE]
+            return
+        runner_info[u_key] = content
+        return
+
+
+    def _append_act_to_list(self, _act_:np.ndarray, actions_list:np.ndarray, t_members:range):
         if not self.legacy_act_order: _act_ = np.swapaxes(_act_, 0, 1) 
         assert _act_.shape[0]==len(t_members), ('number of actions differs number of agents!')
         append_op = actions_list.append if self.ActAsUnity else actions_list.extend
         append_op(_act_)
         return actions_list
 
-    def deal_with_hook(self, hook, t_intel_basic):
+    def deal_with_hook(self, hook:callable, t_intel_basic:dict):
         # use the hook left by algorithm to callback some function 
         # to deliver reward and reset signals
         # assert self.L_RUNNING is not None

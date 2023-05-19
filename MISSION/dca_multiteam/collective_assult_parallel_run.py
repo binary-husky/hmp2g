@@ -375,7 +375,7 @@ class collective_assultGlobalEnv(gym.Env):
         t = self.threejs_bridge.time_cnt
         self.threejs_bridge.time_cnt += 1
 
-        n_circle_mark = 16
+        n_circle_mark = 32
         phase = np.arange(start=t/20, stop=t/20+np.pi * 2, step=np.pi * 2 / n_circle_mark)
         d = self.world.current_cir_size
         for i in range(n_circle_mark):
@@ -405,11 +405,23 @@ class collective_assultGlobalEnv(gym.Env):
 
         n_red= len([0 for agent in self.world.agents if agent.alive and agent.team==1])
         n_blue = len([0 for agent in self.world.agents if agent.alive and agent.team==0])
+        n_green = len([0 for agent in self.world.agents if agent.alive and agent.team==2])
         reward_blue = "%.2f"%self.scenario.reward_acc[0]
         reward_red = "%.2f"%self.scenario.reward_acc[1]
-        who_is_winning = '<Blue>Blue<Black> is leading' if n_blue>n_red else '<Red>Red<Black> is leading'
-        self.threejs_bridge.v2dx('tower2|1104|Gray|0.2', 0, 0, 1, ro_x=0, ro_y=0, ro_z=0, label_bgcolor='GhostWhite',
-            label=f'<Blue>Blue<Black>Agents Remain: <Blue>{n_blue}<Black>,Reward:<Blue>{reward_blue}\n<Red>Red<Black>Agents Remain: <Red>{n_red}<Black>,Reward:<Red>{reward_red} \n{who_is_winning}<End>', label_color='DarkGreen', opacity=0)
+        if self.n_teams==3: reward_green = "%.2f"%self.scenario.reward_acc[2]
+        # who_is_winning = '<Blue>Blue<Black> is leading' if n_blue > n_red else '<Red>Red<Black> is leading'
+        who_is_winning = ''
+        if self.n_teams==3: 
+            self.threejs_bridge.v2dx('tower2|1104|Gray|0.2', 0, 2, 1, ro_x=0, ro_y=0, ro_z=0, label_bgcolor='GhostWhite',
+                label=  f'<Blue>Blue<Black>Agents Remain: <Blue>{n_blue}<Black>,Reward:<Blue>{reward_blue}\n' + 
+                        f'<Red>Red<Black>Agents Remain: <Red>{n_red}<Black>,Reward:<Red>{reward_red} \n' + 
+                        f'<Green>Green<Black>Agents Remain: <Green>{n_green}<Black>,Reward:<Green>{reward_green}\n<End>', 
+                label_color='DarkGreen', opacity=0)
+        if self.n_teams==2: 
+            self.threejs_bridge.v2dx('tower2|1104|Gray|0.2', 0, 2, 1, ro_x=0, ro_y=0, ro_z=0, label_bgcolor='GhostWhite',
+                label=  f'<Blue>Blue<Black>Agents Remain: <Blue>{n_blue}<Black>,Reward:<Blue>{reward_blue}\n' + 
+                        f'<Red>Red<Black>Agents Remain: <Red>{n_red}<Black>,Reward:<Red>{reward_red}\n<End>', 
+                label_color='DarkGreen', opacity=0)
 
         _color = ['blue', 'red', 'green']
         _base_color = ['CornflowerBlue', 'LightPink', 'green']
@@ -442,69 +454,6 @@ class collective_assultGlobalEnv(gym.Env):
                 flash_color = _flash_color[agent.wasHitBy.team]
                 self.threejs_bridge.flash(flash_type, src=agent.wasHitBy.iden, dst=agent.iden, dur=0.2, size=0.03, color=flash_color)
                 agent.wasHitBy = None
-                
-        # if self.s_cfg.Terrain_DEBUG:
-        #     # 临时 - 调试地形
-        #     # 计算双方距离
-
-        #     # blue_pos = np.array([agent.pos for agent in self.world.agents if agent.team==0])
-        #     # red_pos = np.array([agent.pos for agent in self.world.agents if agent.team==1])
-        #     # distance = distance_matrix_AB(blue_pos, red_pos)
-        #     for blue_agent in [agent for agent in self.world.agents if agent.team==0]:
-        #         for red_agent in [agent for agent in self.world.agents if agent.team==1]:
-
-
-
-        #             dis = np.linalg.norm(red_agent.pos - blue_agent.pos)
-
-
-        #             if dis <= blue_agent.shootRad*blue_agent.terrain:
-        #                 self.threejs_bridge.发送线条(
-        #                     'simple|2000%s|MidnightBlue|0.03'%(str(blue_agent.iden)+'-'+str(red_agent.iden)), # 填入核心参量： “simple|线条的唯一ID标识|颜色|整体大小”
-        #                     x_arr=np.array([blue_agent.pos[0],          red_agent.pos[0],        ]),   # 曲线的x坐标列表
-        #                     y_arr=np.array([blue_agent.pos[1],          red_agent.pos[1],        ]),   # 曲线的y坐标列表
-        #                     z_arr=np.array([(blue_agent.terrain-1)*show_lambda,   (red_agent.terrain-1)*show_lambda, ]),   # 曲线的z坐标列表
-        #                     tension=0,  # 曲线的平滑度，0为不平滑，推荐不平滑
-        #                 )
-        #                 agent = blue_agent
-        #                 x = agent.pos[0]; y = agent.pos[1]
-        #                 dir_ = dir2rad(agent.vel)
-        #                 color = 'red' if agent.team==1 else 'blue'
-        #                 base_color = 'LightPink' if agent.team==1 else 'CornflowerBlue'
-        #                 if not agent.alive:
-        #                     color = "#330000" if agent.team==1 else "#000033"
-        #                     base_color = "#330000" if agent.team==1 else "#000033"
-        #                 size = 0.025 if agent.alive else 0.01
-
-        #                 self.threejs_bridge.v2dx(
-        #                     'cone|%d|%s|%.3f'%(agent.iden, color, size),
-        #                     x, y, (agent.terrain-1)*show_lambda, label_bgcolor='Black',
-        #                     ro_x=0, ro_y=0, ro_z=agent.atk_rad,  # Euler Angle y-x-z
-        #                     label='T %.3f, R %.3f, D %.3f'%(agent.terrain, agent.shootRad*agent.terrain, dis), label_color='white', attack_range=0, opacity=1)
-
-        #             if dis <= red_agent.shootRad*red_agent.terrain:
-        #                 self.threejs_bridge.发送线条(
-        #                     'simple|3000%s|Pink|0.03'%(str(red_agent.iden)+'-'+str(blue_agent.iden)), # 填入核心参量： “simple|线条的唯一ID标识|颜色|整体大小”
-        #                     x_arr=np.array([red_agent.pos[0],           blue_agent.pos[0],        ]),   # 曲线的x坐标列表
-        #                     y_arr=np.array([red_agent.pos[1],           blue_agent.pos[1],        ]),   # 曲线的y坐标列表
-        #                     z_arr=np.array([(red_agent.terrain-1)*show_lambda+0.03,    (blue_agent.terrain-1)*show_lambda+0.03, ]),   # 曲线的z坐标列表
-        #                     tension=0,  # 曲线的平滑度，0为不平滑，推荐不平滑
-        #                 )
-        #                 agent = red_agent
-        #                 x = agent.pos[0]; y = agent.pos[1]
-        #                 dir_ = dir2rad(agent.vel)
-        #                 color = 'red' if agent.team==1 else 'blue'
-        #                 base_color = 'LightPink' if agent.team==1 else 'CornflowerBlue'
-        #                 if not agent.alive:
-        #                     color = "#330000" if agent.team==1 else "#000033"
-        #                     base_color = "#330000" if agent.team==1 else "#000033"
-        #                 size = 0.025 if agent.alive else 0.01
-
-        #                 self.threejs_bridge.v2dx(
-        #                     'cone|%d|%s|%.3f'%(agent.iden, color, size),
-        #                     x, y, (agent.terrain-1)*show_lambda, label_bgcolor='Black',
-        #                     ro_x=0, ro_y=0, ro_z=agent.atk_rad,  # Euler Angle y-x-z
-        #                     label='T %.3f, R %.3f, D %.3f'%(agent.terrain, agent.shootRad*agent.terrain, dis), label_color='white', attack_range=0, opacity=1)
 
         self.threejs_bridge.v2d_show()
 

@@ -39,11 +39,13 @@ class ConfigCache(object):
 
 cuda_cfg = ConfigCache()
 
+@lru_cache
 def pt_inf():
     # if not cuda_cfg.init: cuda_cfg.read_cfg()
     pt_dtype = torch.float64 if cuda_cfg.use_float64 else torch.float32
     return torch.tensor(np.inf, dtype=pt_dtype, device=cuda_cfg.device)
 
+@lru_cache
 def pt_nan():
     # if not cuda_cfg.init: cuda_cfg.read_cfg()
     pt_dtype = torch.float64 if cuda_cfg.use_float64 else torch.float32
@@ -772,6 +774,16 @@ def distance_matrix(A):
     dis = np.linalg.norm(dis, axis=-1)
     return dis
 
+
+"""
+    calculate distance matrix for a position vector array A, support 3d and 2d
+"""
+def distance_matrix_efficient(X):
+    n_samples = X.shape[0]
+    XX = np.sum(X**2, axis=1).reshape(-1,1) 
+    dis = np.sqrt(np.maximum(XX + XX.T - 2*X.dot(X.T),0)) # aij^2 + aji^2 - 2*aij*aji
+    return dis
+
 """
     calculate delta matrix for a position vector array A
 """
@@ -834,9 +846,9 @@ def zeros_like_except_dim(array, except_dim, n):
     return torch.zeros(size=shape_, device=array.device, dtype=array.dtype)
 
 
-def pad_at_dim(array, dim, n):
+def pad_at_dim(array, dim, n, pad=0):
     extra_n = n-array.shape[dim]
-    padding = zeros_like_except_dim(array, except_dim=dim, n=extra_n)
+    padding = zeros_like_except_dim(array, except_dim=dim, n=extra_n) + pad
     return torch.cat((array, padding), axis=dim)
 
 def stack_vec_with_padding(arr_list):
@@ -862,6 +874,20 @@ def objload():
         return
     with open('objdump.tmp', 'rb') as f:
         return pickle.load(f)
+
+def objdumpf(obj, path):
+    import pickle
+    with open(path, 'wb+') as f:
+        pickle.dump(obj, f)
+    return
+
+def objloadf(path):
+    import pickle, os
+    if not os.path.exists(path): 
+        return
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
 
 def stack_padding(l, padding=np.nan):
     max_len = max([t.shape[0] for t in l])
