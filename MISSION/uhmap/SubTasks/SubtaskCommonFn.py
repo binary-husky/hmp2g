@@ -32,7 +32,8 @@ class UhmapCommonFn(UhmapEnv):
             self.SubTaskConfig.agent_list[i]['uid'] = i
             self.SubTaskConfig.agent_list[i]['tid'] = n_team_agent[team]
             n_team_agent[team] += 1
-
+            
+        self.n_team_agent = n_team_agent
         # push agent init info one by one
         for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
             team = agent_info['team']

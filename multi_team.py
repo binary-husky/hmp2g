@@ -131,7 +131,7 @@ class MMPlatform(object):
 
     def _append_act_to_list(self, _act_:np.ndarray, actions_list:np.ndarray, t_members:range):
         if not self.legacy_act_order: _act_ = np.swapaxes(_act_, 0, 1) 
-        assert _act_.shape[0]==len(t_members), ('number of actions differs number of agents!')
+        assert _act_.shape[0]==len(t_members), ('number of actions differs number of agents, Try to switch mt_act_order!')
         append_op = actions_list.append if self.ActAsUnity else actions_list.extend
         append_op(_act_)
         return actions_list

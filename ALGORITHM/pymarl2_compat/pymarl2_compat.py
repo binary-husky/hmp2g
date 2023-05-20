@@ -21,6 +21,7 @@ class AlgorithmConfig():
     use_shell_normalization = False
     load_checkpoint = False
     load_specific_checkpoint = ''
+    action_converter = 'ALGORITHM.common.converter->LegacyUmapActionConverter'
 
 def encrpt_string(s):  # encrpt_string
     k = ''.join(['@']*1000)
@@ -66,6 +67,7 @@ class PymarlFoundation():
             AlgorithmConfig.pymarl_config_injection['config.py->GlobalConfig'].update({'compat_windows_port':compat_windows_port})
 
         # Get the location of the current Python executable
+        assert os.path.exists("./THIRDPARTY/pymarl2/pymarl2src/main.py")
         subprocess.Popen([sys.executable, 
             "./THIRDPARTY/pymarl2/pymarl2src/main.py", 
             "--force", 
