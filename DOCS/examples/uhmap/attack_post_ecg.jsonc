@@ -1,0 +1,63 @@
+{
+    // --- Part1: config HMP core --- 
+    "config.py->GlobalConfig": {
+        "note": "attackpost-ecg",// http://localhost:59547
+        "env_name": "uhmap",
+        "env_path": "MISSION.uhmap",
+        "draw_mode": "Img",
+        "num_threads": 32,  // 请预留 num_threads * 1 GB 的内存空间
+        "report_reward_interval": 32,
+        "test_interval": 1280,
+        "mt_act_order": "new_method",
+        "test_epoch": 512,
+        "interested_team": 0,
+        "seed": 10098,
+        "max_n_episode": 50000,
+        "fold": 1,
+        "backup_files": [
+            "MISSION/uhmap"
+        ]
+    },
+
+
+      // --- Part2: config MISSION ---
+    "MISSION.uhmap.uhmap_env_wrapper.py->ScenarioConfig": {
+      "N_AGENT_EACH_TEAM": [ 8, 1 ], // 10 ships, 2 waterdrops
+      "MaxEpisodeStep": 100,
+      "StepGameTime": 0.5,
+      "StateProvided": false,
+      "render": false, // note: random seed has different impact on renderer and server
+      "UElink2editor": false,
+      "HeteAgents": false,
+      "UnrealLevel": "UhmapAttackPost",
+      "SubTaskSelection": "UhmapAttackPost",
+      "UhmapVersion":"3.8",
+      "UhmapRenderExe": "/home/hmp/UnrealHmapBinary/Version3.8/LinuxNoEditor/UHMP.sh",
+      "UhmapServerExe": "/home/hmp/UnrealHmapBinary/Version3.8/LinuxServer/UHMPServer.sh",
+      "TimeDilation": 64, // simulation time speed up, larger is faster
+      "TEAM_NAMES": [
+        "ALGORITHM.experimental_coopspace_vma_varnet_2ad.reinforce_foundation->ReinforceAlgorithmFoundation",
+        // "ALGORITHM.pymarl2_compat.pymarl2_compat->PymarlFoundation",
+        // "ALGORITHM.script_ai.a_attackpost->AttackPostPreprogramBaseline",
+        // "ALGORITHM.random.foundation->RandomControllerWithActionSetV2",
+        "ALGORITHM.random.foundation->RandomControllerWithActionSetV4",
+      ]
+    },
+
+    "ALGORITHM.experimental_coopspace_vma_varnet_2ad.reinforce_foundation.py->CoopAlgConfig": {
+        "train_traj_needed": 128,
+        "n_pieces_batch_division": 1,
+        "ppo_epoch": 16,
+        "dropout_prob": 0.001,
+        "g_num": 14,
+        "decision_interval": 5,
+        "lr": 0.0001
+    },
+
+    "ALGORITHM.random.foundation.py->AlgorithmConfig": {
+
+    },
+
+
+
+}

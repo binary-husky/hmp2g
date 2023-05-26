@@ -18,7 +18,7 @@
             "MISSION/dca"
         ],
     },
-    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca.collective_assault_parallel_run.py->ScenarioConfig": {
         "size": "5",
         "random_jam_prob": 0.1,
         "num_guards": 100,

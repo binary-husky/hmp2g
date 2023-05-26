@@ -3,8 +3,8 @@
         // checkout config.py for information
         "note": "test-100+100",                           // in case you forget the purpose of this trainning session, write a note
         "test_only": "True",                            // only test, no trainning! Both /"True"/ or /true/ works
-        "env_name": "collective_assult",                // which environment, see ./MISSION/env_router.py
-        "env_path": "MISSION.collective_assult",       // path of environment
+        "env_name": "collective_assault",                // which environment, see ./MISSION/env_router.py
+        "env_path": "MISSION.collective_assault",       // path of environment
         "draw_mode": "Img",                             // activate data plotting (Tensorboard is not used because I do not like it)
         "num_threads": "1",                             // run N parallel envs, a 'env' is refered to as a 'thread'
         "report_reward_interval": "64",                 // reporting interval
@@ -12,7 +12,7 @@
         "fold": "1",                                    // this 'folding' is designed for IPC efficiency, you can thank python GIL for such a strange design... 
         "backup_files": [                               // backup files, pack them up
             "ALGORITHM/conc",
-            "MISSION/collective_assult/envs/collective_assult_env.py"
+            "MISSION/collective_assault/envs/collective_assault_env.py"
         ],
         "device": "cpu",                             // choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU) 
         // GPU memory is precious! assign multiple training process to a 'party', then they will share GPU memory 
@@ -20,8 +20,8 @@
         "upload_after_test": "True"
     },
 
-    "MISSION.collective_assult.collective_assult_parallel_run.py->ScenarioConfig": {
-        // please checkout ./MISSION/collective_assult/collective_assult_parallel_run.py for information
+    "MISSION.collective_assault.collective_assault_parallel_run.py->ScenarioConfig": {
+        // please checkout ./MISSION/collective_assault/collective_assault_parallel_run.py for information
         "size": "5",
         "num_guards": 100,
         "num_attackers": 100,

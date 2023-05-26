@@ -1,1 +1,1 @@
-from .collective_assult_env import collective_assultEnvV1
+from .collective_assault_env import collective_assaultEnvV1

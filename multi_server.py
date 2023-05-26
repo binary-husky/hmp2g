@@ -21,7 +21,7 @@ base = """
             "MISSION/dca_multiteam"
         ]
     },
-    "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca_multiteam.collective_assault_parallel_run.py->ScenarioConfig": {
         "N_TEAM": 2,
         "N_AGENT_EACH_TEAM": [20, 20],
         "introduce_terrain": true,

@@ -9,7 +9,7 @@ except:
 from scipy.optimize import linear_sum_assignment
 from scipy.cluster.vq import kmeans2
 from .cheat_script_ai import CheatScriptAI
-from .collective_assult_parallel_run import ScenarioConfig
+from .collective_assault_parallel_run import ScenarioConfig
 from .cython_func import laser_hit_improve3
 # action of the agent
 
@@ -69,7 +69,7 @@ class Agent(Entity):
         self.hit = False        # in last time
         self.wasHit = False
         ## shooting cone's radius and width (in radian)
-        self.shootBaseRadius = ScenarioConfig.agent_shoot_base_radius # default value (same for guards and attackers, can be changed in collective_assult_env)
+        self.shootBaseRadius = ScenarioConfig.agent_shoot_base_radius # default value (same for guards and attackers, can be changed in collective_assault_env)
         self.shootWin = ScenarioConfig.agent_shoot_win
         self.alive = True   # alive/dead
         self.justDied = False   # helps compute reward for agent when it just died
@@ -118,7 +118,7 @@ class World(CheatScriptAI):
         # self.tar_pos[3][1] = 1
         self.teams_result_step1 = None
         self.team_centroid_step1 = None
-        from .collective_assult_parallel_run import ScenarioConfig
+        from .collective_assault_parallel_run import ScenarioConfig
         self.s_cfg = ScenarioConfig
 
     # return all alive agents

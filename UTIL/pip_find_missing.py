@@ -188,7 +188,7 @@ term_replace_dict = {
     "stable_baselines3":"None",
     "pyximport":"cython",
     "PIL":"None",
-    "collective_assult":"None",
+    "collective_assault":"None",
     "gym_fortattack":"None",
     "multiagent":"None",
     "z_config":"None",

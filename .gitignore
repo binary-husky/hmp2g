@@ -26,7 +26,7 @@ bin-release/
 # pytorch model
 *.pt
 core
-!MISSION/collective_assult/malib/core
+!MISSION/collective_assault/malib/core
 TODO
 __pycache__/
 ./build/

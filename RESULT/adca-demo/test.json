@@ -18,10 +18,10 @@
         "seed": 166111,
         "backup_files": [
             "ALGORITHM/conc_4hist_pr",
-            "MISSION/collective_assult"
+            "MISSION/collective_assault"
         ]
     },
-    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca.collective_assault_parallel_run.py->ScenarioConfig": {
         "size": "5",
         "random_jam_prob": 0.05,
         "num_guards": 50,

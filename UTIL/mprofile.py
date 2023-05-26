@@ -25,7 +25,7 @@ conf_override = {
                     "train_origin_T(5itf) t8",
                 ],
 
-    "MISSION.collective_assult.collective_assult_parallel_run.py->ScenarioConfig-->random_jam_prob":       
+    "MISSION.collective_assault.collective_assault_parallel_run.py->ScenarioConfig-->random_jam_prob":       
                 [
                     0.05,
                     0.05,
@@ -64,8 +64,8 @@ base_conf = {
     "config.py->GlobalConfig": {
         # please checkout config.py for information
         "note": "example experiment",                   # in case you forget the purpose of this trainning session, write a note
-        "env_name": "collective_assult",                # which environment, see ./MISSION/env_router.py
-        "env_path": "MISSION.collective_assult",       # path of environment
+        "env_name": "collective_assault",                # which environment, see ./MISSION/env_router.py
+        "env_path": "MISSION.collective_assault",       # path of environment
         "draw_mode": "Img",                             # activate data plotting (Tensorboard is not used because I do not like it)
         "num_threads": "64",                            # run N parallel envs, a 'env' is refered to as a 'thread'
         "report_reward_interval": "64",                 # reporting interval
@@ -75,7 +75,7 @@ base_conf = {
         "backup_files": [                               # backup files, pack them up
             "example.jsonc",
             "ALGORITHM/conc",
-            "MISSION/collective_assult/envs/collective_assult_env.py"
+            "MISSION/collective_assault/envs/collective_assault_env.py"
         ],
         "device": "cuda:0",                             # choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU) 
         # GPU memory is precious! assign multiple training process to a 'party', then they will share GPU memory 
@@ -89,8 +89,8 @@ base_conf = {
         "pwd": "clara"
     },
 
-    "MISSION.collective_assult.collective_assult_parallel_run.py->ScenarioConfig": {
-        # please checkout ./MISSION/collective_assult/collective_assult_parallel_run.py for information
+    "MISSION.collective_assault.collective_assault_parallel_run.py->ScenarioConfig": {
+        # please checkout ./MISSION/collective_assault/collective_assault_parallel_run.py for information
         "size": "5",
         "random_jam_prob": 0.05,
         "introduce_terrain": "True",

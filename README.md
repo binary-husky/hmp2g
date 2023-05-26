@@ -83,7 +83,7 @@ Redirection to another MARL project: Building high efficient multiagent environm
 
 
 
-### 2. DCA: Decentralized Collective Assult
+### 2. DCA: Decentralized Collective assault
 #### Web Demo of DCA (AAAI Paper Version)
 
 ```
@@ -154,17 +154,17 @@ Parameters assigned and overridden in the JSON file are NOT passed via init func
 We give an example to demonstrate how simple it is to add new parameters. 
 Suppose we want to introduce HP into DCA, then an initial HP, let say ```HP_MAX``` need to be defined as a parameter.
 Then:
-- Open ```MISSION/collective_assult/collective_assult_parallel_run.py```. (You can create new file if you wish so.)
+- Open ```MISSION/collective_assault/collective_assault_parallel_run.py```. (You can create new file if you wish so.)
 - (Step1, Define It !) In ```ScenarioConfig``` class add a new line writing ```HP_MAX=100```. (You can create another class if you wish so.)
-- (Step2, Use It !) Anywhere you want to use the ```HP_MAX```, first ```from xxx.collective_assult_parallel_run import ScenarioConfig```,
+- (Step2, Use It !) Anywhere you want to use the ```HP_MAX```, first ```from xxx.collective_assault_parallel_run import ScenarioConfig```,
 then use the parameter by ```init_hp_of_some_agent = ScenarioConfig.HP_MAX```.
 - (Step3, Change It !) To override the default value ```HP_MAX=100``` in JSON (e.g., in ```./example_dca.jsonc```), 
-you just need to add a line in the field ```"MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig"```,
+you just need to add a line in the field ```"MISSION.dca.collective_assault_parallel_run.py->ScenarioConfig"```,
 for example:
 ```Jsonc
 {
     ...... (other field)
-    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca.collective_assault_parallel_run.py->ScenarioConfig": {
         "HP_MAX": 222,  # <------ add this!
         "random_jam_prob": 0.05,    # (other config override in ScenarioConfig)
         ......

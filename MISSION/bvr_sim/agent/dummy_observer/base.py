@@ -406,8 +406,8 @@ class Baseclass(Agent):
         self.n_uav = 4
         self.cmd_list = []
         self.state_recall = {}
-        self.STATE = 'Full_Assult'
-        self.individual_state = ['Assult'] * self.n_uav
+        self.STATE = 'Full_assault'
+        self.individual_state = ['assault'] * self.n_uav
         self.id_mapping = None
         self.Name_mapping = None
         self.my_planes = None

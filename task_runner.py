@@ -86,10 +86,7 @@ class Runner(object):
         self.info_runner['Latest-Reward']      = np.zeros(shape=(self.n_thread, self.n_agent))
         self.info_runner['Latest-Reward-Sum']  = np.zeros(shape=(self.n_thread, self.n_agent))
         self.info_runner['Thread-Episode-Cnt'] = np.array([0 for _ in range(self.n_thread)])
-        self.info_runner['t0_win_cnt_avg'] = []
-        self.info_runner['t1_win_cnt_avg'] = []
-        self.info_runner['t2_win_cnt_avg'] = []
-        self.info_runner['td_win_cnt_avg'] = []
+        for i in range(self.n_team): self.info_runner[f't{i}_win_cnt_avg'] = []
         if self.RewardAsUnity:
             self.info_runner['Latest-Reward']  = np.zeros(shape=(self.n_thread, self.n_team))
             self.info_runner['Latest-Reward-Sum'] = np.zeros(shape=(self.n_thread, self.n_team))
@@ -277,31 +274,17 @@ class Runner(object):
             self.mcv.rec(win_rate, f'{prefix}win rate of=team-{team}')
 
         if not testing:
-            self.info_runner['t0_win_cnt_avg'].append(win_rate_each_team[0])
-            self.info_runner['t1_win_cnt_avg'].append(win_rate_each_team[1])
-            if self.n_team == 3: 
-                self.info_runner['t2_win_cnt_avg'].append(win_rate_each_team[2])
-                self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[2]-win_rate_each_team[1]-win_rate_each_team[0])
-            else:
-                self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[1]-win_rate_each_team[0])
-
-            t0 = np.array(self.info_runner['t0_win_cnt_avg']).mean()
-            t1 = np.array(self.info_runner['t1_win_cnt_avg']).mean()
-            td = np.array(self.info_runner['td_win_cnt_avg']).mean()
-            self.mcv.rec(t0, f'{prefix}acc win ratio of=team-0')
-            self.mcv.rec(t1, f'{prefix}acc win ratio of=team-1')
-            if self.n_team == 3: 
-                t2 = np.array(self.info_runner['t2_win_cnt_avg']).mean()
-                self.mcv.rec(t2, f'{prefix}acc win ratio of=team-2')
-            self.mcv.rec(td, f'{prefix}acc win ratio of=draw')
+            for i in range(self.n_team):
+                self.info_runner[f't{i}_win_cnt_avg'].append(win_rate_each_team[i])
+                ti = np.array(self.info_runner['t{i}_win_cnt_avg']).mean()
+                self.mcv.rec(ti, f'{prefix}acc win ratio of=team-{i}')
 
         # plot the figure
         self.mcv.rec_show()
         if testing: 
-            print_info = ['\r[task runner]: Test result at episode %d.'%(self.current_n_episode)]
+            print_info = [f'\r[task runner]: Test result at episode {self.current_n_episode}.']
         else:
-            print_info = ['\r[task runner]: (%s) Finished episode %d, frame %d.'%(self.note, self.current_n_episode, self.current_n_frame)]
-
+            print_info = [f'\r[task runner]: ({self.note}) Finished episode {self.current_n_episode}, frame {self.current_n_frame}.']
         for team in range(self.n_team): 
             print_info.append(' | team-%d: win rate: %.3f, recent reward %.3f'%(team, win_rate_each_team[team], mean_reward_each_team[team]))
         print靛(''.join(print_info))

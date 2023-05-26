@@ -18,7 +18,7 @@
             "MISSION/dca"                        
         ],                                                              
     },
-    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {  // 维度: 任务配置 | 类型: 任务控制
+    "MISSION.dca.collective_assault_parallel_run.py->ScenarioConfig": {  // 维度: 任务配置 | 类型: 任务控制
         "num_guards": 100,                                           // 配置项: 蓝方数量 number of agents  | 取值范围: (0, 150) | 默认值: 100
         "num_attackers": 150,                                        // 配置项: 红方数量 number of opponents  | 取值范围: (0, 150) | 默认值: 150
         "enable_attacker_fluctuation": true,                         // 配置项: 红方数量随机化 enable attacker fluctuation | 取值范围: true/false | 默认值: true

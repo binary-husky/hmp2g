@@ -101,8 +101,8 @@ class NewAgent(Agent):
         self.n_uav = 4
         self.cmd_list = []
         self.state_recall = {}
-        self.STATE = 'Full_Assult'
-        self.individual_state = ['Assult']*self.n_uav
+        self.STATE = 'Full_assault'
+        self.individual_state = ['assault']*self.n_uav
 
         self.my_planes = None
 
@@ -138,11 +138,11 @@ class NewAgent(Agent):
         return
 
     def make_decision(self):
-        if self.STATE == 'Full_Assult':
-            self.Full_Assult()
+        if self.STATE == 'Full_assault':
+            self.Full_assault()
 
 
-    def Full_Assult(self):
+    def Full_assault(self):
         '''
             cmd_list.append(CmdEnv.make_attackparam(plane_info['ID'], close_target['enemy_data']['ID'], 1))
             cmd_list.append();
