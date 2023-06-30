@@ -132,7 +132,6 @@ class ScenarioConfig(object):
     DemoType = "Default" 
 
 
-
 class UhmapEnvParseHelper:
     def parse_response_ob_info(self, response):
         raise NotImplementedError
@@ -192,7 +191,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                 self.ue_vis_port, release_port_fn = find_free_port_no_repeat()    # port for remote visualizing
                 print蓝('Port %d will be used by hmp, port %d will be used by UE internally'%(self.hmp_ue_port, self.ue_vis_port))
             if (not self.render) and (not ScenarioConfig.UElink2editor):
-                print蓝('To visualize on Windows, run "./UHMP.exe -OpenLevel=%s:%d -WINDOWED -TimeDilation=%.8f -FrameRate=%.8f -IOInterval=%.8f -DebugMod=False -LockGameDuringCom=True"'%(
+                print蓝('To visualize on Windows, use Git Bash to run "./UHMP.exe -OpenLevel=%s:%d -WINDOWED -TimeDilation=%.8f -FrameRate=%.8f -IOInterval=%.8f -DebugMod=False -LockGameDuringCom=True", do NOT use powershell or CMD. '%(
                     get_host_ip(), self.ue_vis_port, ScenarioConfig.TimeDilation, ScenarioConfig.FrameRate, ScenarioConfig.StepGameTime))
             self.ip_port = (ScenarioConfig.TcpAddr, self.hmp_ue_port)
         

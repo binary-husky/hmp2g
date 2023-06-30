@@ -150,7 +150,7 @@ class UhmapAttackPost(UhmapEnv):
             event_parsed = self.parse_event(event)
             if event_parsed['Event'] == 'Destroyed':
                 team = self.find_agent_by_uid(event_parsed['UID']).team
-                reward[team]    -= 0.10    # this team
+                # reward[team]    -= 0.10    # this team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
                 DefenderWin = False
@@ -463,7 +463,8 @@ class UhmapAttackPost(UhmapEnv):
             # show color
             'Color':'(R=0,G=1,B=0,A=1)',
             # 预留参数接口
-            'RSVD1':'-LaserDmg=70',
+            'AgentHp': 100,
+            'RSVD1':'-LaserDmg=20',
             # initial location
             'InitLocation': { 'x': x,  'y': y, 'z': z, },
             # initial facing direction et.al.

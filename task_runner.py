@@ -276,7 +276,7 @@ class Runner(object):
         if not testing:
             for i in range(self.n_team):
                 self.info_runner[f't{i}_win_cnt_avg'].append(win_rate_each_team[i])
-                ti = np.array(self.info_runner['t{i}_win_cnt_avg']).mean()
+                ti = np.array(self.info_runner[f't{i}_win_cnt_avg']).mean()
                 self.mcv.rec(ti, f'{prefix}acc win ratio of=team-{i}')
 
         # plot the figure

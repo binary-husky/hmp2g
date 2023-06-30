@@ -75,17 +75,7 @@ class UmapActionConverterV2():
         # (main_cmd, sub_cmd, x=None, y=None, z=None, UID=None, T=None, T_index=None)
         self.dictionary_args = [
             'ActionSet2::N/A;N/A'                        ,
-            'ActionSet2::SpecificAttacking;T1-0'         ,
-            'ActionSet2::Idle;DynamicGuard'              ,
-            'ActionSet2::Idle;StaticAlert'               ,
-            'ActionSet2::Idle;AggressivePersue'          ,
             'ActionSet2::Idle;AsFarAsPossible'           ,
-            'ActionSet2::Idle;StayWhenTargetInRange'     ,
-            'ActionSet2::Idle;StayWhenTargetInHalfRange' ,
-            'ActionSet2::SpecificMoving;Dir+X'           ,
-            'ActionSet2::SpecificMoving;Dir+Y'           ,
-            'ActionSet2::SpecificMoving;Dir-X'           ,
-            'ActionSet2::SpecificMoving;Dir-Y'           ,
             'ActionSet2::PatrolMoving;Dir+X'             ,
             'ActionSet2::PatrolMoving;Dir+Y'             ,
             'ActionSet2::PatrolMoving;Dir-X'             ,
