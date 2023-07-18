@@ -1,3 +1,4 @@
+import importlib
 import numpy as np
 from config import GlobalConfig
 from UTIL.colorful import *
@@ -8,7 +9,8 @@ from .foundation import AlgorithmConfig
 from .cython_func import roll_hisory
 
 class ShellEnvConfig:
-    add_avail_act = False
+    action_converter = ""
+
 
 class ActionConvertPredatorPrey():
     def __init__(self, SELF_TEAM_ASSUME, OPP_TEAM_ASSUME, OPP_NUM_ASSUME) -> None:
@@ -123,16 +125,28 @@ class ShellEnvWrapper(object):
         if hasattr(ScenarioConfig, 'AvailActProvided'):
             self.AvailActProvided = ScenarioConfig.AvailActProvided 
 
-        if GlobalConfig.ScenarioConfig.SubTaskSelection in ['UhmapLargeScale', 'UhmapHuge', 'UhmapBreakingBad']:
-            ActionToDiscreteConverter = ActionConvertLegacy
+        if len(ShellEnvConfig.action_converter) == 0:
+            if GlobalConfig.ScenarioConfig.SubTaskSelection in ['UhmapLargeScale', 'UhmapHuge', 'UhmapBreakingBad']:
+                ActionToDiscreteConverter = ActionConvertLegacy
+            else:
+                ActionToDiscreteConverter = ActionConvertPredatorPrey
+            self.action_converter = ActionToDiscreteConverter(
+                    SELF_TEAM_ASSUME=team, 
+                    OPP_TEAM_ASSUME=(1-team), 
+                    OPP_NUM_ASSUME=GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM[1-team]
+            )
         else:
-            ActionToDiscreteConverter = ActionConvertPredatorPrey
+            'ALGORITHM.common.converter->LegacyUmapActionConverter'
+            # init action converter
+            module_, class_ = ShellEnvConfig.action_converter.split('->')
+            init_f = getattr(importlib.import_module(module_), class_)
+            self.action_converter = init_f(
+                    SELF_TEAM_ASSUME=team, 
+                    OPP_TEAM_ASSUME=(1-team), 
+                    OPP_NUM_ASSUME=GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM[1-team]
+            )
 
-        self.action_converter = ActionToDiscreteConverter(
-                SELF_TEAM_ASSUME=team, 
-                OPP_TEAM_ASSUME=(1-team), 
-                OPP_NUM_ASSUME=GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM[1-team]
-        )
+
         
         # check parameters
         self.patience = 2000
@@ -143,7 +157,7 @@ class ShellEnvWrapper(object):
             self.agent_type = [agent_meta['type'] 
                                for agent_meta in StateRecall['Latest-Team-Info'][0]['dataArr']
                                if agent_meta['uId'] in self.agent_uid]
-            if ShellEnvConfig.add_avail_act:
+            if AlgorithmConfig.use_avail_act:
                 self.avail_act = np.stack(tuple(self.action_converter.get_tp_avail_act(tp) for tp in self.agent_type))
                 self.avail_act = repeat_at(self.avail_act, insert_dim=0, n_times=self.n_thread)
 
@@ -175,12 +189,15 @@ class ShellEnvWrapper(object):
         obs_feed = obs[R]
         I_StateRecall = {
             'obs':obs_feed, 
-            'avail_act':self.avail_act[R],
-            'Test-Flag':StateRecall['Test-Flag'], 
+            'Test-Flag':StateRecall['Test-Flag'],
             '_EpRsn_':StateRecall['_EpRsn_'][R],
             'threads_active_flag':R, 
             'Latest-Team-Info':StateRecall['Latest-Team-Info'][R],
         }
+        if AlgorithmConfig.use_avail_act:
+            I_StateRecall.update({
+                'avail_act':self.avail_act[R],
+            })
         # load available act to limit action space if possible
         if self.AvailActProvided:
             avail_act = np.array([info['avail-act'] for info in np.array(StateRecall['Latest-Team-Info'][R], dtype=object)])
@@ -193,7 +210,7 @@ class ShellEnvWrapper(object):
         act[R] = act_active
         
         # confirm actions are valid (satisfy 'avail-act')
-        if ShellEnvConfig.add_avail_act and self.patience>0:
+        if AlgorithmConfig.use_avail_act and self.patience>0:
             self.patience -= 1
             assert (gather_righthand(self.avail_act, repeat_at(act, -1, 1), check=False)[R]==1).all()
             
@@ -201,7 +218,10 @@ class ShellEnvWrapper(object):
         act_converted = np.array([[ self.action_converter.convert_act_arr(self.agent_type[agentid], act) for agentid, act in enumerate(th) ] for th in act])
         
         # swap thread(batch) axis and agent axis
-        actions_list = np.swapaxes(act_converted, 0, 1)
+        if GlobalConfig.mt_act_order == 'new_method':
+            actions_list = act_converted
+        else:
+            actions_list = np.swapaxes(act_converted, 0, 1)
 
         # register callback hook
         if not StateRecall['Test-Flag']:
