@@ -490,3 +490,41 @@ class UhmapCommonFn(UhmapEnv):
                 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
         }),
         return agent_property
+
+    def simple_render_with_threejs(self):
+        if self.rank != 0: return
+        if not hasattr(self, 'threejs_bridge'):
+            from VISUALIZE.mcom import mcom
+            self.threejs_bridge = mcom(path='TEMP/v2d_logger/', digit=8, rapid_flush=False, draw_mode='Threejs')
+            self.threejs_bridge.v2d_init()
+            self.threejs_bridge.set_style('star')
+            # self.threejs_bridge.set_style('grid')
+            # self.threejs_bridge.set_style('grid3d')
+            self.threejs_bridge.set_style('font', fontPath='/examples/fonts/ttf/FZYTK.TTF', fontLineHeight=1500) # 注意不可以省略参数键值'fontPath=','fontLineHeight=' ！！！
+            # self.threejs_bridge.set_style('gray')
+
+            self.threejs_bridge.time_cnt = 0
+            self.threejs_bridge.geometry_rotate_scale_translate('box',     0, 0,       0,       3, 2, 1,         0, 0, 0)
+            self.threejs_bridge.geometry_rotate_scale_translate('cone',    0, np.pi/2, 0,       1.2, 0.9, 0.9,   1.5,0,0.5) # x -> y -> z
+            self.threejs_bridge.advanced_geometry_rotate_scale_translate('tower2', 'BoxGeometry(1,1,1)',   0,0,0,  0,0,5, 0,0,-4) # 长方体
+            self.threejs_bridge.advanced_geometry_rotate_scale_translate('ball', 'SphereGeometry(1)',   0,0,0,  1,1,1, 0,0,0) # 球体   
+
+
+        for i, agent in enumerate(self.agents): 
+            if not agent.alive: 
+                color = 'black'
+            else:
+                if agent.team == 0: color = 'green'
+                if agent.team == 1: color = 'blue'
+            self.threejs_bridge.v2dx(
+                            'ball|%d|%s|%.2f'%(i, color, 1),
+                            agent.pos3d[0]/100, 
+                            agent.pos3d[1]/100, 
+                            agent.pos3d[2]/100, 
+                            ro_x=0, ro_y=-0, ro_z=0, ro_order='ZYX',# rotation
+                            label='', label_color='white',
+                            opacity=1,
+                            track_n_frame = 50
+                        )
+        self.threejs_bridge.v2d_show()
+

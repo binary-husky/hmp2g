@@ -26,4 +26,7 @@ class Agent(object):
             self.scale3d = np.array(self.scale3)
             self.scale = self.scale3[0]
             self.yaw = self.rotation[0]
+            self.alive = True
+            self.team = dictionary['agentTeam']
+
 

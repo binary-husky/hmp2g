@@ -20,58 +20,52 @@ class UhmapFormation(UhmapCommonFn, UhmapEnv):
         assert os.path.basename(inspect.getfile(SubTaskConfig)) == type(self).__name__+'Conf.py', \
                 ('make sure you have imported the correct SubTaskConfig class')
 
-
-
     def extract_key_gameobj(self, resp):
         keyObjArr = resp['dataGlobal']['keyObjArr']
         return keyObjArr
 
+    def reset(self):
+        self.dominate_team_score = [0 for _ in range(self.n_teams)]
+        return super().reset()
+
+    def get_distance_of_each_agent_to_center(self, resp):
+        return np.linalg.norm(np.array([q['agentLocationArr'][:2] for q in resp['dataArr']]), axis=1)
+
 
     def gen_reward_and_win(self, resp):
+        self.simple_render_with_threejs()
+        
         reward = [0]*self.n_teams
         events = resp['dataGlobal']['events']
         WinningResult = None
+        dis_to_orig = self.get_distance_of_each_agent_to_center(resp)
+        min_pos = np.argmin(dis_to_orig)
+        dominate_team = resp['dataArr'][min_pos]['agentTeam']
+        self.dominate_team_score[dominate_team] += 1
+        
         for event in events: 
             event_parsed = self.parse_event(event)
-            if event_parsed['Event'] == 'Destroyed':
-                team = self.find_agent_by_uid(event_parsed['UID']).team
-                reward[team]    -= 0.05    # this team
-                reward[1-team]  += 0.10    # opp team
             if event_parsed['Event'] == 'EndEpisode':
-                # print([a.alive * a.hp for a in self.agents])
                 EndReason = event_parsed['EndReason']
                 WinTeam = int(event_parsed['WinTeam'])
-                if WinTeam<0: # end due to timeout
-                    agents_left_each_team = [0 for _ in range(self.n_teams)]
-                    for a in self.agents:
-                        if a.alive: agents_left_each_team[a.team] += 1
-                    WinTeam = np.argmax(agents_left_each_team)
-
-                    # <<1>> The alive agent number is EQUAL
-                    if agents_left_each_team[WinTeam] == agents_left_each_team[1-WinTeam]:
-                        hp_each_team = [0 for _ in range(self.n_teams)]
-                        for a in self.agents:
-                            if a.alive: hp_each_team[a.team] += a.hp
-                        WinTeam = np.argmax(hp_each_team)
-
-                        # <<2>> The alive agent HP sum is EQUAL
-                        if hp_each_team[WinTeam] == hp_each_team[1-WinTeam]:
-                            WinTeam = -1
-
-                if WinTeam >= 0:
+                if WinTeam < 0: # end due to timeout
+                    WinTeam = np.argmax(self.dominate_team_score)
                     WinningResult = {
                         "team_ranking": [0,1] if WinTeam==0 else [1,0],
                         "end_reason": EndReason
                     }
                     reward[WinTeam] += 1
                     reward[1-WinTeam] -= 1
+                    # print('timeout\t', 'WinTeam\t', WinTeam)
                 else:
                     WinningResult = {
-                        "team_ranking": [-1, -1],
+                        "team_ranking": [0,1] if WinTeam==0 else [1,0],
                         "end_reason": EndReason
                     }
-                    reward = [-1 for _ in range(self.n_teams)]
-        # print(reward)
+                    reward[WinTeam] += 1
+                    reward[1-WinTeam] -= 1
+                    # print('All Dead\t', 'WinTeam\t', WinTeam)
+        # print(self.dominate_team_score)
         return reward, WinningResult
 
     @staticmethod
@@ -103,9 +97,10 @@ class UhmapFormation(UhmapCommonFn, UhmapEnv):
             return CORE_DIM
 
         # temporary parameters
-        OBS_RANGE_PYTHON_SIDE = 1500
-        MAX_NUM_OPP_OBS = 5
-        MAX_NUM_ALL_OBS = 5
+        OBS_RANGE_PYTHON_SIDE = 10000
+        MAX_NUM_OPP_OBS       = 7
+        MAX_NUM_ALL_OBS       = 7
+        MAX_OBJ_NUM_ACCEPT    = 5
         
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
@@ -227,7 +222,6 @@ class UhmapFormation(UhmapCommonFn, UhmapEnv):
 
 
         # the last part of observation is the list of core game objects
-        MAX_OBJ_NUM_ACCEPT = 5
         self.N_Obj = len(self.key_obj)
         if self.N_Obj > 0:
             OBJ_UID_OFFSET = 32768

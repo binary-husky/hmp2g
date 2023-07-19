@@ -47,5 +47,5 @@ class SubTaskConfig():
     ]
 
     obs_vec_length = 23
-    obs_n_entity = 15
+    obs_n_entity = 19   # MAX_NUM_OPP_OBS + MAX_NUM_ALL_OBS + MAX_OBJ_NUM_ACCEPT
     ActionFormat = 'ASCII'
