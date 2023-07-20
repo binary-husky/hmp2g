@@ -1,11 +1,7 @@
 
 
-
-
-json_path = 'RESULT/random-formation-r1/raw_exp.jsonc'
+json_path = 'RESULT/random-formation-r6/raw_exp.jsonc'
 ALG_NAME = "ALGORITHM.ppo_ma.foundation.py->AlgorithmConfig"
-
-
 
 def validate_path():
     import os, sys

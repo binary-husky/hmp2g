@@ -33,39 +33,48 @@ class UhmapFormation(UhmapCommonFn, UhmapEnv):
 
 
     def gen_reward_and_win(self, resp):
-        self.simple_render_with_threejs()
+        # self.simple_render_with_threejs()
         
         reward = [0]*self.n_teams
         events = resp['dataGlobal']['events']
         WinningResult = None
         dis_to_orig = self.get_distance_of_each_agent_to_center(resp)
-        min_pos = np.argmin(dis_to_orig)
-        dominate_team = resp['dataArr'][min_pos]['agentTeam']
-        self.dominate_team_score[dominate_team] += 1
-        
+
+        for i, agent_dat in enumerate(resp['dataArr']):
+            _team = agent_dat['agentTeam']
+            if dis_to_orig[i] < 1e3: # enter reward circle
+                self.dominate_team_score[_team] += 0.1
+            # if not np.isfinite(dis_to_orig[i]):
+            #     dis_to_orig[i] = 1e4
+            # _score = dis_to_orig[i] / 1e4
+            # self.dominate_team_score[_team] -= _score
+
         for event in events: 
             event_parsed = self.parse_event(event)
             if event_parsed['Event'] == 'EndEpisode':
                 EndReason = event_parsed['EndReason']
-                WinTeam = int(event_parsed['WinTeam'])
-                if WinTeam < 0: # end due to timeout
+                if EndReason == 'TimeMaxCntReached':
                     WinTeam = np.argmax(self.dominate_team_score)
                     WinningResult = {
                         "team_ranking": [0,1] if WinTeam==0 else [1,0],
                         "end_reason": EndReason
                     }
-                    reward[WinTeam] += 1
-                    reward[1-WinTeam] -= 1
-                    # print('timeout\t', 'WinTeam\t', WinTeam)
+                    reward[WinTeam] = self.dominate_team_score[WinTeam]
+                    reward[1-WinTeam] = self.dominate_team_score[1-WinTeam]
+                    reward[1-WinTeam] = self.dominate_team_score[1-WinTeam]
                 else:
+                    if EndReason == 'Team_0_AllDead':
+                        WinTeam = 1
+                    elif EndReason == 'Team_1_AllDead':
+                        WinTeam = 0
+                    else:
+                        raise RuntimeError
                     WinningResult = {
                         "team_ranking": [0,1] if WinTeam==0 else [1,0],
                         "end_reason": EndReason
                     }
-                    reward[WinTeam] += 1
-                    reward[1-WinTeam] -= 1
-                    # print('All Dead\t', 'WinTeam\t', WinTeam)
-        # print(self.dominate_team_score)
+                    reward[WinTeam] = self.dominate_team_score[WinTeam] + self.dominate_team_score[1-WinTeam]
+                    reward[1-WinTeam] = 0
         return reward, WinningResult
 
     @staticmethod
@@ -97,10 +106,10 @@ class UhmapFormation(UhmapCommonFn, UhmapEnv):
             return CORE_DIM
 
         # temporary parameters
-        OBS_RANGE_PYTHON_SIDE = 10000
-        MAX_NUM_OPP_OBS       = 7
-        MAX_NUM_ALL_OBS       = 7
-        MAX_OBJ_NUM_ACCEPT    = 5
+        OBS_RANGE_PYTHON_SIDE = SubTaskConfig.OBS_RANGE_PYTHON_SIDE
+        MAX_NUM_OPP_OBS       = SubTaskConfig.MAX_NUM_OPP_OBS
+        MAX_NUM_ALL_OBS       = SubTaskConfig.MAX_NUM_ALL_OBS
+        MAX_OBJ_NUM_ACCEPT    = SubTaskConfig.MAX_OBJ_NUM_ACCEPT
         
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
@@ -270,7 +279,7 @@ class UhmapFormation(UhmapCommonFn, UhmapEnv):
         N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
         x = 0 + 800*(tid - n_team_agent//2) //N_COL

@@ -464,7 +464,7 @@ class UhmapAttackPost(UhmapEnv):
             'Color':'(R=0,G=1,B=0,A=1)',
             # 预留参数接口
             'AgentHp': 100,
-            'RSVD1':'-LaserDmg=20',
+            'RSVD1':'-LaserDmg=10',
             # initial location
             'InitLocation': { 'x': x,  'y': y, 'z': z, },
             # initial facing direction et.al.

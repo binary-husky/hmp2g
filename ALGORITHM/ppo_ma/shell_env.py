@@ -145,9 +145,6 @@ class ShellEnvWrapper(object):
                     OPP_TEAM_ASSUME=(1-team), 
                     OPP_NUM_ASSUME=GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM[1-team]
             )
-
-
-        
         # check parameters
         self.patience = 2000
 

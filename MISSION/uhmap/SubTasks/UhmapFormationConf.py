@@ -1,3 +1,4 @@
+from UTIL.config_args import ChainVar, ChainVarSimple
 
 class SubTaskConfig():
     agent_list = [
@@ -46,6 +47,12 @@ class SubTaskConfig():
 
     ]
 
-    obs_vec_length = 23
-    obs_n_entity = 19   # MAX_NUM_OPP_OBS + MAX_NUM_ALL_OBS + MAX_OBJ_NUM_ACCEPT
     ActionFormat = 'ASCII'
+    OBS_RANGE_PYTHON_SIDE = 10000
+    MAX_NUM_OPP_OBS = 7
+    MAX_NUM_ALL_OBS = 7
+    MAX_OBJ_NUM_ACCEPT = 1
+    obs_vec_length = 23
+
+    obs_n_entity = 15   # MAX_NUM_OPP_OBS + MAX_NUM_ALL_OBS + MAX_OBJ_NUM_ACCEPT
+    obs_n_entity_cv = ChainVarSimple('$MAX_NUM_OPP_OBS$ + $MAX_NUM_ALL_OBS$ + $MAX_OBJ_NUM_ACCEPT$')
