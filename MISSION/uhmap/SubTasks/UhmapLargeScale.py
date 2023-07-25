@@ -271,12 +271,16 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
 
 
     def init_ground(self, agent_info, pos_ro):
-        N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
+        N_COL = 2
+        if n_team_agent > 40:
+            N_COL = 3
+        if n_team_agent > 60:
+            N_COL = 5
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
         y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
@@ -301,9 +305,9 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # Weapon CD
                 'WeaponCD': 1,
                 # open fire range
-                "PerceptionRange":  2000       if agent_class == 'RLA_CAR_Laser' else 2500,
-                "GuardRange":       1400       if agent_class == 'RLA_CAR_Laser' else 1700,
-                "FireRange":        750        if agent_class == 'RLA_CAR_Laser' else 1400,
+                "PerceptionRange":  3000       if agent_class == 'RLA_CAR_Laser' else 3000,
+                "GuardRange":       1100       if agent_class == 'RLA_CAR_Laser' else 2100,
+                "FireRange":        1000       if agent_class == 'RLA_CAR_Laser' else 2000,
                 # debugging
                 'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750' if agent_class == 'RLA_CAR_Laser' else '-Ring1=2500 -Ring2=1700 -Ring3=1400',
                 # regular
@@ -324,17 +328,21 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         return agent_property
 
     def init_air(self, agent_info, pos_ro):
-        N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
-        
+        N_COL = 2
+        if n_team_agent > 40:
+            N_COL = 3
+        if n_team_agent > 60:
+            N_COL = 5
+
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
         y = 2000 * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-        z = 1000
+        z = 1200
         yaw = 90 if team==0 else -90
         assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
         agent_property = copy.deepcopy(AgentPropertyDefaults)
