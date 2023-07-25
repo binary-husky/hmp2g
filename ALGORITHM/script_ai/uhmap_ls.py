@@ -223,7 +223,12 @@ class DummyAlgorithmLinedAttack(DummyAlgorithmBase):
         # set actions of in-active threads to NaN (will be done again in multi_team.py, this line is not necessary)
         actions[ENV_PAUSE] = np.nan
         # swap (self.n_thread, self.n_agent) -> (self.n_agent, self.n_thread) 
-        actions = np.swapaxes(actions, 0, 1)
+        # swap thread(batch) axis and agent axis
+        if GlobalConfig.mt_act_order == 'new_method':
+            actions = actions
+        else:
+            actions = np.swapaxes(actions, 0, 1)
+
         return actions, {}
 
     # 判断agent是否存活

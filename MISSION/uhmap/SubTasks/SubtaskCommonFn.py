@@ -10,6 +10,16 @@ from ..actset_lookup import digit2act_dictionary, AgentPropertyDefaults
 from ..actset_lookup import decode_action_as_string, decode_action_as_string
 
 
+def init_position_helper(x_max, x_min, y_max, y_min, total, this):
+    n_col = np.ceil(np.sqrt(np.abs(x_max-x_min) * total / np.abs(y_max-y_min)))
+    n_row = np.ceil(total / n_col)
+
+    which_row = this // n_col
+    which_col = this % n_col
+
+    x = x_min + (which_col/n_col)*(x_max-x_min)
+    y = y_min + (which_row/n_row)*(y_max-y_min)
+    return x, y
 
 class UhmapCommonFn(UhmapEnv):
 
@@ -101,6 +111,7 @@ class UhmapCommonFn(UhmapEnv):
         if resp['dataGlobal']['timeCnt'] >= ScenarioConfig.MaxEpisodeStep:
             assert done
 
+        if self.rank == 0 and ScenarioConfig.js_render: self.simple_render_with_threejs()
         return (ob, RewardForAllTeams, done, info)  # choose this if RewardAsUnity
 
     def parse_event(self, event):

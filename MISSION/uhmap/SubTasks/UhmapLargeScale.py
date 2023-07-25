@@ -105,9 +105,10 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             return CORE_DIM
 
         # temporary parameters
-        OBS_RANGE_PYTHON_SIDE = 1500
-        MAX_NUM_OPP_OBS = 5
-        MAX_NUM_ALL_OBS = 5
+        OBS_RANGE_PYTHON_SIDE = SubTaskConfig.OBS_RANGE_PYTHON_SIDE
+        MAX_NUM_OPP_OBS = SubTaskConfig.MAX_NUM_OPP_OBS
+        MAX_NUM_ALL_OBS = SubTaskConfig.MAX_NUM_ALL_OBS
+        MAX_OBJ_NUM_ACCEPT = SubTaskConfig.MAX_OBJ_NUM_ACCEPT
         
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
@@ -226,7 +227,6 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
 
 
         # the last part of observation is the list of core game objects
-        MAX_OBJ_NUM_ACCEPT = 1
         self.N_Obj = len(self.key_obj)
 
         OBJ_UID_OFFSET = 32768
@@ -293,7 +293,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # probability of escaping dmg 闪避
                 "DodgeProb": 0.0,
                 # ms explode dmg
-                "ExplodeDmg": 20,           
+                "ExplodeDmg": 40,           
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
@@ -309,7 +309,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # regular
                 'RSVD2': '-InitAct=ActionSet2::Idle;AsFarAsPossible',
                 # agent hp
-                'AgentHp':np.random.randint(low=95,high=105) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=145,high=155),
+                'AgentHp':np.random.randint(low=200,high=210) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=95,high=100),
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system

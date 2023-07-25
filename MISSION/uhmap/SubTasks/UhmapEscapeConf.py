@@ -46,5 +46,12 @@ class SubTaskConfig():
     }
 
     obs_vec_length = 23
-    obs_n_entity = 10
     ActionFormat = 'ASCII'
+
+    # temporary parameters
+    OBS_RANGE_PYTHON_SIDE = 15000
+    MAX_NUM_OPP_OBS = 10
+    MAX_NUM_ALL_OBS = 5
+
+    obs_n_entity = 15
+    LaserDmg = 18

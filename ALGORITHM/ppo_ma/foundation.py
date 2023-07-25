@@ -51,6 +51,7 @@ class AlgorithmConfig:
     policy_resonance = False
 
     use_avail_act = True
+    ignore_test = True
     
     
 def str_array_to_num(str_arr):
@@ -134,7 +135,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         # make decision
         with torch.no_grad():
             action, value, action_log_prob = self.policy.act(obs=obs,
-                                                             test_mode=test_mode,
+                                                             test_mode=(test_mode and not AlgorithmConfig.ignore_test),
                                                              avail_act=avail_act,
                                                              eprsn=eprsn,
                                                              )

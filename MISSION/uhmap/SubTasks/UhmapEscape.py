@@ -5,22 +5,16 @@ from ...common.base_env import RawObsArray
 from ..actionset_v3 import digitsToStrAction
 from ..agent import Agent
 from ..uhmap_env_wrapper import UhmapEnv, ScenarioConfig
+from .SubtaskCommonFn import UhmapCommonFn, init_position_helper
 from .UhmapEscapeConf import SubTaskConfig
 from .cython_func import tear_num_arr
 
-def init_position_helper(x_max, x_min, y_max, y_min, total, this):
-    n_col = np.ceil(np.sqrt(np.abs(x_max-x_min) * total / np.abs(y_max-y_min)))
-    n_row = np.ceil(total / n_col)
 
-    which_row = this // n_col
-    which_col = this % n_col
+RIGHT_DEFENCE_X = 13670.0
+LEFT_DEFENCE_X = -3478.0
+ATTACKER_SPAWN_X = (RIGHT_DEFENCE_X + LEFT_DEFENCE_X) / 2
 
-    x = x_min + (which_col/n_col)*(x_max-x_min)
-    y = y_min + (which_row/n_row)*(y_max-y_min)
-    return x, y
-
-
-class UhmapEscape(UhmapEnv):
+class UhmapEscape(UhmapCommonFn, UhmapEnv):
     def __init__(self, rank) -> None:
         super().__init__(rank)
         self.observation_space = self.make_obs(get_shape=True)
@@ -116,6 +110,7 @@ class UhmapEscape(UhmapEnv):
         if resp['dataGlobal']['timeCnt'] >= ScenarioConfig.MaxEpisodeStep:
             assert done
 
+        if self.rank == 0 and ScenarioConfig.js_render: self.simple_render_with_threejs()
         return (ob, RewardForAllTeams, done, info)  # choose this if RewardAsUnity
 
     def parse_event(self, event):
@@ -143,6 +138,19 @@ class UhmapEscape(UhmapEnv):
             但请不要在UE端提供奖励的定义。)
             建议:在UE端定义触发奖励的事件,如智能体阵亡、战术目标完成等,见parse_event
         """
+        # 
+        attacker_agent_x = [t['agentLocationArr'][0] for t in resp['dataArr'] if t['agentTeam']==0]
+        defender_agent_x = [t['agentLocationArr'][0] for t in resp['dataArr'] if t['agentTeam']==1 and np.isfinite(t['agentLocationArr'][0])]
+        if len(defender_agent_x) > 0:
+            defender_agent_x_min = min(defender_agent_x)
+            defender_agent_x_max = max(defender_agent_x)
+            n_agent_break_through = sum([1 for atk_x in attacker_agent_x if np.isfinite(atk_x) and (atk_x < defender_agent_x_min or atk_x > defender_agent_x_max)])
+        else:
+            n_agent_break_through = sum([1 for atk_x in attacker_agent_x if np.isfinite(atk_x)])
+
+        # if n_agent_break_through>0:
+        #     print('s')
+
         reward = [0]*self.n_teams
         events = resp['dataGlobal']['events']
         WinningResult = None
@@ -150,7 +158,7 @@ class UhmapEscape(UhmapEnv):
             event_parsed = self.parse_event(event)
             if event_parsed['Event'] == 'Destroyed':
                 team = self.find_agent_by_uid(event_parsed['UID']).team
-                reward[team]    -= 0.10    # this team
+                # reward[team]    -= 0.10    # this team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
                 DefenderWin = False
@@ -166,16 +174,20 @@ class UhmapEscape(UhmapEnv):
                     DefenderWin = True; DefenderRank = 0; DefenderReward = 1
                     AttackerWin = False; AttackerRank = 1; AttackerReward = -1
                 elif EndReason == "TimeMaxCntReached":
-                    DefenderWin = True; DefenderRank = 0; DefenderReward = 1
-                    AttackerWin = False; AttackerRank = 1; AttackerReward = -1
+                    # if any attacker agent breaks through the encirclement alive, attacker win
+                    if n_agent_break_through > 0:
+                        DefenderWin = False; DefenderRank = 1; DefenderReward = -1
+                        AttackerWin = True;  AttackerRank = 0; AttackerReward =  n_agent_break_through
+                    else:
+                        DefenderWin = True;  DefenderRank = 0; DefenderReward =  1
+                        AttackerWin = False; AttackerRank = 1; AttackerReward = 0
                 elif EndReason == "Team_1_AllDead":
                     DefenderWin = False; DefenderRank = 1; DefenderReward = -1
-                    AttackerWin = True; AttackerRank = 0; AttackerReward = 1
+                    AttackerWin = True; AttackerRank = 0; AttackerReward = 10
                 else:
                     print('unexpected end reaon:', EndReason)
                     
                 WinningResult = {"team_ranking": [AttackerRank, DefenderRank], "end_reason": EndReason}
-
                 reward = [AttackerReward, DefenderReward]
         # print(reward)
         return reward, WinningResult
@@ -278,9 +290,9 @@ class UhmapEscape(UhmapEnv):
             return CORE_DIM
 
         # temporary parameters
-        OBS_RANGE_PYTHON_SIDE = 15000
-        MAX_NUM_OPP_OBS = 5
-        MAX_NUM_ALL_OBS = 5
+        OBS_RANGE_PYTHON_SIDE = SubTaskConfig.OBS_RANGE_PYTHON_SIDE
+        MAX_NUM_OPP_OBS = SubTaskConfig.MAX_NUM_OPP_OBS
+        MAX_NUM_ALL_OBS = SubTaskConfig.MAX_NUM_ALL_OBS
         
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
@@ -442,13 +454,13 @@ class UhmapEscape(UhmapEnv):
         n_team_agent = agent_info['n_team_agent']
         assert n_team_agent == 4
         if tid == 0:
-            x,y,z = 13670.704102, 2762.254395, 338.760925
+            x,y,z = RIGHT_DEFENCE_X, 2762.254395, 338.760925
         if tid == 1:
-            x,y,z = 13670.704102, -2483.998047, 338.760925
+            x,y,z = RIGHT_DEFENCE_X, -2483.998047, 338.760925
         if tid == 2:
-            x,y,z = -3478.34668, 2516.466553, 338.752136
+            x,y,z = LEFT_DEFENCE_X, 2516.466553, 338.752136
         if tid == 3:
-            x,y,z = -3478.34668, -2729.785889, 338.752136
+            x,y,z = LEFT_DEFENCE_X, -2729.785889, 338.752136
 
         agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
@@ -471,7 +483,7 @@ class UhmapEscape(UhmapEnv):
             # show color
             'Color':'(R=0,G=1,B=0,A=1)',
             # 预留参数接口
-            'RSVD1':'-LaserDmg=50',
+            'RSVD1':f'-LaserDmg={SubTaskConfig.LaserDmg}',
             # initial location
             'InitLocation': { 'x': x,  'y': y, 'z': z, },
             # initial facing direction et.al.
@@ -486,7 +498,7 @@ class UhmapEscape(UhmapEnv):
         uid = agent_info['uid']
         agent_class = agent_info['type']
         n_team_agent = agent_info['n_team_agent']
-        x,y = init_position_helper(x_max=6514.513672, x_min=2216.777832, y_max=2531.608398, y_min=-3842.151123, total=n_team_agent, this=tid)
+        x,y = init_position_helper(x_max=ATTACKER_SPAWN_X+1000, x_min=ATTACKER_SPAWN_X-1000, y_max=2531.608398, y_min=-3842.151123, total=n_team_agent, this=tid)
         z = 500
         agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
@@ -507,7 +519,7 @@ class UhmapEscape(UhmapEnv):
             # the unique identity of this agent in simulation system
             'UID': uid, 
             # show color
-            'Color':'(R=0,G=1,B=0,A=1)',
+            'Color':'(R=1,G=0,B=0,A=1)',
             # initial location
             'InitLocation': { 'x': x,  'y': y, 'z': z, },
             # initial facing direction et.al.

@@ -153,12 +153,6 @@ class UhmapAttackPost(UhmapEnv):
                 # reward[team]    -= 0.10    # this team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
-                DefenderWin = False
-                DefenderRank = False
-                DefenderReward = 0
-                AttackerWin = -1
-                AttackerRank = -1
-                AttackerReward = 0
                 EndReason = event_parsed['EndReason']
                 # print(EndReason)
                 # According to MISSION\uhmap\SubTasks\UhmapAttackPostConf.py, team 0 is Attacker team, team 1 is Defender team

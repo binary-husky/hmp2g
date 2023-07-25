@@ -80,7 +80,8 @@ class ScenarioConfig(object):
 
     # <Part 2> Needed by env itself #
     MaxEpisodeStep = 100
-    render = False
+    render = False      # render with unreal engine client
+    js_render = False   # use threejs to run simple render in browser for fast debugging
     TcpAddr = '127.0.0.1'
     UhmapPort = 21051
 

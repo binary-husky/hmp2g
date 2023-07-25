@@ -83,21 +83,35 @@ class EscapeRedPreprogramBaseline(DummyAlgorithmBase):
 
         actions = np.zeros(shape=(self.n_thread, self.n_agent, ActDigitLen))
         self_agent_uid_range = GlobalConfig.ScenarioConfig.AGENT_ID_EACH_TEAM[self.team]
+        opp_agent_uid_range = GlobalConfig.ScenarioConfig.AGENT_ID_EACH_TEAM[1-self.team]
 
         for thread in range(self.n_thread):
             if ENV_PAUSE[thread]: 
                 # 如果,该线程停止，不做任何处理
                 continue
             x_arr = np.array([d['agentLocationArr'][0] for d in np.array(State_Recall['Latest-Team-Info'][thread]['dataArr'])[self_agent_uid_range]])
+            pos3d_arr_opp = np.array([d['agentLocationArr'] for d in np.array(State_Recall['Latest-Team-Info'][thread]['dataArr'])[opp_agent_uid_range]])
+            alive_opp_pos3d_arr = pos3d_arr_opp[np.isfinite(pos3d_arr_opp).all(-1)]
+
             x_arr_valid = np.array([x for x in x_arr if np.isfinite(x)])
             x_avg = x_arr_valid.mean()
+
             for index, x in enumerate(x_arr):
                 if not np.isfinite(x): pass
-                if index <2:
-                    actions[thread, index] = strActionToDigits(f'ActionSet4::MoveToDirection;X=-1.0 Y=0.0 Z=0.0')
+                if State_Recall['Current-Obs-Step'][thread] < 50:
+                    if index <2:
+                        actions[thread, index] = strActionToDigits(f'ActionSet4::MoveToDirection;X=-1.0 Y=0.0 Z=0.0')
+                    else:
+                        actions[thread, index] = strActionToDigits(f'ActionSet4::MoveToDirection;X=+1.0 Y=0.0 Z=0.0')
                 else:
-                    actions[thread, index] = strActionToDigits(f'ActionSet4::MoveToDirection;X=+1.0 Y=0.0 Z=0.0')
-
+                    if len(alive_opp_pos3d_arr) > 0:
+                        x,y,z = alive_opp_pos3d_arr[0]
+                        actions[thread, index] = strActionToDigits(f'ActionSet4::MoveToLocation;X={x} Y={y} Z={z}')
+                    else:
+                        if index <2:
+                            actions[thread, index] = strActionToDigits(f'ActionSet4::MoveToDirection;X=+1.0 Y=0.0 Z=0.0')
+                        else:
+                            actions[thread, index] = strActionToDigits(f'ActionSet4::MoveToDirection;X=-1.0 Y=0.0 Z=0.0')
         # set actions of in-active threads to NaN (will be done again in multi_team.py, this line is not necessary)
         actions[ENV_PAUSE] = np.nan
         return actions, {}
