@@ -38,7 +38,7 @@ class DummyAlgorithmBase():
         actions[ENV_PAUSE] = np.nan
 
         # swap (self.n_thread, self.n_agent) -> (self.n_agent, self.n_thread) 
-        actions = np.swapaxes(actions, 0, 1)
+        actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
         return actions, {}
 
 class AttackPostPreprogramBaseline(DummyAlgorithmBase):
