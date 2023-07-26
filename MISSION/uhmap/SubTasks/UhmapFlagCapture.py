@@ -310,7 +310,7 @@ class UhmapFlagCapture(UhmapCommonFn, UhmapEnv):
                 # regular
                 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
                 # agent hp
-                'AgentHp': 110,
+                'AgentHp': 280,
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system
