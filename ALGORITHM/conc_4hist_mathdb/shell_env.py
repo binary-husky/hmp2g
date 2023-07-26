@@ -45,7 +45,7 @@ class ShellEnvWrapper(object):
             State_Recall['_FixMax_'] = FixMax
             # print(FixMax)
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         his_pool_obs = State_Recall['_Histpool_Obs_'] if '_Histpool_Obs_' in State_Recall \
             else my_view(np.zeros_like(obs),[0, 0, -1, self.core_dim])
         his_pool_obs[RST] = 0

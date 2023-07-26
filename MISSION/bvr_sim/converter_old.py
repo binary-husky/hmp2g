@@ -131,8 +131,8 @@ class Converter:
 
             return self.action_dim_corr_dict, self.action_sel_corr_dict
 
-        self.action_dim_corr_dict = np.zeros(self.n_actions, dtype=np.int)
-        self.action_sel_corr_dict = np.zeros(self.n_actions, dtype=np.int)
+        self.action_dim_corr_dict = np.zeros(self.n_actions, dtype=int)
+        self.action_sel_corr_dict = np.zeros(self.n_actions, dtype=int)
         tmp = [self.n_switch_actions,  self.n_target_actions]
 
         for j in range(len(tmp)):
@@ -146,7 +146,7 @@ class Converter:
     def parse_raw_action(self, raw_action):
         print('raw_actions:', raw_action)
         cmd_buffer = []
-        raw_action = raw_action.astype(np.int)
+        raw_action = raw_action.astype(int)
         if not self.ScenarioConfig.use_simple_action_space:
             assert raw_action.shape[0] == self.n_agents
             assert raw_action.shape[1] == 4

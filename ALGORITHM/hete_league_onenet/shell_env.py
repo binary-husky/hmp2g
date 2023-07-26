@@ -149,7 +149,7 @@ class ShellEnvWrapper(object):
             self.cold_start_warmup(StateRecall)
             
         # action init to: -1
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1
         
         # read and reshape observation
         obs = StateRecall['Latest-Obs']

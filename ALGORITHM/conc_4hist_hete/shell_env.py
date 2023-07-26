@@ -140,7 +140,7 @@ class ShellEnvWrapper(object):
                 self.avail_act = np.stack(tuple(ActionConvertLegacy.get_tp_avail_act(tp) for tp in self.agent_type))
                 self.avail_act = repeat_at(self.avail_act, insert_dim=0, n_times=self.n_thread)
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         # read internal coop graph info
         obs = StateRecall['Latest-Obs']
         if not GlobalConfig.ScenarioConfig.EntityOriented:    

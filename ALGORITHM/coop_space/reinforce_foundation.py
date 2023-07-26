@@ -125,10 +125,10 @@ class ReinforceAlgorithmFoundation(object):
 
         n_internal_step = [np.ceil(self.max_internal_step) if x<self.head_start_cnt 
                                 else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]  
-        n_internal_step = np.array(n_internal_step, dtype=np.int)
+        n_internal_step = np.array(n_internal_step, dtype=int)
 
         hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]      
-        hold_n = np.array(hold_n, dtype=np.int)
+        hold_n = np.array(hold_n, dtype=int)
 
         return n_internal_step, hold_n
 
@@ -469,10 +469,10 @@ class ReinforceAlgorithmFoundation(object):
         proj_r = (vel_r * vec).sum(-1)
         proj_l = (vel_l * vec).sum(-1)
 
-        _u = ((vec * e_u).sum(-1)>0).astype(np.int)
-        _d = ((vec * e_d).sum(-1)>0).astype(np.int)
-        _r = ((vec * e_r).sum(-1)>0).astype(np.int)
-        _l = ((vec * e_l).sum(-1)>0).astype(np.int)
+        _u = ((vec * e_u).sum(-1)>0).astype(int)
+        _d = ((vec * e_d).sum(-1)>0).astype(int)
+        _r = ((vec * e_r).sum(-1)>0).astype(int)
+        _l = ((vec * e_l).sum(-1)>0).astype(int)
 
         proj_u = proj_u + _u*2
         proj_d = proj_d + _d*2
@@ -487,7 +487,7 @@ class ReinforceAlgorithmFoundation(object):
         action += np.where(direct == 2, 1, 0)
         action += np.where(direct == 3, 3, 0)
 
-        action = (dis2target>0.05).astype(np.int)*action
+        action = (dis2target>0.05).astype(int)*action
 
         # make sure that all nan vec become invalid act 0, 
         # be careful when a different numpy version is used

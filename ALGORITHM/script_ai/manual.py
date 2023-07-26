@@ -217,12 +217,12 @@ class DummyAlgorithmFoundationHI3D_old():
         proj_a = (vel_a * vec).sum(-1)
         proj_b = (vel_b * vec).sum(-1)
 
-        _u = ((vec * e_u).sum(-1)>0).astype(np.int)
-        _d = ((vec * e_d).sum(-1)>0).astype(np.int)
-        _r = ((vec * e_r).sum(-1)>0).astype(np.int)
-        _l = ((vec * e_l).sum(-1)>0).astype(np.int)
-        _a = ((vec * e_a).sum(-1)>0).astype(np.int)
-        _b = ((vec * e_b).sum(-1)>0).astype(np.int)
+        _u = ((vec * e_u).sum(-1)>0).astype(int)
+        _d = ((vec * e_d).sum(-1)>0).astype(int)
+        _r = ((vec * e_r).sum(-1)>0).astype(int)
+        _l = ((vec * e_l).sum(-1)>0).astype(int)
+        _a = ((vec * e_a).sum(-1)>0).astype(int)
+        _b = ((vec * e_b).sum(-1)>0).astype(int)
 
         proj_u = proj_u + _u*2
         proj_d = proj_d + _d*2
@@ -483,10 +483,10 @@ class DummyAlgorithmFoundation():
         proj_r = (vel_r * vec).sum(-1)
         proj_l = (vel_l * vec).sum(-1)
 
-        _u = ((vec * e_u).sum(-1)>0).astype(np.int)
-        _d = ((vec * e_d).sum(-1)>0).astype(np.int)
-        _r = ((vec * e_r).sum(-1)>0).astype(np.int)
-        _l = ((vec * e_l).sum(-1)>0).astype(np.int)
+        _u = ((vec * e_u).sum(-1)>0).astype(int)
+        _d = ((vec * e_d).sum(-1)>0).astype(int)
+        _r = ((vec * e_r).sum(-1)>0).astype(int)
+        _l = ((vec * e_l).sum(-1)>0).astype(int)
 
         proj_u = proj_u + _u*2
         proj_d = proj_d + _d*2

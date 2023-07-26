@@ -135,10 +135,10 @@ class ReinforceAlgorithmFoundation():
 
         n_internal_step = [np.ceil(self.max_internal_step) if x<self.head_start_cnt 
                                 else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]  
-        n_internal_step = np.array(n_internal_step, dtype=np.int)
+        n_internal_step = np.array(n_internal_step, dtype=int)
 
         hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]      
-        hold_n = np.array(hold_n, dtype=np.int)
+        hold_n = np.array(hold_n, dtype=int)
 
         return n_internal_step, hold_n
 

@@ -49,7 +49,7 @@ class ShellEnvWrapper(object):
             obs = np.concatenate((obs, previous_act_onehot), -1)
         obs[~alive] = np.nan
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         state = np.array([info['state'] for info in State_Recall['Latest-Team-Info']])
 
         state_feed = state[~P]

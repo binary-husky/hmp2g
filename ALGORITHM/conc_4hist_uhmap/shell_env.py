@@ -78,7 +78,7 @@ class ShellEnvWrapper(object):
                 for agent_meta in State_Recall['Latest-Team-Info'][0]['dataArr']
                 if agent_meta['uId'] in self.agent_uid]
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         # read internal coop graph info
         obs = State_Recall['Latest-Obs']
         P = State_Recall['ENV-PAUSE']

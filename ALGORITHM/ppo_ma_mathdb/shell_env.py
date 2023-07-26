@@ -44,7 +44,7 @@ class ShellEnvWrapper(object):
             else:
                 State_Recall['_FixMax_'] = ( np.random.rand(self.n_thread) < AlgorithmConfig.yita )
                 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
 
         obs_feed = obs[~P]
         obs_feed_in = obs_feed.copy()

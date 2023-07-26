@@ -336,8 +336,8 @@ class Scenario(BaseScenario):
         self.step = 0
         self.workers = world.agents
 
-        n_lines = np.sqrt(self.n_worker).astype(np.int)
-        n_cols = np.ceil(self.n_worker / n_lines).astype(np.int)
+        n_lines = np.sqrt(self.n_worker).astype(int)
+        n_cols = np.ceil(self.n_worker / n_lines).astype(int)
 
         n_objects = self.n_cargo * 2 + 1
         angle_div = 2 * np.pi / n_objects
