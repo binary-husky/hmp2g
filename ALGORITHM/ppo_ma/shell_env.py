@@ -218,7 +218,7 @@ class ShellEnvWrapper(object):
         if GlobalConfig.mt_act_order == 'new_method':
             actions_list = act_converted
         else:
-            actions_list = np.swapaxes(act_converted, 0, 1)
+            actions_list = act_converted if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(act_converted, 0, 1)
 
         # register callback hook
         if not StateRecall['Test-Flag']:
