@@ -205,8 +205,8 @@ class ReinforceAlgorithmFoundation():
                             'value_R':              Active_value_top,               'value_L':              Active_value_bottom,
                             'g_actionLogProbs_R':   Active_action_log_prob_R,       'g_actionLogProbs_L':   Active_action_log_prob_L,
                             'g_obs':                Active_emb,                     'g_actions':            Active_action,
-                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.long),
-                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.long),
+                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.int64),
+                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.int64),
                             'reward':               np.array([0.0 for _ in range(self.n_thread)])}
             # _______Internal_Environment_Step________
             self.coopgraph.adjust_edge(Active_action, mask=LIVE, hold=hold_n_o)

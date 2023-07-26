@@ -220,7 +220,7 @@ def add_obs_container_subject(container_emb, subject_emb, div):
     subject_out_emb = np.concatenate((subject_emb, subject_belonging_info), -1)
     # for container, add add multi-hot embedding of its subjects
     container_multihot = np.concatenate(
-        [np.expand_dims((div == nth_container).astype(np.long), 1) 
+        [np.expand_dims((div == nth_container).astype(np.int64), 1) 
             for nth_container in range(n_container)],
         1,
     )
@@ -419,7 +419,7 @@ def pad_vec_array(arr_list, max_len):
 def one_hot_with_nan_np(tensr, num_classes):
     tensr = tensr.copy()
     tensr[np.isnan(tensr)] = num_classes
-    Res_1MoreCol = np_one_hot(tensr.astype(np.long), num_classes + 1)
+    Res_1MoreCol = np_one_hot(tensr.astype(np.int64), num_classes + 1)
     return Res_1MoreCol[..., :-1]
 
 
@@ -696,7 +696,7 @@ def gather_righthand(src, index, check=True):
     numpy version of 'gather_righthand'
 """
 def np_gather_righthand(src, index, check=True):
-    index = index.astype(np.long)
+    index = index.astype(np.int64)
     dim = lambda x: len(x.shape)
     i_dim = dim(index)
     s_dim = dim(src)

@@ -41,7 +41,7 @@ class StagePlanner:
 
         if self.method == 'level':
             mapLevel2PrNumLs = np.floor(np.arange(AlgorithmConfig.distribution_precision) / AlgorithmConfig.distribution_precision * n_agent)
-            self.mapLevel2PrNumLs = mapLevel2PrNumLs.astype(np.long)
+            self.mapLevel2PrNumLs = mapLevel2PrNumLs.astype(np.int64)
             self.mapPrNum2LevelLs = {j:i for i,j in enumerate(self.mapLevel2PrNumLs)}
 
     def mapLevel2PrNum(self, i):

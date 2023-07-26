@@ -445,7 +445,7 @@ class DummyAlgorithmFoundation():
                     worker_target_sel[t,j] = c if worker_drag[t,j] < 0 else (c+self.n_cargo)
                 p = p+cw
 
-        target_pos = np.take_along_axis(cargo_dropoff_pos,worker_target_sel.astype(np.long),1)
+        target_pos = np.take_along_axis(cargo_dropoff_pos,worker_target_sel.astype(np.int64),1)
 
         actions_list = []
 

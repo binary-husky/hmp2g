@@ -79,10 +79,10 @@ class CoopGraph(object):
         self.n_subject_CT = self.n_cluster if not CoopAlgConfig.reverse_container else self.n_entity
         self.debug_cnt = 0
         # graph state
-        self._Edge_AC_    = np.zeros(shape=(self.n_thread, self.n_subject_AC), dtype=np.long)
-        self._Edge_CT_    = np.zeros(shape=(self.n_thread, self.n_subject_CT), dtype=np.long)
-        self._SubFifo_AC_ = np.ones(shape=(self.n_thread, self.n_container_AC, self.n_subject_AC), dtype=np.long) * -1
-        self._SubFifo_CT_ = np.ones(shape=(self.n_thread, self.n_container_CT, self.n_subject_CT), dtype=np.long) * -1
+        self._Edge_AC_    = np.zeros(shape=(self.n_thread, self.n_subject_AC), dtype=np.int64)
+        self._Edge_CT_    = np.zeros(shape=(self.n_thread, self.n_subject_CT), dtype=np.int64)
+        self._SubFifo_AC_ = np.ones(shape=(self.n_thread, self.n_container_AC, self.n_subject_AC), dtype=np.int64) * -1
+        self._SubFifo_CT_ = np.ones(shape=(self.n_thread, self.n_container_CT, self.n_subject_CT), dtype=np.int64) * -1
 
         # load checkpoint
         if load_checkpoint or self.test_mode:
@@ -227,7 +227,7 @@ class CoopGraph(object):
         if not CoopAlgConfig.reverse_container:
             cluster_target_div = self._Edge_CT_   # 每个cluster在哪个entity容器中
         else:   # figure out cluster_target_div with fifo # 每个cluster指向那个entity
-            cluster_target_div = np.ones(shape=(self.n_thread, self.n_cluster), dtype=np.long) * self.n_entity #point to n_entity+1
+            cluster_target_div = np.ones(shape=(self.n_thread, self.n_cluster), dtype=np.int64) * self.n_entity #point to n_entity+1
             for thread, jth_cluster, pos in np.argwhere(self._SubFifo_CT_ >= 0):
                 cluster_target_div[thread, jth_cluster] = self._SubFifo_CT_[thread, jth_cluster, pos]    # 指向队列中的最后一个目标
             if CoopAlgConfig.one_more_container: 
@@ -307,10 +307,10 @@ class CoopGraph(object):
 
     def random_disturb(self, prob, mask):
         random_hit = (np.random.rand(self.n_thread) < prob)
-        ones = np.ones_like(random_hit, dtype=np.long)
+        ones = np.ones_like(random_hit, dtype=np.int64)
         mask = mask&random_hit
         if not any(mask): return
-        Active_action = np.zeros(shape=(self.n_thread, 4), dtype=np.long)
+        Active_action = np.zeros(shape=(self.n_thread, 4), dtype=np.int64)
         avail_act = self.get_avail_act(mask=np.array([True]*self.n_thread))
 
         for procindex in range(self.n_thread):
@@ -358,7 +358,7 @@ class CoopGraph(object):
     def __random_select_init_value_(n_container, n_subject):
         t_final = []; entropy = np.array([])
         for _ in range(20): # max entropy in samples
-            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.long); t_final.append(tmp)
+            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.int64); t_final.append(tmp)
             entropy = np.append(entropy, sum([ -(sum(tmp==i)/n_subject)*np.log(sum(tmp==i)/n_subject) if sum(tmp==i)!=0 else -np.inf for i in range(n_container)]))
         return t_final[np.argmax(entropy)]
 

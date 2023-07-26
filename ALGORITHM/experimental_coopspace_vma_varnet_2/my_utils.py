@@ -91,7 +91,7 @@ def add_obs_container_subject(container_emb, subject_emb, div):
     subject_out_emb = np.concatenate((subject_emb, subject_belonging_info), -1)
     # for container, add add multi-hot embedding of its subjects
     container_multihot = np.concatenate(
-        [np.expand_dims((div == nth_container).astype(np.long), 1) for nth_container in range(n_container)], 1)
+        [np.expand_dims((div == nth_container).astype(np.int64), 1) for nth_container in range(n_container)], 1)
     container_out_emb = np.concatenate((container_emb, container_multihot), -1)
     return container_out_emb, subject_out_emb
 

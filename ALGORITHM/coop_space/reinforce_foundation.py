@@ -163,8 +163,8 @@ class ReinforceAlgorithmFoundation(object):
                             'value_R':              Active_value_top,               'value_L':              Active_value_bottom,
                             'g_actionLogProbs_R':   Active_action_log_prob_R,       'g_actionLogProbs_L':   Active_action_log_prob_L,
                             'g_obs':                Active_emb,                     'g_actions':            Active_action,
-                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.long),
-                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.long),
+                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.int64),
+                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.int64),
                             'reward':               np.array([0.0 for _ in range(self.n_thread)])}
             # _______Internal_Environment_Step________
             container_actR = copy_clone(Active_action[:,(0,1)])
@@ -236,10 +236,10 @@ class ReinforceAlgorithmFoundation(object):
         co_step = copy_clone(State_Recall['Current-Obs-Step'])
 
         if '_division_obsR_' not in State_Recall: # 算法初始化时，第一次测试环境时
-            State_Recall['_division_obsR_'] = np.zeros(shape=(self.n_thread, n_subject_R), dtype=np.long)
-            State_Recall['_division_obsL_'] = np.zeros(shape=(self.n_thread, n_subject_L), dtype=np.long)
-            State_Recall['_division_fifoR_'] = np.ones(shape=(self.n_thread, n_container_R, n_subject_R), dtype=np.long) * -1
-            State_Recall['_division_fifoL_'] = np.ones(shape=(self.n_thread, n_container_L, n_subject_L), dtype=np.long) * -1
+            State_Recall['_division_obsR_'] = np.zeros(shape=(self.n_thread, n_subject_R), dtype=np.int64)
+            State_Recall['_division_obsL_'] = np.zeros(shape=(self.n_thread, n_subject_L), dtype=np.int64)
+            State_Recall['_division_fifoR_'] = np.ones(shape=(self.n_thread, n_container_R, n_subject_R), dtype=np.int64) * -1
+            State_Recall['_division_fifoL_'] = np.ones(shape=(self.n_thread, n_container_L, n_subject_L), dtype=np.int64) * -1
 
         if self._division_obsR_init is None: # 仅算法初始化时
             self.处理组成员初始化(just_got_reset, State_Recall, init=True)
@@ -267,7 +267,7 @@ class ReinforceAlgorithmFoundation(object):
     def __random_select_init_value_(n_container, n_subject):
         t_final = []; entropy = np.array([])
         for _ in range(20): # max entropy in samples
-            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.long); t_final.append(tmp)
+            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.int64); t_final.append(tmp)
             entropy = np.append(entropy, sum([ -(sum(tmp==i)/n_subject)*np.log(sum(tmp==i)/n_subject) if sum(tmp==i)!=0 else -np.inf for i in range(n_container)]))
         return t_final[np.argmax(entropy)]
 
@@ -297,16 +297,16 @@ class ReinforceAlgorithmFoundation(object):
         for procindex in range(self.n_thread):
             if not just_got_reset[procindex]: continue # otherwise reset
             if CoopAlgConfig.use_zero_start:
-                _division_obsR_= np.zeros(shape=(n_subject_R, ), dtype=np.long)
-                _division_obsL_= np.zeros(shape=(n_subject_L, ), dtype=np.long)
+                _division_obsR_= np.zeros(shape=(n_subject_R, ), dtype=np.int64)
+                _division_obsL_= np.zeros(shape=(n_subject_L, ), dtype=np.int64)
             elif CoopAlgConfig.use_fixed_random_start:
                 assert self._division_obsR_init is not None
                 _division_obsR_ = self._division_obsR_init
                 _division_obsL_ = self._division_obsL_init
             elif CoopAlgConfig.use_empty_container:
                 # 最后一个容器是全体，其他的全空
-                _division_obsR_= np.ones(shape=(n_subject_R, ), dtype=np.long) * (n_container_R - 1)
-                _division_obsL_= np.ones(shape=(n_subject_L, ), dtype=np.long) * (n_container_L - 1)
+                _division_obsR_= np.ones(shape=(n_subject_R, ), dtype=np.int64) * (n_container_R - 1)
+                _division_obsL_= np.ones(shape=(n_subject_L, ), dtype=np.int64) * (n_container_L - 1)
             elif CoopAlgConfig.use_complete_random:
                 _division_obsR_ = self.__random_select_init_value_(n_container_R, n_subject_R)
                 _division_obsL_ = self.__random_select_init_value_(n_container_L, n_subject_L)
@@ -345,7 +345,7 @@ class ReinforceAlgorithmFoundation(object):
         if not CoopAlgConfig.reverse_container:
             cluster_entity_div = div2   # 每个cluster在哪个entity容器中
         else:   # figure out cluster_entity_div with fifo # 每个cluster指向那个entity
-            cluster_entity_div = np.ones(shape=(n_thread, _n_cluster), dtype=np.long) * self.n_entity #point to n_entity+1
+            cluster_entity_div = np.ones(shape=(n_thread, _n_cluster), dtype=np.int64) * self.n_entity #point to n_entity+1
             for thread, jth_cluster, pos in  np.argwhere(cter_fifoL >= 0):
                 cluster_entity_div[thread, jth_cluster] = cter_fifoL[thread, jth_cluster, pos]    # 指向队列中的最后一个目标
             if CoopAlgConfig.one_more_container: 
