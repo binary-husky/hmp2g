@@ -274,7 +274,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
         N_COL = 4
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 50
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
@@ -327,7 +327,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
         N_COL = 4
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 50
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
         
