@@ -177,7 +177,7 @@ class ShellEnvWrapper(object):
                                         policy=self.rl_functional.policy,
                                         hete_type_list=self.hete_type,
                                         n_thread = self.n_thread,
-                                        n_gp=AlgorithmConfig.hete_n_net_placeholder,
+                                        n_gp=AlgorithmConfig.league_size,
                                         testing=StateRecall['Test-Flag']
                                     )
             print([(t['win_rate'], t['ckpg_cnt']) for t in self.rl_functional.policy.ckpg_info])

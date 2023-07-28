@@ -10,6 +10,7 @@ def random_group(random_select_fn, n_thread, hete_type, n_hete_types, n_group, s
     group_sel_arr = np.zeros(shape=(n_thread, n_agent), dtype=int)
     gp_sel_summary = []
     for i in range(n_thread):
+        # for each thread, select a policy from the league
         group_assignment = np.array([ 
             random_select_fn(testing) 
             if type not in selected_tps[i] else 0

@@ -67,8 +67,8 @@ class UhmapFlagCapture(UhmapCommonFn, UhmapEnv):
                 reward[WinTeam] = 1
                 reward[1-WinTeam] = 0
 
-            if event_parsed['Event'] == 'AgentSuicide':
-                reward[int(event_parsed['Team'])] -= 10
+            # if event_parsed['Event'] == 'AgentSuicide':
+            #     reward[int(event_parsed['Team'])] -= 10
 
         return reward, WinningResult
 
@@ -310,7 +310,7 @@ class UhmapFlagCapture(UhmapCommonFn, UhmapEnv):
                 # regular
                 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
                 # agent hp
-                'AgentHp': 280,
+                'AgentHp': 280 if team==0 else 140,
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system

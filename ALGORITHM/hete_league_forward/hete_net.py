@@ -129,11 +129,11 @@ class HeteNet(nn.Module):
         self.n_action = n_action
         self.hete_type = hete_type
         self.n_hete_types = _count_list_type(self.hete_type)
-        self.hete_n_net_placeholder = AlgorithmConfig.hete_n_net_placeholder
+        self.league_size = AlgorithmConfig.league_size
         self.use_normalization = AlgorithmConfig.use_normalization
 
         self.n_tp = self.n_hete_types
-        self.n_gp = self.hete_n_net_placeholder
+        self.n_gp = self.league_size
         self.n_agent_each_tp = [sum(self.hete_type==i) for i in range(self.n_hete_types)]
         self.n_agents = len(self.hete_type)
         # convertion between placeholder index and type-group index
@@ -250,13 +250,13 @@ class HeteNet(nn.Module):
         """randomly select a group index
 
         Args:
-            AlgorithmConfig.hete_same_prob: a probability about choosing the frontier net as the teammate
+            AlgorithmConfig.prob_choosing_frontier: a probability about choosing the frontier net as the teammate
 
         Returns:
             int: a group index
         """
         assert not testing
-        if np.random.rand() < AlgorithmConfig.hete_same_prob:
+        if np.random.rand() < AlgorithmConfig.prob_choosing_frontier:
             return 0
  
         # choose randomly among existing nets
@@ -282,7 +282,7 @@ class HeteNet(nn.Module):
                 # return 0
                 return (n_option+1) - LAST
             else:
-                hete_frontier_prob = AlgorithmConfig.hete_same_prob
+                hete_frontier_prob = AlgorithmConfig.prob_choosing_frontier
 
             if np.random.rand() < hete_frontier_prob:
                 return 0
