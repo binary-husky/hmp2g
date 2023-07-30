@@ -34,10 +34,10 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
         WinningResult = None
         for event in events: 
             event_parsed = self.parse_event(event)
-            if event_parsed['Event'] == 'Destroyed':
-                team = self.find_agent_by_uid(event_parsed['UID']).team
-                reward[team]    -= 0.05    # this team
-                reward[1-team]  += 0.10    # opp team
+            # if event_parsed['Event'] == 'Destroyed':
+            #     team = self.find_agent_by_uid(event_parsed['UID']).team
+            #     reward[team]    -= 0.10    # this team
+            #     reward[1-team]  += 0.10    # opp team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
                 EndReason = event_parsed['EndReason']
@@ -105,9 +105,10 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
             return CORE_DIM
 
         # temporary parameters
-        OBS_RANGE_PYTHON_SIDE = 1500
-        MAX_NUM_OPP_OBS = 5
-        MAX_NUM_ALL_OBS = 5
+        OBS_RANGE_PYTHON_SIDE = SubTaskConfig.OBS_RANGE_PYTHON_SIDE
+        MAX_NUM_OPP_OBS = SubTaskConfig.MAX_NUM_OPP_OBS
+        MAX_NUM_ALL_OBS = SubTaskConfig.MAX_NUM_ALL_OBS
+        MAX_OBJ_NUM_ACCEPT = SubTaskConfig.MAX_OBJ_NUM_ACCEPT
         
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
@@ -116,8 +117,11 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
         # dis_mat = distance_matrix(pos3d_arr)    # dis_mat is a matrix, shape = (n_agent, n_agent)
         dis_mat = resp['dataGlobal']['distanceMat']
         alive_all = np.array([agent.alive for agent in self.agents])
-        dis_mat[~alive_all,:] = +np.inf
-        dis_mat[:,~alive_all] = +np.inf
+        try:
+            dis_mat[~alive_all,:] = +np.inf
+            dis_mat[:,~alive_all] = +np.inf
+        except:
+            pass
 
         # get team list
         team_belonging = np.array([agent.team for agent in self.agents])
@@ -226,7 +230,6 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
 
 
         # the last part of observation is the list of core game objects
-        MAX_OBJ_NUM_ACCEPT = 1
         self.N_Obj = len(self.key_obj)
         if self.N_Obj > 0:
             OBJ_UID_OFFSET = 32768
@@ -275,7 +278,7 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
         N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
@@ -285,6 +288,7 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
         yaw = 90 if team==0 else -90
         assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
         agent_property = copy.deepcopy(AgentPropertyDefaults)
+        carrier = tid % SubTaskConfig.N_Carrier
         agent_property.update({
 
                 'DebugAgent': False,
@@ -295,7 +299,7 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
                 # probability of escaping dmg 闪避
                 "DodgeProb": 0.0,
                 # ms explode dmg
-                "ExplodeDmg": 75,           
+                "ExplodeDmg": 75,
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
@@ -305,13 +309,13 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
                 # open fire range
                 "PerceptionRange":  2000,
                 "GuardRange":       1400,
-                "FireRange":        750 ,
+                "FireRange":        1300 ,
                 # debugging
-                'RSVD1': f'-CarrierName=T0-0 -NumDrone={self.n_team_agent[team]-1}' if team==0 else f'-CarrierName=T1-0 -NumDrone={self.n_team_agent[team]-1}',
+                'RSVD1': f'-CarrierName=T0-{carrier} -NumDrone={self.n_team_agent[team]-1}' if team==0 else f'-CarrierName=T1-{carrier} -NumDrone={self.n_team_agent[team]-1}',
                 # regular
-                'RSVD2': '-InitAct=ActionSet2::Idle;AsFarAsPossible',
+                'RSVD2': '-InitAct=ActionSet1::Idle;StaticAlert',
                 # agent hp
-                'AgentHp':np.random.randint(low=180,high=220),
+                'AgentHp': 110,
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system
@@ -329,11 +333,11 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
         N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
         
-        x = 0 + 800*(tid - n_team_agent//2) //N_COL
+        x = 0 + 800*(tid * SubTaskConfig.N_Carrier - n_team_agent//2) //N_COL
         y = 2000 * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
         z = 1000
@@ -349,7 +353,7 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
                 # probability of escaping dmg 闪避
                 "DodgeProb": 0.0,
                 # ms explode dmg
-                "ExplodeDmg": 10,           
+                "ExplodeDmg": 100,           
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
@@ -357,15 +361,15 @@ class UhmapCarrier(UhmapCommonFn, UhmapEnv):
                 # Weapon CD
                 'WeaponCD': 3,
                 # open fire range
-                "PerceptionRange":  2500,
-                "GuardRange":       1800,
-                "FireRange":        1700,
+                "PerceptionRange":  5000,
+                "GuardRange":       4800,
+                "FireRange":        4800,
                 # debugging
                 'RSVD1': '',
                 # regular
-                'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
+                'RSVD2': '-InitAct=ActionSet1::Idle;StaticAlert',
                 # agent hp
-                'AgentHp':np.random.randint(low=40,high=60),
+                'AgentHp': 500,
                 # the rank of agent inside the team
                 'IndexInTeam': tid, 
                 # the unique identity of this agent in simulation system

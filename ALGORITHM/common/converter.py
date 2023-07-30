@@ -184,4 +184,40 @@ class ActionConvertV1Momentum():
         assert self.SELF_TEAM_ASSUME + self.OPP_TEAM_ASSUME == 1
         assert self.SELF_TEAM_ASSUME + self.OPP_TEAM_ASSUME == 1
         assert opp_agent_num == self.OPP_NUM_ASSUME
+
+class ActionConvertAgentsWithCarrier():
+    def __init__(self, SELF_TEAM_ASSUME, OPP_TEAM_ASSUME, OPP_NUM_ASSUME) -> None:
+        self.SELF_TEAM_ASSUME = SELF_TEAM_ASSUME
+        self.OPP_TEAM_ASSUME = OPP_TEAM_ASSUME
+        self.OPP_NUM_ASSUME = OPP_NUM_ASSUME
+        # (main_cmd, sub_cmd, x=None, y=None, z=None, UID=None, T=None, T_index=None)
+        self.dictionary_args = [
+            'ActionSet2::N/A;N/A',
+            'ActionSet1::Idle;DynamicGuard',
+            'ActionSet1::Idle;StaticAlert',
+            'ActionSet1::Idle;AsFarAsPossible',
+            'ActionSet1::Idle;StayWhenTargetInRange',
+            'ActionSet1::Special;Detach',
+            'ActionSet1::SpecificMoving;Dir+X',
+            'ActionSet1::SpecificMoving;Dir+Y',
+            'ActionSet1::SpecificMoving;Dir-X',
+            'ActionSet1::SpecificMoving;Dir-Y',
+        ] 
+        for i in range(self.OPP_NUM_ASSUME):
+            self.dictionary_args.append('ActionSet1::SpecificAttacking;T%d-%d'%(OPP_TEAM_ASSUME,i))
     
+    def convert_act_arr(self, type, a):
+        return strActionToDigits(self.dictionary_args[a])
+
+    def get_tp_avail_act(self, type):
+        DISABLE = 0
+        ENABLE = 1
+        n_act = len(self.dictionary_args)
+        ret = np.zeros(n_act) + ENABLE
+        return ret
+    
+    def confirm_parameters_are_correct(self, team, agent_num, opp_agent_num):
+        assert team == self.SELF_TEAM_ASSUME
+        assert self.SELF_TEAM_ASSUME + self.OPP_TEAM_ASSUME == 1
+        assert self.SELF_TEAM_ASSUME + self.OPP_TEAM_ASSUME == 1
+        assert opp_agent_num == self.OPP_NUM_ASSUME
