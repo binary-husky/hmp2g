@@ -170,7 +170,7 @@ class ShellEnvWrapper(object):
             EpRsn = np.random.rand(self.n_thread) < eprsn_yita
             StateRecall['_EpRsn_'] = EpRsn
             # heterogeneous agent identification
-            StateRecall['_hete_type_'] = repeat_at(self.hete_type, 0, self.n_thread)
+            StateRecall['_hete_type_'] = repeat_at(self.hete_type, 0, self.n_thread)    # type (thread, agent)
             # select static/frontier actor network
             StateRecall['_hete_pick_'], StateRecall['_gp_pick_'] = select_nets_for_shellenv(
                                         n_types=self.n_hete_types, 
