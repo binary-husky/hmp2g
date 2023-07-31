@@ -354,8 +354,8 @@ class HomoAlgorithmLinedAttack(DummyAlgorithmBase):
         opp_pos_arr = pos_arr_2d[opp_uid_range]
 
         self_alive_uid_range = [info['uId'] for info in raw_info if info['agentAlive'] and info['agentTeam'] == self.team ]
-        self_leader_uid_range = [i for i, x in enumerate(self_alive_uid_range) if i % 4 == 0]
-        self_follower_uid_range = [i for i, x in enumerate(self_alive_uid_range) if i % 4 != 0]
+        self_leader_uid_range = [x for i, x in enumerate(self_alive_uid_range) if i % 4 == 0]
+        self_follower_uid_range = [x for i, x in enumerate(self_alive_uid_range) if i % 4 != 0]
         N_leader = len(self_leader_uid_range)
         if N_leader > 0:
             self_air_pos_arr = pos_arr_2d[self_leader_uid_range]
