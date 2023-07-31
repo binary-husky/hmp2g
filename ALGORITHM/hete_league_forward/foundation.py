@@ -19,7 +19,6 @@ class AlgorithmConfig:
     use_normalization = True
     wait_norm_stable = True
     add_prob_loss = False
-    n_focus_on = 2
     n_entity_placeholder = 'auto load, do not change'
 
     load_checkpoint = False
@@ -181,12 +180,12 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             action, value, action_log_prob = self.policy.act(obs=obs,
                                                              test_mode=test_mode,
                                                              avail_act=avail_act,
-                                                             hete_pick=hete_pick,
+                                                             hete_pick=hete_pick,   # which net to execute
                                                              hete_type=hete_type,
                                                              gp_sel_summary=gp_sel_summary,
                                                              thread_index=thread_index,
                                                              eprsn=eprsn,
-                                                             )
+                                                            )
 
         # commit obs to buffer, vars named like _x_ are aligned, others are not!
         traj_framefrag = {

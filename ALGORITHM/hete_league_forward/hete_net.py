@@ -1,14 +1,10 @@
-import torch, math, copy, pickle
+from config import GlobalConfig as cfg
+from UTIL.tensor_ops import Args2tensor_Return2numpy, Args2tensor, __hashn__, __hash__, repeat_at, gather_righthand, my_view
+from .foundation import AlgorithmConfig
+from .net import Net, NetCentralCritic
+import torch, copy
 import numpy as np
 import torch.nn as nn
-from config import GlobalConfig as cfg
-from torch.distributions.categorical import Categorical
-from UTIL.colorful import print亮绿
-from UTIL.tensor_ops import Args2tensor_Return2numpy, Args2tensor, __hashn__, cat_last_dim, __hash__, one_hot_with_nan, repeat_at, scatter_righthand, gather_righthand, _2cpu2numpy, my_view
-from .foundation import AlgorithmConfig
-from ALGORITHM.common.pca import pca
-from ALGORITHM.common.net_manifest import weights_init
-from .net import Net, NetCentralCritic
 
 def popgetter(*items):
     def g(obj): return tuple(obj.pop(item) if item in obj else None for item in items)
@@ -132,25 +128,22 @@ class HeteNet(nn.Module):
         self.league_size = AlgorithmConfig.league_size
         self.use_normalization = AlgorithmConfig.use_normalization
 
-        self.n_tp = self.n_hete_types
-        self.n_gp = self.league_size
+        self.n_policy_net_ph = self.league_size
         self.n_agent_each_tp = [sum(self.hete_type==i) for i in range(self.n_hete_types)]
         self.n_agents = len(self.hete_type)
         # convertion between placeholder index and type-group index
-        self.tpgp_2_ph = lambda type, group: group*self.n_tp + type
+        self.tpgp_2_ph = lambda type, group: group*self.n_hete_types + type
         self.ph_2_tpgp = lambda ph: (ph%self.n_hete_types, ph//self.n_hete_types)
         self.ph_2_gp = lambda ph: ph//self.n_hete_types
 
         # initialize net placeholders
         self._nets_flat_placeholder_ = torch.nn.ModuleList(modules=[
-            Net(rawob_dim, n_action, **kwargs) for _ in range(
-                self.n_gp
-            )
+            Net(rawob_dim, n_action, **kwargs) for _ in range(self.n_policy_net_ph)
         ])
         # initialize critic
         self._critic_central = NetCentralCritic(rawob_dim, n_action, **kwargs)
         # reshape the handle of networks
-        self.nets = [  [ self._nets_flat_placeholder_[gp]  ] for gp in range(self.n_gp)]
+        self.nets = [  [ self._nets_flat_placeholder_[gp]  ] for gp in range(self.n_policy_net_ph)]
         # the frontier nets
         self.frontend_nets = self.nets[0]
         # the static nets
@@ -309,7 +302,7 @@ class HeteNet(nn.Module):
         return
 
     def redirect_to_frontend(self, i):
-        return i%self.n_tp
+        return i%self.n_hete_types
 
     def acquire_net(self, i):
         tp, gp = self.ph_2_tpgp(i)
@@ -324,13 +317,13 @@ class HeteNet(nn.Module):
         gp_sel_summary, thread_indices, hete_type = popgetter('gp_sel_summary', 'thread_index', 'hete_type')(kargs)
         
         # get ph_feature
-        # _012345 = torch.arange(self.n_tp, device=kargs['obs'].device, dtype=torch.int64)
-        ph_sel = gp_sel_summary # *self.n_tp + repeat_at(_012345, 0, n_thread)   # group * self.n_tp + tp
+        # _012345 = torch.arange(self.n_hete_types, device=kargs['obs'].device, dtype=torch.int64)
+        ph_sel = gp_sel_summary # *self.n_hete_types + repeat_at(_012345, 0, n_thread)   # group * self.n_hete_types + tp
         ph_feature = self.ph_to_feature[ph_sel]  # my_view(, [0, -1])
         ph_feature_cp_raw = repeat_at(ph_feature, 1, n_agents)
-        agent2tp_onehot = torch.nn.functional.one_hot(hete_type.long(), num_classes=self.n_tp).unsqueeze(-1)
+        agent2tp_onehot = torch.nn.functional.one_hot(hete_type.long(), num_classes=self.n_hete_types).unsqueeze(-1)
 
-        type_gp_mat = repeat_at(gp_sel_summary, -1, self.n_tp)
+        type_gp_mat = repeat_at(gp_sel_summary, -1, self.n_hete_types)
         same_gp = (type_gp_mat == type_gp_mat.transpose(-1,-2)).long()
         agent_self_type_mask2 = gather_righthand(same_gp,  index=hete_type, check=False).unsqueeze(-1)
 
@@ -345,15 +338,14 @@ class HeteNet(nn.Module):
         # add ph_feature to kwargs
         kargs['obs_hfeature'] = ph_feature_cp_obs
         # get a manifest of running nets
-        # invo_hete_types = [i for i in range(self.n_tp*self.n_gp) if (i in hete_pick)]
-        invo_gps = [i for i in range(self.n_gp) if (i in gp_sel_summary)]
+        # invo_hete_types = [i for i in range(self.n_hete_types*self.n_policy_net_ph) if (i in hete_pick)]
+        invo_gps = [i for i in range(self.n_policy_net_ph) if (i in gp_sel_summary)]
         running_nets = [self.nets[gp][0] for gp in invo_gps]
         
         # make sure all nets under testing is frontend / frontier
         if 'test_mode' in kargs and kargs['test_mode']: 
             for net in running_nets: 
                 if not AlgorithmConfig.policy_matrix_testing: assert not net.static
-
 
         # run actor policy networks
         actor_result = distribute_compute(
@@ -362,8 +354,7 @@ class HeteNet(nn.Module):
             **kargs
         )
 
-
-        # run critic network
+        # run unified critic network
         kargs.pop('obs_hfeature')   # replace h_feature
         kargs['obs_hfeature_critic'] = ph_feature_cp_critic
         critic_result = self._critic_central.estimate_state(**kargs)
@@ -387,7 +378,7 @@ class HeteNet(nn.Module):
 
     def trim_ckp(self):
         RemoveNew = True
-        max_static_gp = self.n_gp - 1
+        max_static_gp = self.n_policy_net_ph - 1
         if len(self.ckpg_info) <= max_static_gp:
             return
         else:

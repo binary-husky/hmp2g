@@ -28,14 +28,15 @@ def random_group(random_select_fn, n_thread, hete_type, n_hete_types, n_group, s
 
 def select_nets_for_shellenv(n_types, policy, hete_type_list, n_thread, n_gp, testing):
     if (not testing) or (AlgorithmConfig.policy_matrix_testing):
-        n_alive_frontend = AlgorithmConfig.hete_n_alive_frontend
-        tmp = np.arange(n_types)
+        # trainning
         # select types to use frontier
         if not AlgorithmConfig.type_sel_override:
             selected_types = np.stack([
+                # for each thread, 
+                # we choose N=AlgorithmConfig.hete_n_alive_frontend types out of N'=n_types
                 np.random.choice(
-                    a=tmp,
-                    size=(n_alive_frontend),
+                    a=np.arange(n_types),
+                    size=(AlgorithmConfig.hete_n_alive_frontend),
                     replace=False,
                     p=None)
                 for _ in range(n_thread)
@@ -55,12 +56,14 @@ def select_nets_for_shellenv(n_types, policy, hete_type_list, n_thread, n_gp, te
     else:
         random_select_fn = policy.random_select_matrix_test
 
+    # with the selected types, e.g. [type1=frontier, type2=frontier, type3!=frontier]
+    # generate the selection of league groups, e.g. [type1=frontier, type2=frontier, type3=league|league_index4]
     group_sel_arr, gp_sel_summary = random_group(
         random_select_fn=random_select_fn, n_thread=n_thread, hete_type=hete_type_list, 
         n_hete_types=n_types, n_group=n_gp, selected_tps=selected_types, testing=testing)
+    
     # group to net index
-    n_tp = n_types
-    get_placeholder = lambda type, group: group*n_tp + type
+    get_placeholder = lambda type, group: group*n_types + type
     hete_type_arr = repeat_at(hete_type_list, 0, n_thread)
     selected_nets = get_placeholder(type=hete_type_arr, group=group_sel_arr)
     
