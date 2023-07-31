@@ -111,7 +111,7 @@ class ShellEnvWrapper(object):
             [
                 ActionConvertLegacy.convert_act_arr(self.agent_type[agentid], act)  for agentid, act in enumerate(th) 
             ] for th in act])
-        actions_list = np.swapaxes(act_converted, 0, 1) # swap thread(batch) axis and agent axis
+        actions_list = act_converted if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(act_converted, 0, 1) # swap thread(batch) axis and agent axis
 
         # return necessary handles to main platform
         if self.cold_start: self.cold_start = False

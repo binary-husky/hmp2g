@@ -253,7 +253,7 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
         N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
@@ -399,105 +399,105 @@ class UhmapJustAnIsland(UhmapCommonFn, UhmapEnv):
 
 
     def init_target(self, agent_info, pos_ro):
-            agent_class = agent_info['type']
-            team = agent_info['team']
-            n_team_agent = 5
+        agent_class = agent_info['type']
+        team = agent_info['team']
+        n_team_agent = agent_info['n_team_agent']
 
-            # tid = agent_info['tid']
-            tid = agent_info['uid'] if team == 0 else None
-            uid = agent_info['uid']
-            assert tid is not None, 'Lost ID!'
+        # tid = agent_info['tid']
+        tid = agent_info['uid'] if team == 0 else None
+        uid = agent_info['uid']
+        assert tid is not None, 'Lost ID!'
 
-            # initial positions (within 5 regions)
-            if tid == 100:
-                x = np.random.uniform(140000, 200000)
-                y = np.random.uniform(-162460, -102460)
-                z = 2550
+        # initial positions (within 5 regions)
+        if tid == 100:
+            x = np.random.uniform(140000, 200000)
+            y = np.random.uniform(-162460, -102460)
+            z = 2550
 
-            if tid == 101:
-                x = np.random.uniform(52120, 100120)
-                y = np.random.uniform(-100970, -36970)
-                z = 2550
+        if tid == 101:
+            x = np.random.uniform(52120, 100120)
+            y = np.random.uniform(-100970, -36970)
+            z = 2550
 
-            if tid == 102:
-                x = np.random.uniform(52050, 95050)
-                y = np.random.uniform(-32220, 47780)
-                z = 2550
+        if tid == 102:
+            x = np.random.uniform(52050, 95050)
+            y = np.random.uniform(-32220, 47780)
+            z = 2550
 
-            if tid == 103:
-                x = np.random.uniform(36870, 96870)
-                y = np.random.uniform(49000, 112560)
-                z = 2550
+        if tid == 103:
+            x = np.random.uniform(36870, 96870)
+            y = np.random.uniform(49000, 112560)
+            z = 2550
 
-            if tid == 104:
-                x = np.random.uniform(22802, 89820)
-                y = np.random.uniform(117310, 157310)
-                z = 2550
-            
-            # # initial air-defense
-            # if tid == 105:
-            #     x = np.random.uniform(140000, 200000)
-            #     y = np.random.uniform(-162460, -102460)
-            #     z = 2550
+        if tid == 104:
+            x = np.random.uniform(22802, 89820)
+            y = np.random.uniform(117310, 157310)
+            z = 2550
+        
+        # # initial air-defense
+        # if tid == 105:
+        #     x = np.random.uniform(140000, 200000)
+        #     y = np.random.uniform(-162460, -102460)
+        #     z = 2550
 
-            # if tid == 106:
-            #     x = np.random.uniform(52120, 100120)
-            #     y = np.random.uniform(-100970, -36970)
-            #     z = 2550
+        # if tid == 106:
+        #     x = np.random.uniform(52120, 100120)
+        #     y = np.random.uniform(-100970, -36970)
+        #     z = 2550
 
-            # if tid == 107:
-            #     x = np.random.uniform(52050, 95050)
-            #     y = np.random.uniform(-32220, 47780)
-            #     z = 2550
+        # if tid == 107:
+        #     x = np.random.uniform(52050, 95050)
+        #     y = np.random.uniform(-32220, 47780)
+        #     z = 2550
 
-            # if tid == 108:
-            #     x = np.random.uniform(36870, 96870)
-            #     y = np.random.uniform(49000, 112560)
-            #     z = 2550
+        # if tid == 108:
+        #     x = np.random.uniform(36870, 96870)
+        #     y = np.random.uniform(49000, 112560)
+        #     z = 2550
 
-            # if tid == 109:
-            #     x = np.random.uniform(22802, 89820)
-            #     y = np.random.uniform(117310, 157310)
-            #     z = 2550
+        # if tid == 109:
+        #     x = np.random.uniform(22802, 89820)
+        #     y = np.random.uniform(117310, 157310)
+        #     z = 2550
 
 
 
-            agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
-            agent_property.update({
-                    # 'DebugAgent': False,
-                    # # max drive/fly speed
-                    # 'MaxMoveSpeed':  900,
-                    # # also influence object mass, please change it with causion!
-                    'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
-                    # # probability of escaping dmg 闪避
-                    # "DodgeProb": 0.0,
-                    # # ms explode dmg
-                    # "ExplodeDmg": 10,           
-                    # team belonging
-                    'AgentTeam': team,
-                    # choose ue class to init
-                    'ClassName': agent_class,
-                    # # Weapon CD
-                    # 'WeaponCD': 3,
-                    # # open fire range
-                    # "PerceptionRange":  2500,
-                    # "GuardRange":       1800,
-                    # "FireRange":        1700,
-                    # # debugging
-                    'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700 -value=10',
-                    # # regular
-                    # 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
-                    # # agent hp
-                    # 'AgentHp':50,
-                    # the rank of agent inside the team
-                    'IndexInTeam': tid, 
-                    # the unique identity of this agent in simulation system
-                    'UID': uid, 
-                    # # show color
-                    # 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
-                    # initial location
-                    'InitLocation': { 'x': x,  'y': y, 'z': z, },
-                    # initial facing direction et.al.
-                    # 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
-            }),
-            return agent_property
+        agent_property = copy.deepcopy(SubTaskConfig.AgentPropertyDefaults)
+        agent_property.update({
+                # 'DebugAgent': False,
+                # # max drive/fly speed
+                # 'MaxMoveSpeed':  900,
+                # # also influence object mass, please change it with causion!
+                'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+                # # probability of escaping dmg 闪避
+                # "DodgeProb": 0.0,
+                # # ms explode dmg
+                # "ExplodeDmg": 10,           
+                # team belonging
+                'AgentTeam': team,
+                # choose ue class to init
+                'ClassName': agent_class,
+                # # Weapon CD
+                # 'WeaponCD': 3,
+                # # open fire range
+                # "PerceptionRange":  2500,
+                # "GuardRange":       1800,
+                # "FireRange":        1700,
+                # # debugging
+                'RSVD1': '-ring1=2500 -ring2=1800 -ring3=1700 -value=10',
+                # # regular
+                # 'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
+                # # agent hp
+                # 'AgentHp':50,
+                # the rank of agent inside the team
+                'IndexInTeam': tid, 
+                # the unique identity of this agent in simulation system
+                'UID': uid, 
+                # # show color
+                # 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
+                # initial location
+                'InitLocation': { 'x': x,  'y': y, 'z': z, },
+                # initial facing direction et.al.
+                # 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
+        }),
+        return agent_property

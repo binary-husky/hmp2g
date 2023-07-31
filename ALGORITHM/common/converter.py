@@ -157,14 +157,14 @@ class ActionConvertV1Momentum():
         self.OPP_NUM_ASSUME = OPP_NUM_ASSUME
         # (main_cmd, sub_cmd, x=None, y=None, z=None, UID=None, T=None, T_index=None)
         self.dictionary_args = [
-            'ActionSet1::MoveToDirection2D@Z;X=1.0 Y=0.0 Z=700.0',
-            'ActionSet1::MoveToDirection2D@Z;X=1.0 Y=1.0 Z=700.0',
-            'ActionSet1::MoveToDirection2D@Z;X=0.0 Y=1.0 Z=700.0',
-            'ActionSet1::MoveToDirection2D@Z;X=-1.0 Y=1.0 Z=700.0',
-            'ActionSet1::MoveToDirection2D@Z;X=-1.0 Y=0.0 Z=700.0',
-            'ActionSet1::MoveToDirection2D@Z;X=-1.0 Y=-1.0 Z=700.0',
-            'ActionSet1::MoveToDirection2D@Z;X=0.0 Y=-1.0 Z=700.0',
-            'ActionSet1::MoveToDirection2D@Z;X=1.0 Y=-1.0 Z=700.0',
+            'ActionSet1::MoveToDirection2D@Z;X=1.0 Y=0.0 Z=550.0',
+            'ActionSet1::MoveToDirection2D@Z;X=1.0 Y=1.0 Z=550.0',
+            'ActionSet1::MoveToDirection2D@Z;X=0.0 Y=1.0 Z=550.0',
+            'ActionSet1::MoveToDirection2D@Z;X=-1.0 Y=1.0 Z=550.0',
+            'ActionSet1::MoveToDirection2D@Z;X=-1.0 Y=0.0 Z=550.0',
+            'ActionSet1::MoveToDirection2D@Z;X=-1.0 Y=-1.0 Z=550.0',
+            'ActionSet1::MoveToDirection2D@Z;X=0.0 Y=-1.0 Z=550.0',
+            'ActionSet1::MoveToDirection2D@Z;X=1.0 Y=-1.0 Z=550.0',
         ]
         self.ActDigitLen = ActDigitLen
         self.n_act = len(self.dictionary_args)

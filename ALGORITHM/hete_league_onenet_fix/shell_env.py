@@ -214,7 +214,7 @@ class ShellEnvWrapper(object):
         act_converted = np.array([[ self.action_converter.convert_act_arr(self.agent_type[agentid], act) for agentid, act in enumerate(th) ] for th in act])
         
         # swap thread(batch) axis and agent axis
-        actions_list = np.swapaxes(act_converted, 0, 1)
+        actions_list = act_converted if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(act_converted, 0, 1)
 
         # register callback hook
         if not StateRecall['Test-Flag']:
