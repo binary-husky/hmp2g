@@ -82,7 +82,7 @@ class AgentsWithCarrier(DummyAlgorithmBase):
             for x in self_team_carriers:
                 actions[thread, x['indexInTeam']] = strActionToDigits('ActionSet2::SpecificAttacking;T%d-%d'%(1-self.team, a['indexInTeam']))
 
-            if State_Recall['Current-Obs-Step'] == 0:
+            if State_Recall['Current-Obs-Step'][thread] == 0:
                 actions[thread, :] = strActionToDigits('ActionSet1::Idle;AggressivePersue')
 
             for a in range(self.n_agent):
