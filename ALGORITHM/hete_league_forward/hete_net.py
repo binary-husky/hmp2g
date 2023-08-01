@@ -128,7 +128,7 @@ class HeteNet(nn.Module):
         self.league_size = AlgorithmConfig.league_size
         self.use_normalization = AlgorithmConfig.use_normalization
 
-        self.n_policy_net_ph = self.league_size
+        self.n_policy_net_ph = self.league_size+1
         self.n_agent_each_tp = [sum(self.hete_type==i) for i in range(self.n_hete_types)]
         self.n_agents = len(self.hete_type)
         # convertion between placeholder index and type-group index

@@ -5,7 +5,7 @@ from .foundation import AlgorithmConfig
 
 
 
-def random_group(random_select_fn, n_thread, hete_type, n_hete_types, n_group, selected_tps, testing):
+def random_group(random_select_fn, n_thread, hete_type, n_hete_types, selected_tps, testing):
     n_agent = hete_type.shape[-1]
     group_sel_arr = np.zeros(shape=(n_thread, n_agent), dtype=int)
     gp_sel_summary = []
@@ -26,7 +26,7 @@ def random_group(random_select_fn, n_thread, hete_type, n_hete_types, n_group, s
 
 
 
-def select_nets_for_shellenv(n_types, policy, hete_type_list, n_thread, n_gp, testing):
+def select_nets_for_shellenv(n_types, policy, hete_type_list, n_thread, testing):
     if (not testing) or (AlgorithmConfig.policy_matrix_testing):
         # trainning
         # select types to use frontier
@@ -60,7 +60,7 @@ def select_nets_for_shellenv(n_types, policy, hete_type_list, n_thread, n_gp, te
     # generate the selection of league groups, e.g. [type1=frontier, type2=frontier, type3=league|league_index4]
     group_sel_arr, gp_sel_summary = random_group(
         random_select_fn=random_select_fn, n_thread=n_thread, hete_type=hete_type_list, 
-        n_hete_types=n_types, n_group=n_gp, selected_tps=selected_types, testing=testing)
+        n_hete_types=n_types, selected_tps=selected_types, testing=testing)
     
     # group to net index
     get_placeholder = lambda type, group: group*n_types + type

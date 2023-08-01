@@ -122,7 +122,7 @@ class ShellEnvWrapper(object):
         # check parameters
         assert self.n_agent == len(self_type_list)
         self.action_converter.confirm_parameters_are_correct(team, self.n_agent, len(opp_type_list))
-        self.patience = 2000
+        self.patience = 200
         self.epsiode_cnt = 0
 
     def cold_start_warmup(self, StateRecall):
@@ -177,7 +177,6 @@ class ShellEnvWrapper(object):
                                         policy=self.rl_functional.policy,
                                         hete_type_list=self.hete_type,
                                         n_thread = self.n_thread,
-                                        n_gp=AlgorithmConfig.league_size,
                                         testing=StateRecall['Test-Flag']
                                     )
             print([(t['win_rate'], t['ckpg_cnt']) for t in self.rl_functional.policy.ckpg_info])

@@ -1,7 +1,7 @@
 
 
-json_path = 'RESULT/random-formation-r6-3/raw_exp.jsonc'
-ALG_NAME = "ALGORITHM.ppo_ma.foundation.py->AlgorithmConfig"
+json_path = 'RESULT/games_02_61v61/raw_exp.jsonc'
+ALG_NAME = "ALGORITHM.hete_league_forward.foundation.py->AlgorithmConfig"
 
 def validate_path():
     import os, sys
