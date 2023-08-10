@@ -195,7 +195,7 @@ class HeteNet(nn.Module):
         # if the winrate is not a breakthough, give up
         if len(prev_win_rate)>0 and win_rate <= max(prev_win_rate): 
             return
-        if AlgorithmConfig.hete_exclude_zero_wr and win_rate==0:
+        if AlgorithmConfig.hete_exclude_zero_wr and win_rate< AlgorithmConfig.hete_exclude_zero_threshold:
             return
         
         # list the infomation about this checkpoint
