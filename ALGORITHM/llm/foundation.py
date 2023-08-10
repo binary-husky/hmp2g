@@ -1,9 +1,15 @@
-import os, time, torch, traceback, shutil
+import os, time, torch, json, shutil
 import numpy as np
 from UTIL.colorful import *
 from config import GlobalConfig
 from UTIL.tensor_ops import repeat_at
 from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
+from ALGORITHM.common.logit2act import Logit2Act
+from .temp import sample_good_QA_from_turns, get_log_prob, get_log_probs_with_input_ids
+from .temp import RewardBySimilarity, Critic, gae_vectorize
+from pathlib import Path
+from torch.optim import Adam
+
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -17,195 +23,112 @@ class AlgorithmConfig:
 
 
 
-class ReinforceAlgorithmFoundation(RLAlgorithmBase):
+class LLM_Foundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
+        from .bridge_llm import load_llm_model
         self.n_agent = n_agent
-
-    def action_making(self, StateRecall, test_mode):
-        # make sure hook is cleared
-        assert ('_hook_' not in StateRecall)
-        
-        # read obs
-        obs, threads_active_flag, avail_act, eprsn = \
-            itemgetter('obs', 'threads_active_flag', 'avail_act', '_EpRsn_')(StateRecall)
-            
-        
-        # make sure obs is right
-        assert obs is not None, ('Make sure obs is ok')
-        assert len(obs) == sum(threads_active_flag), ('check batch size')
-        # make sure avail_act is correct
-        if AlgorithmConfig.use_avail_act: assert avail_act is not None
-
-        # policy resonance flag reshape
-        eprsn = repeat_at(eprsn, -1, self.n_agent)
-        thread_index = np.arange(self.n_thread)[threads_active_flag]
-
-        # make decision
-        with torch.no_grad():
-            action, value, action_log_prob = self.policy.act(obs=obs,
-                                                             test_mode=(test_mode and not AlgorithmConfig.ignore_test),
-                                                             avail_act=avail_act,
-                                                             eprsn=eprsn,
-                                                             )
-
-        # commit obs to buffer, vars named like _x_ are aligned, others are not!
-        traj_framefrag = {
-            "_SKIP_":        ~threads_active_flag,
-            "value":         value,
-            "avail_act":     avail_act,
-            "actionLogProb": action_log_prob,
-            "obs":           obs,
-            "action":        action,
-        }
-        if avail_act is not None: traj_framefrag.update({'avail_act':  avail_act})
-        # deal with rollout later when the reward is ready, leave a hook as a callback here
-        if not test_mode: StateRecall['_hook_'] = self.commit_traj_frag(traj_framefrag, req_hook = True)
-        return action.copy(), StateRecall
-
+        self.data_set = json.loads(Path('/home/hmp/hmp2g/ALGORITHM/llm/profile_instance.json').read_text(encoding="utf8"))
+        self.llm_model, self.tokenizer = load_llm_model()
+        self.logic_processor = Logit2Act()
+        self.reward_model = RewardBySimilarity(device=GlobalConfig.device)
+        self.critic = Critic(device=GlobalConfig.device)
+        optimize_params = list(self.llm_model.transformer.word_embeddings.parameters())+list(self.critic.parameters())
+        self.optimizer = Adam(optimize_params, lr=1e-4, eps=1e-3)
 
     def interact_with_env(self, StateRecall):
         '''
             Interfacing with marl, standard method that you must implement
             (redirect to shell_env to help with history rolling)
         '''
-        return self.shell_env.interact_with_env(StateRecall)
+        from .temp import generate_inputs
+        action_device = GlobalConfig.device
 
+        for i in range(len(self.data_set)):
+            chat = self.data_set[i]
 
-    def interact_with_env_genuine(self, StateRecall):
-        '''
-            When shell_env finish the preparation, interact_with_env_genuine is called
-            (Determine whether or not to do a training routinue)
-        '''
-        # if not StateRecall['Test-Flag']: self.train()  # when needed, train!
-        return self.action_making(StateRecall, StateRecall['Test-Flag'])
-
-    def train(self):
-        '''
-            Get event from hmp task runner, save model now!
-        '''
-        if self.traj_manager.can_exec_training():
-            if self.stage_planner.can_exec_trainning():
-                self.traj_manager.train_and_clear_traj_pool()
-            else:
-                self.traj_manager.clear_traj_pool()
-                
-            # read configuration
-            if AlgorithmConfig.ConfigOnTheFly: self._config_on_fly()
+        good_qa = sample_good_QA_from_turns(chat)
+        good_answers = chat[-1]["好答"]
+        bad_answers = chat[-1]["坏答"]
+        
+        # r = random.randint(1, 5)
+        if np.random.rand() < 0.5:
+            query = good_qa[-1][0]
+            history = good_qa[:-1]
+            inputs, gen_len, prompt = generate_inputs(self.tokenizer, query=query, history=history)
+            input_ids = inputs["input_ids"].to(action_device)
+            num_beams, num_return_sequences = 1, 1 # 3, 2 # set bigger if you have bigger compute memory
+            assert num_beams >= num_return_sequences, "candidates num should greater than returns num"
+            max_new_tokens = 8
+            gen_method = "greedy_search" if num_beams == 1 else "beam_search" 
+            generate_ = self.llm_model.generate(input_ids=input_ids, do_sample=False, num_beams=num_beams, max_new_tokens=max_new_tokens,
+                                num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=True,
+                                output_hidden_states=False, return_dict_in_generate=True)
+            sequences = generate_.sequences
             
-            # 
-            self.stage_planner.update_plan()
+            log_probs = get_log_prob(generated_outputs=generate_, input_ids=input_ids, gen_method=gen_method)
+            gen_texts = self.tokenizer.batch_decode(sequences[:, input_ids.shape[1]:])
+            out_texts = self.tokenizer.batch_decode(sequences)
+            # print(query, qa_logs[query], sep="\n")
+            print(query, gen_texts, sep="\n")
+        else:
+            # 将目标句直接用RL提升或降低它的概率，得到类似finetune的效果
+            query = ""
+            inputs, gen_len, prompt = generate_inputs(self.tokenizer, query=query, history=good_qa) # '[Round 0]\n问：你的主人是谁？\n答：'
+            input_ids = inputs["input_ids"].to(action_device)
+            sequences = input_ids
+            with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
+                log_probs = get_log_probs_with_input_ids(self.llm_model, input_ids, gen_max_len=gen_len)    # gen_len是good_qa输出的长度
+            gen_texts = [good_qa[-1][1]]    # 回复样本y
+            out_texts = self.tokenizer.batch_decode(sequences)
+            # print("目标句直接用RL提升它的概率：", out_texts)
 
+        # compute reward for generated sequences
+        reward = self.reward_model(gen_texts=gen_texts, good_answers=good_answers, bad_answers=bad_answers).unsqueeze(1) # 获取终末稀疏奖励
+        assert reward.shape == (len(gen_texts), 1), "need unsqueeze for next scatter_"
+        rewards = torch.zeros_like( sequences, dtype=reward.dtype, device=reward.device)    # 准备一个长奖励向量，准备用gae奖励均摊
+        # pad_id =   # 
+        masks = (sequences!=self.tokenizer.convert_tokens_to_ids("<pad>")).long().to(GlobalConfig.device)  # mask 掉 pad
+        final_position = masks.sum(dim=-1)-1
+        index=final_position.unsqueeze(-1)
+        rewards.scatter_(dim=1, index=index, src=reward)    # 把奖励放置到句子的最后一个token输出的地方 [0,0,0,0,...,reward,0,0,...,0,0]
+        # 确保都放到values所在的device
+        rewards = torch.tensor(rewards, dtype=self.critic.dtype, device=self.critic.device)
+        masks = masks.to(self.critic.device)
 
+        torch.cuda.empty_cache()
+        self.ppo(ppo_epochs=5, states= sequences,log_probs=log_probs, rewards=rewards, masks=masks, clip_param=0.2)
 
-    def save_model(self, update_cnt, info=None):
-        '''
-            save model now!
-            save if triggered when:
-            1. Update_cnt = 50, 100, ...
-            2. Given info, indicating a hmp command
-            3. A flag file is detected, indicating a save command from human
-        '''
-        if not os.path.exists('%s/history_cpt/' % GlobalConfig.logdir): 
-            os.makedirs('%s/history_cpt/' % GlobalConfig.logdir)
+        action = np.zeros(shape=(1, 1))
+        return action, StateRecall
 
-        # dir 1
-        pt_path = '%s/model.pt' % GlobalConfig.logdir
-        print绿('saving model to %s' % pt_path)
-        torch.save({
-            'policy': self.policy.state_dict(),
-            'optimizer': self.trainer.optimizer.state_dict(),
-        }, pt_path)
-
-        # dir 2
-        info = str(update_cnt) if info is None else ''.join([str(update_cnt), '_', info])
-        pt_path2 = '%s/history_cpt/model_%s.pt' % (GlobalConfig.logdir, info)
-        shutil.copyfile(pt_path, pt_path2)
-
-        print绿('save_model fin')
-
-
-
-    def load_model(self, AlgorithmConfig):
-        '''
-            load model now
-        '''
-
-        if AlgorithmConfig.load_checkpoint:
-            manual_dir = AlgorithmConfig.load_specific_checkpoint
-            ckpt_dir = '%s/model.pt' % GlobalConfig.logdir if manual_dir == '' else '%s/%s' % (GlobalConfig.logdir, manual_dir)
-            cuda_n = 'cpu' if 'cpu' in self.device else self.device
-            strict = True
-            
-            cpt = torch.load(ckpt_dir, map_location=cuda_n)
-            self.policy.load_state_dict(cpt['policy'], strict=strict)
-            # https://github.com/pytorch/pytorch/issues/3852
-            self.trainer.optimizer.load_state_dict(cpt['optimizer'])
-
-            print黄('loaded checkpoint:', ckpt_dir)
-
-
-    def process_framedata(self, traj_framedata):
-        ''' 
-            hook is called when reward and next moment observation is ready,
-            now feed them into trajectory manager.
-            Rollout Processor | 准备提交Rollout, 以下划线开头和结尾的键值需要对齐(self.n_thread, ...)
-            note that keys starting with _ must have shape (self.n_thread, ...), details see fn:mask_paused_env()
-        '''
-        # strip info, since it is not array
-        items_to_pop = ['info', 'Latest-Obs']
-        for k in items_to_pop:
-            if k in traj_framedata:
-                traj_framedata.pop(k)
-        # the agent-wise reward is supposed to be the same, so averge them
-        if self.ScenarioConfig.RewardAsUnity:
-            traj_framedata['reward'] = repeat_at(traj_framedata['reward'], insert_dim=-1, n_times=self.n_agent)
-        # change the name of done to be recognised (by trajectory manager)
-        traj_framedata['_DONE_'] = traj_framedata.pop('done')
-        traj_framedata['_TOBS_'] = traj_framedata.pop(
-            'Terminal-Obs-Echo') if 'Terminal-Obs-Echo' in traj_framedata else None
-        # mask out pause thread
-        traj_framedata = self.mask_paused_env(traj_framedata)
-        # put the frag into memory
-        self.traj_manager.feed_traj_framedata(traj_framedata)
-
-    def mask_paused_env(self, frag):
-        running = ~frag['_SKIP_']
-        if running.all():
-            return frag
-        for key in frag:
-            if not key.startswith('_') and hasattr(frag[key], '__len__') and len(frag[key]) == self.n_thread:
-                frag[key] = frag[key][running]
-        return frag
-
-
-    def _create_config_fly(self):
-        logdir = GlobalConfig.logdir
-        self.input_file_dir = '%s/cmd_io.txt' % logdir
-        if not os.path.exists(self.input_file_dir):
-            with open(self.input_file_dir, 'w+', encoding='utf8') as f: f.writelines(["# Write cmd at next line: ", ""])
-
-    def _config_on_fly(self):
-        if not os.path.exists(self.input_file_dir): return
-
-        with open(self.input_file_dir, 'r', encoding='utf8') as f:
-            cmdlines = f.readlines()
-
-        cmdlines_writeback = []
-        any_change = False
-
-        for cmdline in cmdlines:
-            if cmdline.startswith('#') or cmdline=="\n" or cmdline==" \n":
-                cmdlines_writeback.append(cmdline)
-            else:
-                any_change = True
-                try:
-                    print亮绿('[foundation.py] ------- executing: %s ------'%cmdline)
-                    exec(cmdline)
-                    cmdlines_writeback.append('# [execute successfully]\t'+cmdline)
-                except:
-                    print红(traceback.format_exc())
-                    cmdlines_writeback.append('# [execute failed]\t'+cmdline)
-
-        if any_change:
-            with open(self.input_file_dir, 'w+', encoding='utf8') as f:
-                f.writelines(cmdlines_writeback)
+    def ppo(self, ppo_epochs, states, log_probs, rewards, masks, clip_param):
+        for ppo_epoch in range(ppo_epochs):
+            # compute new log probs
+            new_log_probs = get_log_probs_with_input_ids(self.llm_model, states, log_probs.shape[1])
+            entropy = 0 # 暂时不需要熵的约束
+            # compute value
+            # 到奖励模型和值函数模型的输入可以是一样的都是生成的序列。
+            # 生成序列同时包括state和next action
+            # prepare input for critic model
+            input_ids_critic = states.to(GlobalConfig.device)
+            values = self.critic(input_ids=input_ids_critic)
+            # compute gae
+            gae = gae_vectorize(values=values, rewards=rewards, masks=masks)
+            advantages = gae[:, -log_probs.shape[-1]:].to(new_log_probs.device) # 根据参考输出的长度进行截断
+            # 计算value的估计量的偏差作为actor loss
+            # 以及ppo的actor_loss
+            value_estimator_delta = advantages
+            ratio = (new_log_probs - log_probs).exp()
+            # print("reward", reward, "ratio:", ratio, sep="\n")
+            if torch.isinf(ratio).any():
+                break
+            surr1 = ratio * advantages
+            surr2 = torch.clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages
+            actor_loss  = - torch.min(surr1, surr2).mean()
+            critic_loss = value_estimator_delta.square().mean()
+            loss = 0.5 * (critic_loss + actor_loss) - 0.001 * entropy
+            # optimize
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            print("loss", loss.item())
