@@ -1,6 +1,6 @@
 """
 classes for ChatGLM RLHF
-Critic model
+ChatGLMCritic model
 Action model is ChatGLM, 所以可省略
 Reward model
 
@@ -12,35 +12,6 @@ from transformers import BertTokenizer, BertModel
 import numpy as np
 from functools import partial
 
-"""
-critic 的词表最好和action模型的词表一样这样便于对每个生成的token进行打分，
-不一致的词表会导致打分不对齐，所以选择用一样的模型但是加一下打分的输出
-为了减小打分模型的大小，可以把原来的模型的layers缩减层数。
-这样直接继承了，原来的token embedding
-"""
-class Critic(nn.Module):
-    def __init__(self, device="cpu_float") -> None:
-        super().__init__()
-        model = ChatGLMModel.from_pretrained("/home/hmp/Miraclemarvel55_RLHF/chatglm_6b", trust_remote_code=True)
-        layers_keep = len(model.layers)//9
-        layers_keep = 1
-        model.layers = model.layers[:layers_keep]
-        # solve RuntimeError: "LayerNormKernelImpl" not implemented for 'Half'
-        if "cuda" in device:
-            model = model.half().cuda(device) # half for gpu only
-        elif "cpu" == device:
-            model = model.bfloat16()
-        else:
-            model = model.float()
-        self.model = model
-        self.output_linear = nn.Linear(self.model.hidden_size, 1, device=self.model.device, dtype=self.model.dtype)
-        self.dtype = self.model.dtype
-        self.device = self.model.device
-    def forward(self, **kwargs):
-        output = self.model(**kwargs)
-        values = torch.tanh(self.output_linear(output.last_hidden_state))
-        return values.transpose(0, 1).squeeze(-1)
-
 
 """
 一样的原因，不需要再把生成的token ids转成文字在再转到目标ids，
@@ -48,8 +19,6 @@ class Critic(nn.Module):
 只是这里只取最后的token算出对整句生成的奖励分数，具体取哪个位置可以
 后续在代码里面指定，比如用torch.gather
 """ 
-Reward = Critic
-
 
 # Mean Pooling - Take attention mask into account for correct averaging
 def mean_pooling(model_output, attention_mask): # attention_mask 主要是考虑每个句子的长度，用0去pad短句子
@@ -131,14 +100,7 @@ def test_reward_by_similarity():
     reward = reward_model()
     print(reward)
 
-def test_critic():
-    from transformers import AutoTokenizer, AutoModel
-    tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm-6b", trust_remote_code=True)
-    critic = Critic()
-    input_ids = torch.tensor(tokenizer.encode("你好"), dtype=torch.long).unsqueeze(0)
-    input_ids = input_ids.repeat(2,1)
-    output = critic(input_ids=input_ids)  
-    print(output.shape)
+
 
 def test_reward():
     # with torch.no_grad():
@@ -159,7 +121,7 @@ def test_reward():
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 import random
 def sample_good_QA_from_turns(turns):
-    history = [ [turn["问"], random.choice(turn["好答"])] for turn in turns ]
+    history = [ [turn["问"], random.choice(turn["good_ans"])] for turn in turns ]
     return history
 
 def generate_inputs(tokenizer, query='', history=[]):
@@ -217,23 +179,21 @@ def get_log_probs_with_input_ids(model, input_ids, gen_max_len):  # 自回归获
     new_log_probs = logits.gather(dim=-1, index=input_ids[:, -gen_max_len:].unsqueeze(-1)).squeeze(-1)
     return new_log_probs
 
-
-decay_up_matrix_T = None
+from functools import lru_cache
+@lru_cache
 def get_decay_up_matrix_T(dtype=torch.float, device="cpu", max_length = 2048, gamma=0.99, tau=0.95):
-    global decay_up_matrix_T
-    if decay_up_matrix_T is None:
-        # 生成衰减矩阵
-        decay = gamma*tau
-        decay_row = torch.ones(max_length, dtype=dtype, device=device)*decay
-        decay_row[0] = 1
-        decay_row_cross_time = decay_row.cumprod(dim=-1)
-        assert decay_row_cross_time.sign().min() == 0
-        decay_up_matrix = torch.zeros((max_length, max_length), dtype=dtype, device=device)
-        for i in range(max_length):
-            decay_row = decay_row_cross_time.roll(i)
-            decay_row[:i] = 0 # 确保看不见前面的
-            decay_up_matrix[i] = decay_row
-        decay_up_matrix_T = decay_up_matrix.T# 先进行转置，因为后面需要用到矩阵乘法
+    # 生成衰减矩阵
+    decay = gamma*tau
+    decay_row = torch.ones(max_length, dtype=dtype, device=device)*decay
+    decay_row[0] = 1
+    decay_row_cross_time = decay_row.cumprod(dim=-1)
+    assert decay_row_cross_time.sign().min() == 0
+    decay_up_matrix = torch.zeros((max_length, max_length), dtype=dtype, device=device)
+    for i in range(max_length):
+        decay_row = decay_row_cross_time.roll(i)
+        decay_row[:i] = 0 # 确保看不见前面的
+        decay_up_matrix[i] = decay_row
+    decay_up_matrix_T = decay_up_matrix.T# 先进行转置，因为后面需要用到矩阵乘法
     return decay_up_matrix_T
 
 

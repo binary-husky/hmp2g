@@ -6,7 +6,8 @@ from UTIL.tensor_ops import repeat_at
 from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 from ALGORITHM.common.logit2act import Logit2Act
 from .temp import sample_good_QA_from_turns, get_log_prob, get_log_probs_with_input_ids
-from .temp import RewardBySimilarity, Critic, gae_vectorize
+from .temp import RewardBySimilarity, gae_vectorize
+from .bridge_llm import ChatGLMCritic
 from pathlib import Path
 from torch.optim import Adam
 
@@ -20,20 +21,20 @@ class AlgorithmConfig:
     gamma = 0.99
     tau = 0.95
     train_traj_needed = 512
-
+    dataset_path = '/home/hmp/hmp2g/ALGORITHM/llm/profile_instance.json'
 
 
 class LLM_Foundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         from .bridge_llm import load_llm_model
         self.n_agent = n_agent
-        self.data_set = json.loads(Path('/home/hmp/hmp2g/ALGORITHM/llm/profile_instance.json').read_text(encoding="utf8"))
-        self.llm_model, self.tokenizer = load_llm_model()
-        self.logic_processor = Logit2Act()
+        self.data_set = json.loads(Path(AlgorithmConfig.dataset_path).read_text(encoding="utf8"))
+        self.llm_model, self.tokenizer = load_llm_model(full_head=True)
         self.reward_model = RewardBySimilarity(device=GlobalConfig.device)
-        self.critic = Critic(device=GlobalConfig.device)
+        self.critic = ChatGLMCritic(device=GlobalConfig.device)
         optimize_params = list(self.llm_model.transformer.word_embeddings.parameters())+list(self.critic.parameters())
         self.optimizer = Adam(optimize_params, lr=1e-4, eps=1e-3)
+        self.logic_processor = Logit2Act()
 
     def interact_with_env(self, StateRecall):
         '''
@@ -47,8 +48,8 @@ class LLM_Foundation(RLAlgorithmBase):
             chat = self.data_set[i]
 
         good_qa = sample_good_QA_from_turns(chat)
-        good_answers = chat[-1]["好答"]
-        bad_answers = chat[-1]["坏答"]
+        good_answers = chat[-1]["good_ans"]
+        bad_answers = chat[-1]["bad_ans"]
         
         # r = random.randint(1, 5)
         if np.random.rand() < 0.5:
