@@ -12,6 +12,9 @@ from .bridge_llm import ChatGLMCritic
 from pathlib import Path
 from torch.optim import Adam
 from .temp import tokenize_qa
+import torch.nn as nn
+import torch.nn.functional as F
+
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -23,28 +26,48 @@ class AlgorithmConfig:
     tau = 0.95
     train_traj_needed = 512
     dataset_path = './ALGORITHM/llm/profile_instance.json.insert.json'
+    model_path = "/home/hmp/Miraclemarvel55_RLHF/chatglm_6b"
     max_source_length = 64
     mini_batch_size = 16
     max_gen_tokens = 64
-
     debug = False
+
+    device_override = "cuda:0,1"
+    device_main = 'cuda:1'
+    device_secondary = 'cuda:0'
+
+
+def override_cuda_settings(AlgorithmConfig):
+    # change Local cuda settings according to AlgorithmConfig
+    if AlgorithmConfig.device_override != "no-override":
+        assert GlobalConfig.device == 'cpu', "please set GlobalConfig.device=cpu if you want to use different GPUs for different teams"
+        # reflesh the cuda setting inherited from main.py
+        GlobalConfig.device = AlgorithmConfig.device_override
+        from main import pytorch_gpu_init; pytorch_gpu_init(GlobalConfig)
+        # reflesh the cached cuda setting in tensor_ops
+        from UTIL.tensor_ops import cuda_cfg; cuda_cfg.read_cfg()
 
 
 class LLM_Foundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
+        override_cuda_settings(AlgorithmConfig)
         from .bridge_llm import load_llm_model
         self.n_agent = n_agent
         self.data_set = json.loads(Path(AlgorithmConfig.dataset_path).read_text(encoding="utf8"))
         self.flat_samples(self.data_set)
-        self.llm_model, self.tokenizer = load_llm_model(full_head=True)
-        self.reward_model = RewardBySimilarity(device=GlobalConfig.device)
-        self.critic = ChatGLMCritic(device=GlobalConfig.device)
-        optimize_params = list(self.llm_model.transformer.word_embeddings.parameters())+list(self.critic.parameters())
+        self.llm_model, self.tokenizer = load_llm_model(full_head=True, device=AlgorithmConfig.device_main)
+
+        self.llm_model_ref, _ = load_llm_model(full_head=True, tokenizer=False, device=AlgorithmConfig.device_secondary)
+        self.llm_model_ref.requires_grad_(False)
+        
+        self.reward_model = RewardBySimilarity(device=AlgorithmConfig.device_main)
+        self.critic = ChatGLMCritic(device=AlgorithmConfig.device_main)
+        optimize_params = self.llm_model.training_para_list + list(self.critic.parameters())
         self.optimizer = Adam(optimize_params, lr=1e-4, eps=1e-3)
         self.logic_processor = Logit2Act()
 
         self.data_set = json.loads(Path(AlgorithmConfig.dataset_path).read_text(encoding="utf8"))
-
+        self.mcv = mcv
 
     def flat_samples(self, data_set):
         self.data_set_collection = []
@@ -90,6 +113,8 @@ class LLM_Foundation(RLAlgorithmBase):
             "token_q_prompt_array": [],
             "tokenlen_qa_prompt_array": [],
             "tokenlen_q_prompt_array": [],
+            "good_ans_demos": [],
+            "bad_ans_demos": [],
             "good_ans_demo": [],
         }
         for i, q in enumerate(query):
@@ -103,6 +128,8 @@ class LLM_Foundation(RLAlgorithmBase):
             res["token_q_prompt_array"].append(token_q_prompt)
             res["tokenlen_q_prompt_array"].append(len(token_q_prompt))
             res["good_ans_demo"].append(good_ans_demo)
+            res["good_ans_demos"].append(good_ans_demos[i])
+            res["bad_ans_demos"].append(bad_ans_demos[i])
 
         # pad
         def pad(arr):
@@ -125,26 +152,12 @@ class LLM_Foundation(RLAlgorithmBase):
             (redirect to shell_env to help with history rolling)
         '''
         from .temp import tokenize_qa
-        action_device = GlobalConfig.device
-
-        for i in range(len(self.data_set)):
-            chat = self.data_set[0]
-
-        good_qa = sample_good_QA_from_turns(chat)
-        good_answers = chat[-1]["good_ans"]
-        bad_answers = chat[-1]["bad_ans"]
-
 
         res = self.sample_qa()
 
-        # r = random.randint(1, 5)
-        query = good_qa[-1][0]
-        history = good_qa[:-1]
-
-        # inputs, gen_len, prompt = tokenize_qa(self.tokenizer, query=query, history=history)
         with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
             if np.random.rand() < 0.2:
-                input_ids = _2tensor(res['token_q_prompt_array'])
+                input_ids = _2tensor(res['token_q_prompt_array']).to(AlgorithmConfig.device_main)
                 num_beams, num_return_sequences = 1, 1 # 3, 2 # set bigger if you have bigger compute memory
                 assert num_beams >= num_return_sequences, "candidates num should greater than returns num"
                 # max_new_tokens = 8
@@ -156,28 +169,29 @@ class LLM_Foundation(RLAlgorithmBase):
                 
                 log_probs = get_log_prob(generated_outputs=model_result, input_ids=input_ids, gen_method=gen_method)
                 gen_texts = self.tokenizer.batch_decode(sequences)
-                # print(query, qa_logs[query], sep="\n")
-                print(query, gen_texts, sep="\n")
+                print(gen_texts[0])
             else:
                 # 将目标句直接用RL提升或降低它的概率，得到类似finetune的效果
-                input_ids = _2tensor(res['token_qa_prompt_array'])
+                input_ids = _2tensor(res['token_qa_prompt_array']).to(AlgorithmConfig.device_main)
                 gen_texts = res["good_ans_demo"]
                 with torch.no_grad(): 
                     log_probs = get_log_probs_with_input_ids(self.llm_model, input_ids, res["tokenlen_a_pad"])    # gen_len是good_qa输出的长度
                 sequences = input_ids
 
-
         # compute reward for generated sequences
-        reward = self.reward_model(gen_texts=gen_texts, good_answers=good_answers, bad_answers=bad_answers).unsqueeze(1) # 获取终末稀疏奖励
-        
+        reward = self.reward_model(gen_texts_batch=gen_texts, good_answers_batch=res['good_ans_demos'], bad_answers_batch=res['bad_ans_demos']) # 获取终末稀疏奖励
         rewards, masks = self.place_reward(res["tokenlen_q_pad"], sequences, reward, self.tokenizer.convert_tokens_to_ids("<pad>"))
-
         torch.cuda.empty_cache()
         self.ppo(ppo_epochs=5, sequences= sequences,log_probs=log_probs, rewards=rewards, masks=masks, clip_param=0.2)
-
         action = np.zeros(shape=(1, 1))
         return action, StateRecall
     
+    def save_model(self, out_dir='RESULT/LLM'):
+        import shutil
+        shutil.copytree(AlgorithmConfig.model_path, out_dir)
+        self.llm_model.save_pretrained(out_dir)
+        self.tokenizer.save_pretrained(out_dir)
+
     def place_reward(self, len_of_query, sequences, reward, pad_id):
         rewards = torch.zeros_like( sequences, dtype=reward.dtype, device=reward.device) + np.nan
         rewards[sequences != pad_id] = 0
@@ -188,17 +202,21 @@ class LLM_Foundation(RLAlgorithmBase):
         rewards = scatter_righthand(rewards, reward, sentence_end_point.unsqueeze(-1), check=True)    # insert reward
         rewards = torch.nan_to_num(rewards, 0)
         return rewards, masks
-    
+
+
     def ppo(self, ppo_epochs, sequences, log_probs, rewards, masks, clip_param):
         for ppo_epoch in range(ppo_epochs):
             # compute new log probs
             new_log_probs = get_log_probs_with_input_ids(self.llm_model, sequences, log_probs.shape[1])
-            entropy = 0 # 暂时不需要熵的约束
+            with torch.no_grad():
+                new_log_probs_ref = get_log_probs_with_input_ids(self.llm_model_ref, sequences.to(self.llm_model_ref.device), log_probs.shape[1])
+            
+            # entropy = 0 # 暂时不需要熵的约束
             # compute value
             # 到奖励模型和值函数模型的输入可以是一样的都是生成的序列。
             # 生成序列同时包括state和next action
             # prepare input for critic model
-            input_ids_critic = sequences.to(GlobalConfig.device)
+            input_ids_critic = sequences.to(AlgorithmConfig.device_main)
             values = self.critic(input_ids=input_ids_critic)
             # compute gae
             gae = gae_vectorize(values=values, rewards=rewards, masks=masks)
@@ -214,7 +232,13 @@ class LLM_Foundation(RLAlgorithmBase):
             surr2 = torch.clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages
             actor_loss  = - torch.min(surr1, surr2).mean()
             critic_loss = value_estimator_delta.square().mean()
-            loss = 0.5 * (critic_loss + actor_loss) - 0.001 * entropy
+
+            kl_div_loss = F.kl_div(new_log_probs_ref.to(new_log_probs.device), new_log_probs, log_target=True, reduction="none").mean()
+
+            loss = critic_loss + actor_loss + kl_div_loss * 0.001  # self.llm_model_ref
+            self.mcv.rec(critic_loss.item(),'critic_loss')
+            self.mcv.rec(actor_loss.item(),'actor_loss')
+            self.mcv.rec(kl_div_loss.item(),'kl_div_loss')
             # optimize
             self.optimizer.zero_grad()
             loss.backward()

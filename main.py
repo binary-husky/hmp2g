@@ -42,7 +42,7 @@ def pytorch_gpu_init(cfg):
     if device == 'cuda': 
         gpu_index = sel_gpu().auto_choice()
     else: # e.g. device='cuda:0'
-        gpu_index = int(device.split(':')[-1])
+        gpu_index = int(device.split(':')[-1]) if ',' not in device else device.split(':')[-1]
         # parse gpu_party, e.g. cuda-1#2
         if cfg.gpu_party.startswith('#'): 
             cfg.gpu_party = f"{cfg.device.replace(':', '-')}{cfg.gpu_party}"

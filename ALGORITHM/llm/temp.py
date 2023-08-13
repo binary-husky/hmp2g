@@ -52,10 +52,15 @@ class RewardBySimilarity(nn.Module):
         self.tokenizer = tokenizer
         self.device = device
 
-    def forward(self, gen_texts=["你好"],
-                 good_answers=['你好', "hello"],
-                 bad_answers=['再见', 'bye bye'],
-                 weight_for_cos_and_jaccard = [0.5, 0.5]):
+    def forward(self, gen_texts_batch, good_answers_batch, bad_answers_batch, weight_for_cos_and_jaccard = [0.5, 0.5]):
+        reward_batch = []
+        for gen_texts, good_answers, bad_answers in zip(gen_texts_batch, good_answers_batch, bad_answers_batch):
+            reward = self.forward_(gen_texts, good_answers, bad_answers, weight_for_cos_and_jaccard)
+            reward_batch.append(reward)
+        return torch.stack(reward_batch)
+    
+    def forward_(self, gen_texts,  good_answers, bad_answers, weight_for_cos_and_jaccard):
+        gen_texts = [gen_texts]
         examples = good_answers + bad_answers
         example_num = len(examples)
         assert len(gen_texts)>0 and example_num>0
