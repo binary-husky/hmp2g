@@ -121,10 +121,38 @@ def test_reward():
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 import random
 def sample_good_QA_from_turns(turns):
-    history = [ [turn["问"], random.choice(turn["good_ans"])] for turn in turns ]
+    history = [ [turn["question"], random.choice(turn["good_ans"])] for turn in turns ]
     return history
 
-def generate_inputs(tokenizer, query='', history=[]):
+def tokenize_qa(tokenizer, query='', history=[]):
+    assert query or history, "query and history cannot both empty"
+
+    prompt = ""
+    for i, (old_query, response) in enumerate(history):
+        if i==len(history)-1 and query == "":
+            prompt += "[Round {}]\n问：{}\n答：".format(i, old_query)
+        else:
+            prompt += "[Round {}]\n问：{}\n答：{}\n".format(i, old_query, response)
+    if query:
+        prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
+        
+    inputs = tokenizer([prompt], return_tensors="pt")
+    gen_len = 0
+    if query=="":
+        # query为空代表history的最后一个回答是目标答案
+        prompt += history[-1][1]
+        last_response_encode = tokenizer.encode(history[-1][1], return_tensors="pt", add_special_tokens=False)
+        if last_response_encode[0, 0] == 5:
+            last_response_encode = last_response_encode[:, 1:]
+            # TODO batch化
+        eops = torch.zeros_like(last_response_encode[:, :1])+tokenizer.convert_tokens_to_ids("<eop>")
+        # TODO 后续用scatter来放到可能多个句子的带padding的正确位置，暂时先放到最后，因为现在只有一句
+        last_response_encode = torch.cat([last_response_encode, eops], dim=-1)
+        inputs["input_ids"] = torch.cat([inputs["input_ids"], last_response_encode], dim=-1)
+        gen_len = last_response_encode.shape[1]
+    return inputs, gen_len, prompt
+
+def tokenize_qa_old(tokenizer, query='', history=[]):
     assert query or history, "query and history cannot both empty"
     if not history:
         prompt = query
@@ -153,7 +181,6 @@ def generate_inputs(tokenizer, query='', history=[]):
         gen_len = last_response_encode.shape[1]
     return inputs, gen_len, prompt
 
-
 def get_log_prob(generated_outputs, input_ids, gen_method = "greedy_search"):
     # beam_search generate 给出来的scores就是log_prob了，所以直接gather获取即可
     gen_sequences = generated_outputs.sequences[:, input_ids.shape[-1]:] 
@@ -172,12 +199,22 @@ def get_log_prob(generated_outputs, input_ids, gen_method = "greedy_search"):
     return log_prob
 
 def get_log_probs_with_input_ids(model, input_ids, gen_max_len):  # 自回归获取对应的输入logits的logprob，用于后续的强化
-    # input_ids = input_ids
+    # input_ids torch.Size([3, 23])
     model_inputs = model.prepare_inputs_for_generation(input_ids)
     output = model(**model_inputs)  # 将已经生成的序列放进去计算，再次计算得到目标action也就是后续字符的概率或者log_prob值
-    logits = output.logits[:, -(gen_max_len+1):-1].log_softmax(dim=-1) # 比先softmax再log好,复杂度减小，并且解决些nan问题
+    # output.logits.shape torch.Size([3, 23, 130528])
+    # get bootstrap prob ! 
+    # out.logits
+    
+    # 对齐
+    seq_dimension = 1
+    align_logit_bootstrap = torch.cat((output.logits[:, 0:1, :] * 0, output.logits[:, :-1, :]), axis=seq_dimension)
+
+
+    logits = align_logit_bootstrap.log_softmax(dim=-1)[:, -gen_max_len:] # 比先softmax再log好,复杂度减小，并且解决些nan问题
     new_log_probs = logits.gather(dim=-1, index=input_ids[:, -gen_max_len:].unsqueeze(-1)).squeeze(-1)
     return new_log_probs
+
 
 from functools import lru_cache
 @lru_cache
