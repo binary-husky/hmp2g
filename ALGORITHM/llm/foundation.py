@@ -28,13 +28,15 @@ class AlgorithmConfig:
     dataset_path = './ALGORITHM/llm/profile_instance.json.insert.json'
     model_path = "/home/hmp/Miraclemarvel55_RLHF/chatglm_6b"
     max_source_length = 64
-    mini_batch_size = 16
+    mini_batch_size = 18
     max_gen_tokens = 64
     debug = False
 
     device_override = "cuda:0,1"
     device_main = 'cuda:1'
     device_secondary = 'cuda:0'
+
+    save_step = 50
 
 
 def override_cuda_settings(AlgorithmConfig):
@@ -89,7 +91,7 @@ class LLM_Foundation(RLAlgorithmBase):
         if not hasattr(self, 'sampler'):
             from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
             big_batch_size = len(self.data_set_collection)
-            self.sampler = BatchSampler(SubsetRandomSampler(range(big_batch_size)), AlgorithmConfig.mini_batch_size, drop_last=False)
+            self.sampler = BatchSampler(SubsetRandomSampler(range(big_batch_size)), AlgorithmConfig.mini_batch_size, drop_last=True)
             self.sampler = iter(self.sampler)
 
         try: 
@@ -97,7 +99,7 @@ class LLM_Foundation(RLAlgorithmBase):
         except StopIteration:
             from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
             big_batch_size = len(self.data_set_collection)
-            self.sampler = BatchSampler(SubsetRandomSampler(range(big_batch_size)), AlgorithmConfig.mini_batch_size, drop_last=False)
+            self.sampler = BatchSampler(SubsetRandomSampler(range(big_batch_size)), AlgorithmConfig.mini_batch_size, drop_last=True)
             self.sampler = iter(self.sampler)
             indices = next(self.sampler)
 
@@ -156,41 +158,58 @@ class LLM_Foundation(RLAlgorithmBase):
         res = self.sample_qa()
 
         with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-            if np.random.rand() < 0.2:
-                input_ids = _2tensor(res['token_q_prompt_array']).to(AlgorithmConfig.device_main)
-                num_beams, num_return_sequences = 1, 1 # 3, 2 # set bigger if you have bigger compute memory
-                assert num_beams >= num_return_sequences, "candidates num should greater than returns num"
-                # max_new_tokens = 8
-                gen_method = "greedy_search" if num_beams == 1 else "beam_search" 
-                model_result = self.llm_model.generate(input_ids=input_ids, do_sample=False, num_beams=num_beams, max_new_tokens=AlgorithmConfig.max_gen_tokens,
-                                    num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=True,
-                                    output_hidden_states=False, return_dict_in_generate=True)
-                sequences = model_result.sequences
-                
-                log_probs = get_log_prob(generated_outputs=model_result, input_ids=input_ids, gen_method=gen_method)
-                gen_texts = self.tokenizer.batch_decode(sequences)
-                print(gen_texts[0])
-            else:
-                # 将目标句直接用RL提升或降低它的概率，得到类似finetune的效果
-                input_ids = _2tensor(res['token_qa_prompt_array']).to(AlgorithmConfig.device_main)
-                gen_texts = res["good_ans_demo"]
-                with torch.no_grad(): 
-                    log_probs = get_log_probs_with_input_ids(self.llm_model, input_ids, res["tokenlen_a_pad"])    # gen_len是good_qa输出的长度
-                sequences = input_ids
+            input_ids = _2tensor(res['token_q_prompt_array']).to(AlgorithmConfig.device_main)
+            num_beams, num_return_sequences = 1, 1 # 3, 2 # set bigger if you have bigger compute memory
+            assert num_beams >= num_return_sequences, "candidates num should greater than returns num"
+            # max_new_tokens = 8
+            gen_method = "greedy_search" if num_beams == 1 else "beam_search" 
+            model_result = self.llm_model.generate(input_ids=input_ids, do_sample=False, num_beams=num_beams, max_new_tokens=AlgorithmConfig.max_gen_tokens,
+                                num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=True,
+                                output_hidden_states=False, return_dict_in_generate=True)
+            sequences1 = model_result.sequences
+            
+            log_probs1 = get_log_prob(generated_outputs=model_result, input_ids=input_ids, gen_method=gen_method)
+            gen_texts1 = self.tokenizer.batch_decode(sequences1)
+            print(gen_texts1[0])
+
+
+            # 强化finetune模拟
+            input_ids = _2tensor(res['token_qa_prompt_array']).to(AlgorithmConfig.device_main)
+            gen_texts_sft_sim = res["good_ans_demo"]
+            log_probs_sft_sim = get_log_probs_with_input_ids(self.llm_model, input_ids, res["tokenlen_a_pad"])    # gen_len是good_qa输出的长度
+            sequences_sft_sim = input_ids
+
+        # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+        gen_texts = gen_texts1 + gen_texts_sft_sim
+        good_answers_batch = res['good_ans_demos'] + res['good_ans_demos']
+        bad_answers_batch = res['bad_ans_demos'] + res['bad_ans_demos']
+
+
+        clip_size = sequences_sft_sim.shape[-1]
+        log_clip_size = log_probs_sft_sim.shape[-1]
+
+        sequences = torch.cat((sequences1[..., :clip_size], sequences_sft_sim[..., :clip_size]), 0)
+        log_probs = torch.cat((log_probs1[..., :log_clip_size], log_probs_sft_sim[..., :log_clip_size]), 0)
 
         # compute reward for generated sequences
-        reward = self.reward_model(gen_texts_batch=gen_texts, good_answers_batch=res['good_ans_demos'], bad_answers_batch=res['bad_ans_demos']) # 获取终末稀疏奖励
+        reward = self.reward_model(gen_texts_batch=gen_texts, good_answers_batch=good_answers_batch, bad_answers_batch=bad_answers_batch) # 获取终末稀疏奖励
         rewards, masks = self.place_reward(res["tokenlen_q_pad"], sequences, reward, self.tokenizer.convert_tokens_to_ids("<pad>"))
         torch.cuda.empty_cache()
-        self.ppo(ppo_epochs=5, sequences= sequences,log_probs=log_probs, rewards=rewards, masks=masks, clip_param=0.2)
+        self.ppo(ppo_epochs=5, sequences=sequences, log_probs=log_probs, rewards=rewards, masks=masks, clip_param=0.2)
         action = np.zeros(shape=(1, 1))
+
+        if StateRecall['Current-Obs-Step'][0] % AlgorithmConfig.save_step == 1: # AlgorithmConfig.save_step-1:
+            self.save_model(out_dir=f'RESULT/{GlobalConfig.note}/llm_model')
         return action, StateRecall
     
-    def save_model(self, out_dir='RESULT/LLM'):
+    def save_model(self, out_dir):
         import shutil
-        shutil.copytree(AlgorithmConfig.model_path, out_dir)
-        self.llm_model.save_pretrained(out_dir)
-        self.tokenizer.save_pretrained(out_dir)
+        os.makedirs(out_dir, exist_ok=True)
+        model_path = os.path.join(out_dir,'saved')
+        shutil.rmtree(model_path, ignore_errors=True)
+        shutil.copytree(AlgorithmConfig.model_path, model_path)
+        self.llm_model.save_pretrained(model_path)
+        self.tokenizer.save_pretrained(model_path)
 
     def place_reward(self, len_of_query, sequences, reward, pad_id):
         rewards = torch.zeros_like( sequences, dtype=reward.dtype, device=reward.device) + np.nan
@@ -239,6 +258,7 @@ class LLM_Foundation(RLAlgorithmBase):
             self.mcv.rec(critic_loss.item(),'critic_loss')
             self.mcv.rec(actor_loss.item(),'actor_loss')
             self.mcv.rec(kl_div_loss.item(),'kl_div_loss')
+            self.mcv.rec_show()
             # optimize
             self.optimizer.zero_grad()
             loss.backward()

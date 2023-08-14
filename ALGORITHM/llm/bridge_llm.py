@@ -9,6 +9,7 @@ from collections import defaultdict
 import numpy as np
 from config import GlobalConfig
 from torch import nn
+
 def load_llm_model(full_head=True, tokenizer=True, device=None):
     from .foundation import AlgorithmConfig
     if full_head:
