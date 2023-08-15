@@ -383,21 +383,22 @@ def _2cpu2numpy(x):
 
 def _2tensor(x):
     # if not cuda_cfg.init: cuda_cfg.read_cfg()
+    cuda_cfg_device = cuda_cfg.device if ',' not in cuda_cfg.device else 'cuda'
     if isinstance(x, torch.Tensor):
-        return x.to(cuda_cfg.device)
+        return x.to(cuda_cfg_device)
     elif isinstance(x, np.ndarray):
         if (not cuda_cfg.use_float64) and x.dtype == np.float64:
             x = x.astype(np.float32)
         if cuda_cfg.use_float64 and x.dtype == np.float32:
             x = x.astype(np.float64)
-        return torch.from_numpy(x).to(cuda_cfg.device)
+        return torch.from_numpy(x).to(cuda_cfg_device)
     elif isinstance(x, dict):
         y = {}
         for key in x:
             y[key] = _2tensor(x[key])
         return y
     elif isinstance(x, torch.nn.Module):
-        x.to(cuda_cfg.device)
+        x.to(cuda_cfg_device)
         return x
     else:
         return x
