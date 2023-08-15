@@ -71,7 +71,11 @@ class LLM_Foundation(RLAlgorithmBase):
         override_cuda_settings(AlgorithmConfig)
         self.n_agent = n_agent
         
-        self.topics = ["房价过高", "内卷", "AI威胁", "量子计算"]
+        self.topics = [
+            "房价过高", "内卷", "AI威胁", "量子计算",
+            "房地产调控", "汇率", "字幕组", "网红",
+            "GDP", "家庭", "视觉中国", "守望先锋",
+        ]
         from .bridge_llm import load_static_model, load_trainable_model, load_trainable_headless_model
         
         # 高温模型
@@ -154,7 +158,7 @@ class LLM_Foundation(RLAlgorithmBase):
         history_array = []
         preference = '是'
         for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
-            inputs = f"问题：{q}\n\n回答：{a}\n\n判断：以上文本的回答部分是否包含夹杂英文？仅回答“是”或“否”。"
+            inputs = f"问题：{q}\n\n回答：{a}\n\n判断：以上文本的回答部分是否通俗，让中学学历的人也能看懂？仅回答“是”或“否”。"
             inputs_array.append(inputs)
             history_array.append([])
 
@@ -177,7 +181,21 @@ class LLM_Foundation(RLAlgorithmBase):
                 rewards.append(1.0)
             else:
                 rewards.append(0.0)
-        rewards = np.array(rewards).unsqueeze(-1)
+        
+        with open(f'RESULT/{GlobalConfig.note}/hmp_generated_datasets.jsonl', 'w', encoding='utf8') as f:
+            for q, a, g, r in zip(topic_launcher_questions, main_gen_texts_only_answer, gen_texts_answer_only, rewards):
+                pp = {
+                    "topic_launcher_questions": q,
+                    "main_gen_texts_only_answer": a,
+                    "gen_texts_answer_only": g,
+                    "rewards": r,
+                }
+
+                write_line = json.dumps(pp, ensure_ascii=False) + '\n'
+                f.write(write_line)
+
+        rewards = np.expand_dims(np.array(rewards), -1)
+
         return gen_texts_answer_only, rewards
 
     def reward_eval_answer_question_(self, topic_launcher_questions, main_gen_texts_only_answer):
@@ -211,7 +229,7 @@ class LLM_Foundation(RLAlgorithmBase):
                 rewards.append(1.0)
             else:
                 rewards.append(0.0)
-        rewards = np.array(rewards).unsqueeze(-1)
+        rewards = np.expand_dims(np.array(rewards), -1)
         return gen_texts_answer_only, rewards
 
     def interact_with_env(self, StateRecall):
@@ -341,7 +359,7 @@ class LLM_Foundation(RLAlgorithmBase):
         model_path = os.path.join(out_dir,'saved')
         shutil.rmtree(model_path, ignore_errors=True)
         shutil.copytree(AlgorithmConfig.model_path, model_path)
-        self.llm_model.save_pretrained(model_path)
+        self.main_llm_model.save_pretrained(model_path)
         self.tokenizer.save_pretrained(model_path)
 
     def place_reward(self, len_of_query, sequences, reward, pad_id):
@@ -360,9 +378,11 @@ class LLM_Foundation(RLAlgorithmBase):
     def ppo(self, ppo_epochs, sequences, log_probs, rewards, masks, clip_param):
         for ppo_epoch in range(ppo_epochs):
             # compute new log probs
-            new_log_probs = get_log_probs_with_input_ids(self.llm_model, sequences, log_probs.shape[1])
+            new_log_probs = get_log_probs_with_input_ids(self.main_llm_model, sequences, log_probs.shape[1])
             with torch.no_grad():
-                new_log_probs_ref = get_log_probs_with_input_ids(self.llm_model_ref, sequences.to(self.llm_model_ref.device), log_probs.shape[1])
+                new_log_probs_ref = None # get_log_probs_with_input_ids(self.main_llm_model_ref, sequences.to(self.main_llm_model_ref.device), log_probs.shape[1])
+                if new_log_probs_ref is not None:
+                    kl_div_loss = F.kl_div(new_log_probs_ref.to(new_log_probs.device), new_log_probs, log_target=True, reduction="none").mean()
             
             # entropy = 0 # 暂时不需要熵的约束
             # compute value
@@ -386,12 +406,15 @@ class LLM_Foundation(RLAlgorithmBase):
             actor_loss  = - torch.min(surr1, surr2).mean()
             critic_loss = value_estimator_delta.square().mean()
 
-            kl_div_loss = F.kl_div(new_log_probs_ref.to(new_log_probs.device), new_log_probs, log_target=True, reduction="none").mean()
 
-            loss = critic_loss + actor_loss + kl_div_loss * 0.001  # self.llm_model_ref
+            loss = critic_loss + actor_loss
+            if new_log_probs_ref is not None:
+                loss += kl_div_loss * 0.001
+
             self.mcv.rec(critic_loss.item(),'critic_loss')
             self.mcv.rec(actor_loss.item(),'actor_loss')
-            self.mcv.rec(kl_div_loss.item(),'kl_div_loss')
+            if new_log_probs_ref is not None:
+                self.mcv.rec(kl_div_loss.item(),'kl_div_loss')
             self.mcv.rec_show()
             # optimize
             self.optimizer.zero_grad()
