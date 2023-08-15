@@ -20,6 +20,13 @@ vt.set_conf(key="AZURE_ENDPOINT", value="https://rhtjjjjjj.openai.azure.com/")
 vt.set_conf(key="AZURE_ENGINE", value="qqwe")
 vt.set_conf(key="LLM_MODEL", value="azure-gpt-3.5")
 
+class Generator:
+    def __init__(self, gen):
+        self.gen = gen
+
+    def __iter__(self):
+        self.value = yield from self.gen
+
 class AlgorithmConfig:
     '''
         AlgorithmConfig: This config class will be 'injected' with new settings from json.
@@ -71,7 +78,7 @@ class LLM_Foundation(RLAlgorithmBase):
         self.launcher_llm_model, self.tokenizer = load_static_model(device=AlgorithmConfig.device_launcher_llm)
         # 主模型
         self.main_llm_model, self.tokenizer = load_trainable_model(device=AlgorithmConfig.device_main_llm)
-        # # 奖励模型
+        # # 奖励模型 （效果太差，使用更强的gpt-3.5模型）
         # self.reward_llm_model, self.tokenizer = self.launcher_llm_model, self.tokenizer # load_static_model(device=AlgorithmConfig.device_reward_llm)
 
         self.critic = ChatGLMCritic(device=AlgorithmConfig.device_main_llm)
@@ -145,6 +152,7 @@ class LLM_Foundation(RLAlgorithmBase):
 
         inputs_array = []
         history_array = []
+        preference = '是'
         for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
             inputs = f"问题：{q}\n\n回答：{a}\n\n判断：以上文本的回答部分是否包含夹杂英文？仅回答“是”或“否”。"
             inputs_array.append(inputs)
@@ -157,28 +165,19 @@ class LLM_Foundation(RLAlgorithmBase):
             refresh_interval=0.2, scroller_max_len=30,
             handle_token_exceed=True, show_user_at_complete=False,
         )
-        class Generator:
-            def __init__(self, gen):
-                self.gen = gen
 
-            def __iter__(self):
-                self.value = yield from self.gen
         gen = Generator(results)
         for i in gen: pass
         results = gen.value
-        # chat_kwargs = vt.get_chat_default_kwargs()
-        # chat_kwargs['inputs'] = '你好, 世界树。'
-        # result = vt.get_chat_handle()(**chat_kwargs)
-        # print('\n*************\n' + result + '\n*************\n' )
-
-        gen_texts_answer_only = None # self.tokenizer.batch_decode(sequences[:, question_token_len:])
+        gen_texts_answer_only = results[1::2]
+        for c in gen_texts_answer_only: print(c)
         rewards = []
         for c in gen_texts_answer_only: 
-            print(c)
-            if c.startswith('否'):
+            if c.startswith(preference):
                 rewards.append(1.0)
             else:
                 rewards.append(0.0)
+        rewards = np.array(rewards).unsqueeze(-1)
         return gen_texts_answer_only, rewards
 
     def reward_eval_answer_question_(self, topic_launcher_questions, main_gen_texts_only_answer):
@@ -212,6 +211,7 @@ class LLM_Foundation(RLAlgorithmBase):
                 rewards.append(1.0)
             else:
                 rewards.append(0.0)
+        rewards = np.array(rewards).unsqueeze(-1)
         return gen_texts_answer_only, rewards
 
     def interact_with_env(self, StateRecall):
@@ -345,6 +345,7 @@ class LLM_Foundation(RLAlgorithmBase):
         self.tokenizer.save_pretrained(model_path)
 
     def place_reward(self, len_of_query, sequences, reward, pad_id):
+        reward = _2tensor(reward).to(AlgorithmConfig.device_main_llm)
         rewards = torch.zeros_like( sequences, dtype=reward.dtype, device=reward.device) + np.nan
         rewards[sequences != pad_id] = 0
         rewards[..., :len_of_query] = np.nan
