@@ -68,11 +68,11 @@ class LLM_Foundation(RLAlgorithmBase):
         from .bridge_llm import load_static_model, load_trainable_model, load_trainable_headless_model
         
         # 高温模型
-        self.launcher_llm_model, self.launcher_llm_tokenizer = load_static_model(device=AlgorithmConfig.device_launcher_llm)
+        self.launcher_llm_model, self.tokenizer = load_static_model(device=AlgorithmConfig.device_launcher_llm)
         # 主模型
-        self.main_llm_model, self.main_llm_tokenizer = load_trainable_model(device=AlgorithmConfig.device_main_llm)
+        self.main_llm_model, self.tokenizer = load_trainable_model(device=AlgorithmConfig.device_main_llm)
         # # 奖励模型
-        # self.reward_llm_model, self.reward_llm_tokenizer = self.launcher_llm_model, self.launcher_llm_tokenizer # load_static_model(device=AlgorithmConfig.device_reward_llm)
+        # self.reward_llm_model, self.tokenizer = self.launcher_llm_model, self.tokenizer # load_static_model(device=AlgorithmConfig.device_reward_llm)
 
         self.critic = ChatGLMCritic(device=AlgorithmConfig.device_main_llm)
         optimize_params = self.main_llm_model.training_para_list + list(self.critic.parameters())
@@ -83,7 +83,7 @@ class LLM_Foundation(RLAlgorithmBase):
 
     def topic_launcher_propose_question(self):
         def pad(arr):
-            pad_id = self.reward_llm_tokenizer.convert_tokens_to_ids("<pad>")
+            pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
             len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
             max_len = max(len_list)
             for i, token_qa_prompt in enumerate(arr):
@@ -91,7 +91,7 @@ class LLM_Foundation(RLAlgorithmBase):
             return np.array(arr)
         token_q_prompt_array = []
         for _ in range(5):
-            token_q_prompt, gen_len, prompt = tokenize_qa(self.reward_llm_tokenizer, query=f"针对“{random.choice(self.topics)}”话题，提出一个引人深思的问题。限20字。", history=[])
+            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=f"针对“{random.choice(self.topics)}”话题，提出一个引人深思的问题。限20字。", history=[])
             token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
             token_q_prompt_array.append(token_q_prompt)
         token_q_prompt_array = pad(token_q_prompt_array)
@@ -104,14 +104,14 @@ class LLM_Foundation(RLAlgorithmBase):
                                 num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=False, temperature=2.50,
                                 output_hidden_states=False, return_dict_in_generate=True)
         sequences = model_result.sequences
-        gen_texts = self.launcher_llm_tokenizer.batch_decode(sequences)
-        gen_texts_answer_only = self.launcher_llm_tokenizer.batch_decode(sequences[:, question_token_len:])
+        gen_texts = self.tokenizer.batch_decode(sequences)
+        gen_texts_answer_only = self.tokenizer.batch_decode(sequences[:, question_token_len:])
         for c in gen_texts_answer_only: print(c)
         return gen_texts_answer_only
     
     def main_llm_answer_question(self, topic_launcher_questions):
         def pad(arr):
-            pad_id = self.main_llm_tokenizer.convert_tokens_to_ids("<pad>")
+            pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
             len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
             max_len = max(len_list)
             for i, token_qa_prompt in enumerate(arr):
@@ -119,7 +119,7 @@ class LLM_Foundation(RLAlgorithmBase):
             return np.array(arr)
         token_q_prompt_array = []
         for q in topic_launcher_questions:
-            token_q_prompt, gen_len, prompt = tokenize_qa(self.main_llm_tokenizer, query=q+'\n请用一句话回答。', history=[])
+            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=q+'\n请用一句话回答。', history=[])
             token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
             token_q_prompt_array.append(token_q_prompt)
         token_q_prompt_array = pad(token_q_prompt_array)
@@ -135,8 +135,8 @@ class LLM_Foundation(RLAlgorithmBase):
                             output_hidden_states=False, return_dict_in_generate=True)
         main_sequences = main_model_result.sequences
         main_log_probs = get_log_prob(generated_outputs=main_model_result, input_ids=input_ids, gen_method=gen_method)
-        main_gen_texts = self.main_llm_tokenizer.batch_decode(main_sequences)
-        main_gen_texts_only_answer = self.main_llm_tokenizer.batch_decode(main_sequences[:,question_token_len:])
+        main_gen_texts = self.tokenizer.batch_decode(main_sequences)
+        main_gen_texts_only_answer = self.tokenizer.batch_decode(main_sequences[:,question_token_len:])
         for c in main_gen_texts_only_answer: print(c)
         return main_sequences, main_log_probs, main_gen_texts_only_answer, tokenlen_q_pad
 
@@ -171,7 +171,7 @@ class LLM_Foundation(RLAlgorithmBase):
         # result = vt.get_chat_handle()(**chat_kwargs)
         # print('\n*************\n' + result + '\n*************\n' )
 
-        gen_texts_answer_only = None # self.launcher_llm_tokenizer.batch_decode(sequences[:, question_token_len:])
+        gen_texts_answer_only = None # self.tokenizer.batch_decode(sequences[:, question_token_len:])
         rewards = []
         for c in gen_texts_answer_only: 
             print(c)
@@ -183,7 +183,7 @@ class LLM_Foundation(RLAlgorithmBase):
 
     def reward_eval_answer_question_(self, topic_launcher_questions, main_gen_texts_only_answer):
         def pad(arr):
-            pad_id = self.reward_llm_tokenizer.convert_tokens_to_ids("<pad>")
+            pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
             len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
             max_len = max(len_list)
             for i, token_qa_prompt in enumerate(arr):
@@ -191,7 +191,7 @@ class LLM_Foundation(RLAlgorithmBase):
             return np.array(arr)
         token_q_prompt_array = []
         for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
-            token_q_prompt, gen_len, prompt = tokenize_qa(self.reward_llm_tokenizer, query=f"问题：{q}\n回答：{a}\n\n以上回答是否包含夹杂英文？仅回答“是”或“否“。", history=[])
+            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=f"问题：{q}\n回答：{a}\n\n以上回答是否包含夹杂英文？仅回答“是”或“否“。", history=[])
             token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
             token_q_prompt_array.append(token_q_prompt)
         token_q_prompt_array = pad(token_q_prompt_array)
@@ -203,8 +203,8 @@ class LLM_Foundation(RLAlgorithmBase):
                                 num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=False, temperature=0.1,
                                 output_hidden_states=False, return_dict_in_generate=True)
         sequences = model_result.sequences
-        gen_texts = self.launcher_llm_tokenizer.batch_decode(sequences)
-        gen_texts_answer_only = self.launcher_llm_tokenizer.batch_decode(sequences[:, question_token_len:])
+        gen_texts = self.tokenizer.batch_decode(sequences)
+        gen_texts_answer_only = self.tokenizer.batch_decode(sequences[:, question_token_len:])
         rewards = []
         for c in gen_texts_answer_only: 
             print(c)
@@ -241,7 +241,7 @@ class LLM_Foundation(RLAlgorithmBase):
         with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
             gen_texts_answer_only, rewards = self.reward_eval_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
             rewards, masks = self.place_reward(tokenlen_q_pad, 
-                                               main_sequences, rewards, self.main_llm_tokenizer.convert_tokens_to_ids("<pad>"))
+                                               main_sequences, rewards, self.tokenizer.convert_tokens_to_ids("<pad>"))
         torch.cuda.empty_cache()
         print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
         # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-
