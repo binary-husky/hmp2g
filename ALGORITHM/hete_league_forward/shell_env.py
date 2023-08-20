@@ -21,16 +21,18 @@ class ActionConvertLegacy():
             ('N/A',         'N/A',              None, None, None, None, None, None),   # 0
             ('Idle',        'DynamicGuard',     None, None, None, None, None, None),   # 1
             ('Idle',        'StaticAlert',      None, None, None, None, None, None),   # 2
-            ('Idle',        'AsFarAsPossible',              None, None, None, None, None, None),   # 4
-            ('Idle',        'StayWhenTargetInRange',        None, None, None, None, None, None),   # 5
+            ('Idle',        'AsFarAsPossible',        None, None, None, None, None, None),   # 4
+            ('Idle',        'StayWhenTargetInRange',  None, None, None, None, None, None),   # 5
+            ('Idle',        'AggressivePersue',       None, None, None, None, None, None),   # 5
             ('SpecificMoving',      'Dir+X',    None, None, None, None, None, None),   # 7
             ('SpecificMoving',      'Dir+Y',    None, None, None, None, None, None),   # 8
             ('SpecificMoving',      'Dir-X',    None, None, None, None, None, None),   # 9
             ('SpecificMoving',      'Dir-Y',    None, None, None, None, None, None),   # 10
+            ('PatrolMoving',        'Dir+X',    None, None, None, None, None, None),   # 7
+            ('PatrolMoving',        'Dir+Y',    None, None, None, None, None, None),   # 8
+            ('PatrolMoving',        'Dir-X',    None, None, None, None, None, None),   # 9
+            ('PatrolMoving',        'Dir-Y',    None, None, None, None, None, None),   # 10
         ] 
-        for i in range(self.OPP_NUM_ASSUME):
-            self.dictionary_args.append( ('SpecificAttacking',   'N/A',      None, None, None, None, OPP_TEAM_ASSUME, i) )
-    
     
 
     def convert_act_arr(self, type, a):
@@ -161,9 +163,9 @@ class ShellEnvWrapper(object):
         
         # if true: just experienced full reset on all episode, this is the first step of all env threads
         if RST.all(): 
-            if AlgorithmConfig.allow_fast_test and GlobalConfig.test_only and (self.epsiode_cnt > GlobalConfig.report_reward_interval):
-                import sys
-                sys.exit(0)
+            # if AlgorithmConfig.allow_fast_test and GlobalConfig.test_only and (self.epsiode_cnt > GlobalConfig.report_reward_interval):
+            #     import sys
+            #     sys.exit(0)
             self.epsiode_cnt += self.n_thread
             # policy resonance
             eprsn_yita = self.rl_functional.stage_planner.yita if AlgorithmConfig.policy_resonance else 0

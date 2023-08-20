@@ -62,6 +62,7 @@ class AlgorithmConfig:
     
     type_agent_diff_lr = False
     hete_exclude_zero_wr = False
+    hete_exclude_zero_threshold = 0.5
     policy_matrix_testing = False
     test_which_cpk = 1
     type_sel_override = False
