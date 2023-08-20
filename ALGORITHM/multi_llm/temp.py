@@ -186,11 +186,19 @@ def tokenize_qa_old(tokenizer, query='', history=[]):
         gen_len = last_response_encode.shape[1]
     return inputs, gen_len, prompt
 
+def compute_sft_loss(main_model_result, input_ids):
+    logits, = main_model_result["scores"]
+    shift_logits = logits[:-1].contiguous()
+    shift_labels = input_ids[1:].contiguous()
+    loss = nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+    return loss
+
+
 def get_log_prob(generated_outputs, input_ids, gen_method = "greedy_search"):
     # beam_search generate 给出来的scores就是log_prob了，所以直接gather获取即可
     gen_sequences = generated_outputs.sequences[:, input_ids.shape[-1]:] 
     # let's stack the logits generated at each step to a tensor
-    # 要小心greedy search 拿到的是score，需要再log_softmax
+    # 要小心greedy search 拿到的是 logit，需要再 log_softmax
     # 而beam_search 拿到的已经是log_softmax了
     scores = torch.stack(generated_outputs.scores, dim=1)
     # if scores.max() >0 :
