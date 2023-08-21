@@ -219,7 +219,7 @@ def register_machine_info(logdir):
         'HostIP': get_host_ip(),
         'ExpUUID': uuid.uuid1().hex,
         'RunPath': os.getcwd(),
-        'StartDateTime': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        'StartDateTime': time.strftime("%Y-%m-%d %H-%M-%S", time.localtime())
     }
     try:
         info['DockerContainerHash'] = subprocess.getoutput(r'cat /proc/self/cgroup | grep -o -e "docker/.*"| head -n 1 |sed "s/docker\\/\\(.*\\)/\\1/" |cut -c1-12')

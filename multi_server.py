@@ -158,7 +158,7 @@ if __name__ == '__main__':
     if not args.debug:
         shutil.copyfile(file, os.path.join(os.path.dirname(file), 'batch_experiment_backup.py'))
         shutil.copyfile(file, os.path.join(os.path.dirname(file), 
-            f'private {time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())} batch_experiment_backup {sum_note}.py'))
+            f'private {time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())} batch_experiment_backup {sum_note}.py'))
     # run experiments remotely
     from UTIL.batch_exp import run_batch_exp
     print('Execute in server:', n_run_mode[0])
