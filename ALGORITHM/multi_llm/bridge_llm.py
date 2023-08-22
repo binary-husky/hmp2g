@@ -32,7 +32,7 @@ def load_trainable_model(device=None):
     model.lm_head.requires_grad_(True)
     training_para_list.extend(list(model.lm_head.parameters()))
     for i, layer in enumerate(model.transformer.layers):
-        if i < 2:
+        if i < 1:
             layer.requires_grad_(True)
             training_para_list.extend(list(layer.parameters()))
     model.training_para_list = training_para_list
