@@ -22,6 +22,53 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 ('make sure you have imported the correct SubTaskConfig class')
 
 
+    def reset(self):
+        """
+            Reset function, it delivers reset command to unreal engine to spawn all agents
+            环境复位,每个episode的开始会执行一次此函数中会初始化所有智能体
+        """
+        UhmapEnv.reset(self)
+        self.t = 0
+        pos_ro = np.random.rand()*2*np.pi * 0.1
+        # spawn agents
+        AgentSettingArray = []
+
+        # count the number of agent in each team
+        n_team_agent = {}
+        for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
+            team = agent_info['team']
+            if team not in n_team_agent: n_team_agent[team] = 0
+            self.SubTaskConfig.agent_list[i]['uid'] = i
+            self.SubTaskConfig.agent_list[i]['tid'] = n_team_agent[team]
+            n_team_agent[team] += 1
+            
+        self.n_team_agent = n_team_agent
+        # push agent init info one by one
+        for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
+            team = agent_info['team']
+            agent_info['n_team_agent'] = n_team_agent[team]
+            init_fn = getattr(self, agent_info['init_fn_name'])
+            AgentSettingArray.append(init_fn(agent_info, pos_ro))
+
+        self.agents  = [Agent(team=a['team'], team_id=a['tid'], uid=a['uid']) for a in self.SubTaskConfig.agent_list]
+        
+        # refer to struct.cpp, FParsedDataInput
+        resp = self.client.send_and_wait_reply(json.dumps({
+            'valid': True,
+            'DataCmd': 'reset',
+            'NumAgents' : len(self.SubTaskConfig.agent_list),
+            'AgentSettingArray': AgentSettingArray,  # refer to struct.cpp, FAgentProperty
+            'TimeStepMax': ScenarioConfig.MaxEpisodeStep,
+            'TimeStep' : 0,
+            'Actions': None,
+        }))
+        resp = json.loads(resp)
+        # make sure the map (level in UE) is correct
+        # assert resp['dataGlobal']['levelName'] == 'UhmapLargeScale'
+
+        assert len(resp['dataArr']) == len(AgentSettingArray), "Illegal agent initial position. 非法的智能体初始化位置，一部分智能体没有生成."
+        return self.parse_response_ob_info(resp)
+
 
     def extract_key_gameobj(self, resp):
         keyObjArr = resp['dataGlobal']['keyObjArr']
@@ -331,7 +378,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             })
         else:
             agent_property.update({
-                    "FireRange":  1200       if agent_class == 'RLA_CAR_Laser' else 2200,
+                    "FireRange":  1100       if agent_class == 'RLA_CAR_Laser' else 2100,
             })
             
         return agent_property

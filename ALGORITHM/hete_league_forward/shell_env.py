@@ -18,14 +18,11 @@ class ActionConvertLegacy():
         self.OPP_NUM_ASSUME = OPP_NUM_ASSUME
         # (main_cmd, sub_cmd, x=None, y=None, z=None, UID=None, T=None, T_index=None)
         self.dictionary_args = [
-            ('N/A',         'N/A',              None, None, None, None, None, None),
-
             ('Idle',        'DynamicGuard',     None, None, None, None, None, None),
             ('Idle',        'StaticAlert',      None, None, None, None, None, None),
             ('Idle',        'AggressivePersue',         None, None, None, None, None, None),
+
             ('Idle',        'AsFarAsPossible',          None, None, None, None, None, None),
-            ('Idle',        'StayWhenTargetInRange',    None, None, None, None, None, None),
-            ('Idle',        'StayWhenTargetInHalfRange',      None, None, None, None, None, None),
 
             ('SpecificMoving',      'Dir+X',        None, None, None, None, None, None),
             ('SpecificMoving',      'Dir+Y',        None, None, None, None, None, None),
@@ -67,15 +64,8 @@ class ActionConvertLegacy():
         ret = np.zeros(n_act) + ENABLE
         for i in range(n_act):
             args = self.dictionary_args[i]
-            
-            # for all kind of agents
-            if args[0] == 'PatrolMoving':       ret[i] = DISABLE
-            
             if type == 'RLA_UAV_Support':
                 if args[0] == 'PatrolMoving':       ret[i] = DISABLE
-                if args[0] == 'SpecificAttacking':  ret[i] = DISABLE
-                if args[0] == 'Idle':               ret[i] = DISABLE
-                if args[1] == 'StaticAlert':        ret[i] = ENABLE
         return ret
     
     def confirm_parameters_are_correct(self, team, agent_num, opp_agent_num):
