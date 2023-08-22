@@ -47,7 +47,7 @@ class Net(nn.Module):
         _size = n_entity * h_dim
         self.hyper_net = HyperNet(embed_dim=h_dim, hyper_input_dim=6, x_input_dim=_size)
         self.policy_head = nn.Sequential(
-            nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
+            nn.Linear(_size, h_dim), nn.ReLU(inplace=True),
             nn.Linear(h_dim, self.n_action))
 
         self.is_recurrent = False
@@ -84,12 +84,12 @@ class Net(nn.Module):
         # # # # # # # # # # actor-critic share # # # # # # # # # # # #
         baec = self.obs_encoder(obs)
         baec = self.attention_layer(k=baec,q=baec,v=baec, mask=mask_dead)
-
+        
         # # # # # # # # # # actor # # # # # # # # # # # #
         at_bac = my_view(baec,[0,0,-1])
         
-        at_bac_hn = self.hyper_net(at_bac, hyper_x=obs_hfeature_norm)
-        
+        at_bac_hn = at_bac
+
         logits = self.policy_head(at_bac_hn)
         
         # choose action selector

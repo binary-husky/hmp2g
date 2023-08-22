@@ -18,20 +18,32 @@ class ActionConvertLegacy():
         self.OPP_NUM_ASSUME = OPP_NUM_ASSUME
         # (main_cmd, sub_cmd, x=None, y=None, z=None, UID=None, T=None, T_index=None)
         self.dictionary_args = [
-            ('N/A',         'N/A',              None, None, None, None, None, None),   # 0
-            ('Idle',        'DynamicGuard',     None, None, None, None, None, None),   # 1
-            ('Idle',        'StaticAlert',      None, None, None, None, None, None),   # 2
-            ('Idle',        'AsFarAsPossible',        None, None, None, None, None, None),   # 4
-            ('Idle',        'StayWhenTargetInRange',  None, None, None, None, None, None),   # 5
-            ('Idle',        'AggressivePersue',       None, None, None, None, None, None),   # 5
-            ('SpecificMoving',      'Dir+X',    None, None, None, None, None, None),   # 7
-            ('SpecificMoving',      'Dir+Y',    None, None, None, None, None, None),   # 8
-            ('SpecificMoving',      'Dir-X',    None, None, None, None, None, None),   # 9
-            ('SpecificMoving',      'Dir-Y',    None, None, None, None, None, None),   # 10
-            ('PatrolMoving',        'Dir+X',    None, None, None, None, None, None),   # 7
-            ('PatrolMoving',        'Dir+Y',    None, None, None, None, None, None),   # 8
-            ('PatrolMoving',        'Dir-X',    None, None, None, None, None, None),   # 9
-            ('PatrolMoving',        'Dir-Y',    None, None, None, None, None, None),   # 10
+            ('N/A',         'N/A',              None, None, None, None, None, None),
+
+            ('Idle',        'DynamicGuard',     None, None, None, None, None, None),
+            ('Idle',        'StaticAlert',      None, None, None, None, None, None),
+            ('Idle',        'AggressivePersue',         None, None, None, None, None, None),
+            ('Idle',        'AsFarAsPossible',          None, None, None, None, None, None),
+            ('Idle',        'StayWhenTargetInRange',    None, None, None, None, None, None),
+            ('Idle',        'StayWhenTargetInHalfRange',      None, None, None, None, None, None),
+
+            ('SpecificMoving',      'Dir+X',        None, None, None, None, None, None),
+            ('SpecificMoving',      'Dir+Y',        None, None, None, None, None, None),
+            ('SpecificMoving',      'Dir-X',        None, None, None, None, None, None),
+            ('SpecificMoving',      'Dir-Y',        None, None, None, None, None, None),
+            ('SpecificMoving',      'Dir+X+Y',      None, None, None, None, None, None),
+            ('SpecificMoving',      'Dir+X-Y',      None, None, None, None, None, None),
+            ('SpecificMoving',      'Dir-X+Y',      None, None, None, None, None, None),
+            ('SpecificMoving',      'Dir-X-Y',      None, None, None, None, None, None),
+
+            ('PatrolMoving',        'Dir+X',        None, None, None, None, None, None),
+            ('PatrolMoving',        'Dir+Y',        None, None, None, None, None, None),
+            ('PatrolMoving',        'Dir-X',        None, None, None, None, None, None),
+            ('PatrolMoving',        'Dir-Y',        None, None, None, None, None, None),
+            ('PatrolMoving',        'Dir+X+Y',      None, None, None, None, None, None),
+            ('PatrolMoving',        'Dir+X-Y',      None, None, None, None, None, None),
+            ('PatrolMoving',        'Dir-X+Y',      None, None, None, None, None, None),
+            ('PatrolMoving',        'Dir-X-Y',      None, None, None, None, None, None),
         ] 
     
 

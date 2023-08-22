@@ -293,7 +293,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # max drive/fly speed
                 'MaxMoveSpeed':  500   if agent_class == 'RLA_CAR_Laser' else 700 ,
                 # also influence object mass, please change it with causion!
-                'AgentScale'  : { 'x': 0.7,  'y': 0.7, 'z': 0.7, } if agent_class == 'RLA_CAR_Laser' else { 'x': 1,  'y': 1, 'z': 1, } ,
+                'AgentScale'  : { 'x': 0.6,  'y': 0.6, 'z': 0.6, } if agent_class == 'RLA_CAR_Laser' else { 'x': 0.8,  'y': 0.8, 'z': 0.8, } ,
                 # probability of escaping dmg 闪避
                 "DodgeProb": 0.00,  # 脚本队伍有规避加成
                 # ms explode dmg
@@ -311,7 +311,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # debugging
                 'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750' if agent_class == 'RLA_CAR_Laser' else '-Ring1=2500 -Ring2=1700 -Ring3=1400',
                 # regular
-                'RSVD2': '-InitAct=ActionSet2::Idle;StayWhenTargetInRange',
+                'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
                 # agent hp
                 'AgentHp':np.random.randint(low=200,high=210) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=95,high=100),
                 # the rank of agent inside the team
