@@ -1,6 +1,6 @@
 import_path_ref = {
-    "collective_assault": ("MISSION.collective_assault.collective_assault_parallel_run",           'ScenarioConfig'),
-    "dca_multiteam": ("MISSION.dca_multiteam.collective_assault_parallel_run",                   'ScenarioConfig'),
+    "collective_assault": ("MISSION.collective_assault.collective_assault_parallel_run",        'ScenarioConfig'),
+    "dca_multiteam": ("MISSION.dca_multiteam.collective_assault_parallel_run",                  'ScenarioConfig'),
     "dca": ("MISSION.dca.collective_assault_parallel_run", 'ScenarioConfig'),
     "air_fight": ("MISSION.air_fight.environment.air_fight_compat",                            'ScenarioConfig'),
     "native_gym": ("MISSION.native_gym.native_gym_config",                                     'ScenarioConfig'),
@@ -14,6 +14,7 @@ import_path_ref = {
     "bvr": ("MISSION.bvr_sim.init_env",                                                        'ScenarioConfig'),
     "mathgame": ("MISSION.math_game.env",                                                      'ScenarioConfig'),
     "uhmap": ("MISSION.uhmap.uhmap_env_wrapper",                                               'ScenarioConfig'),
+    "llm_trainer": ("MISSION.llm_trainer.llm_env",                                             'ScenarioConfig'),
 }
 
 env_init_function_ref = {
@@ -29,6 +30,7 @@ env_init_function_ref = {
     "bvr": ("MISSION.bvr_sim.init_env",                                                        'make_bvr_env'),
     "mathgame": ("MISSION.math_game.env",                                                      'make_math_env'),
     "uhmap": ("MISSION.uhmap.uhmap_env_wrapper",                                               'make_uhmap_env'),
+    "llm_trainer": ("MISSION.llm_trainer.llm_env",                                             'make_llm_env'),
 }
 
 ##################################################################################################################################

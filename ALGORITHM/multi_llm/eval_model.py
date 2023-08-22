@@ -6,6 +6,7 @@ from ALGORITHM.llm.temp import tokenize_qa
 import torch
 
 path = 'RESULT/llm_trainer/llm_model/saved'
+# path = 'RESULT/LLM'
 tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
 model = Model.from_pretrained(path, trust_remote_code=True)
 model = model.half().to(GlobalConfig.device) # half for gpu only

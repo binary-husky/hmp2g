@@ -27,4 +27,8 @@
 	"titleBar.inactiveBackground": "#21573299",
 	"titleBar.inactiveForeground": "#e7e7e799"
 },
+"[python]": {
+	"editor.defaultFormatter": "ms-python.black-formatter"
+},
+"python.formatting.provider": "none",
 }

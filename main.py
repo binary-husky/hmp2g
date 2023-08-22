@@ -42,14 +42,14 @@ def pytorch_gpu_init(cfg):
     if device == 'cuda': 
         gpu_index = sel_gpu().auto_choice()
     else: # e.g. device='cuda:0'
-        gpu_index = int(device.split(':')[-1])
+        gpu_index = int(device.split(':')[-1]) if ',' not in device else device.split(':')[-1]
         # parse gpu_party, e.g. cuda-1#2
         if cfg.gpu_party.startswith('#'): 
             cfg.gpu_party = f"{cfg.device.replace(':', '-')}{cfg.gpu_party}"
         cfg.manual_gpu_ctl = True
         if cfg.gpu_fraction!=1: torch.cuda.set_per_process_memory_fraction(cfg.gpu_fraction, gpu_index)
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_index)
-    cfg.device = 'cuda' # remove ':x', the selected gpu is cuda:0 from now on
+    cfg.device = 'cuda' if ',' not in device else device # remove ':x', the selected gpu is cuda:0 from now on
     torch.cuda.manual_seed(seed)
     if cfg.use_float64:
         torch.set_default_dtype(torch.float64)
