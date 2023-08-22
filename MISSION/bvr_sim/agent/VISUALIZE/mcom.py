@@ -62,7 +62,7 @@ class mcom():
         #     b_tmp = bytes(str_tmp, encoding='utf8')
         #     self.socketx.sendto(b_tmp, self.dst)
         #     with open(os.path.expanduser('~/trace.comv5.txt'), 'a+', encoding='utf8') as f:
-        #         f.writelines(['\n', time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime()), '  |  ',
+        #         f.writelines(['\n', time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()), '  |  ',
         #                       os.path.abspath(self.starting_file), '\n'])
 
 

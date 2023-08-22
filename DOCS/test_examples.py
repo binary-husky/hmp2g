@@ -32,7 +32,7 @@ def get_info(script_path):
         'HostIP': get_host_ip(),
         'RunPath': os.getcwd(),
         'ScriptPath': os.path.abspath(script_path),
-        'StartDateTime': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        'StartDateTime': time.strftime("%Y-%m-%d %H-%M-%S", time.localtime())
     }
     try:
         info['DockerContainerHash'] = subprocess.getoutput(r'cat /proc/self/cgroup | grep -o -e "docker/.*"| head -n 1 |sed "s/docker\\/\\(.*\\)/\\1/" |cut -c1-12')

@@ -753,37 +753,23 @@ def scatter_righthand(scatter_into, src, index, check=True):
                     [0, 1],])
     distance_mat_between(A, B) == [ [ 1 1 1  ], [sqrt(5), 1, 1 ]] => shape = (2,3)
 """
+from scipy.spatial.distance import cdist
 def distance_mat_between(A, B):
-    n_subject_a = A.shape[-2]  # A (64, 3)
-    n_subject_b = B.shape[-2]  # B (28, 3)
-    A = np.repeat(np.expand_dims(A, -2), n_subject_b, axis=-2)  # =>(64, 28, 3)
-    B = np.repeat(np.expand_dims(B, -2), n_subject_a, axis=-2)  # =>(28, 64, 3)
-    B = np.swapaxes(B, -2, -3)  # =>(64, 28, 3)
-    dis = A - B  # =>(64, 100, 100, 2)
-    dis = np.linalg.norm(dis, axis=-1)
-    return dis
+    return cdist(A, B)
 
 
 """
     calculate distance matrix for a position vector array A, support 3d and 2d
 """
 def distance_matrix(A):
-    n_subject = A.shape[-2]  # is 2
-    A = np.repeat(np.expand_dims(A, -2), n_subject, axis=-2)  # =>(64, 100, 100, 2)
-    At = np.swapaxes(A, -2, -3)  # =>(64, 100, 100, 2)
-    dis = At - A  # =>(64, 100, 100, 2)
-    dis = np.linalg.norm(dis, axis=-1)
-    return dis
+    return cdist(A,A)
 
 
 """
     calculate distance matrix for a position vector array A, support 3d and 2d
 """
 def distance_matrix_efficient(X):
-    n_samples = X.shape[0]
-    XX = np.sum(X**2, axis=1).reshape(-1,1) 
-    dis = np.sqrt(np.maximum(XX + XX.T - 2*X.dot(X.T),0)) # aij^2 + aji^2 - 2*aij*aji
-    return dis
+    return cdist(X,X)
 
 """
     calculate delta matrix for a position vector array A

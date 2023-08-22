@@ -533,7 +533,7 @@ class UhmapCommonFn(UhmapEnv):
                             agent.pos3d[1]/100, 
                             agent.pos3d[2]/100, 
                             ro_x=0, ro_y=-0, ro_z=0, ro_order='ZYX',# rotation
-                            label='', label_color='white',
+                            label=f'uid-{agent.uid}', label_color='white',
                             opacity=1,
                             track_n_frame = 50
                         )

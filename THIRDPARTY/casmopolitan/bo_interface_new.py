@@ -53,7 +53,7 @@ class BayesianOptimizationInterface:
         # set the logging level for the handler
         handler.setLevel(logging.DEBUG)
         # create a formatter
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H-%M-%S')
         # add the formatter to the handler
         handler.setFormatter(formatter)
         # add the handler to the self.logger

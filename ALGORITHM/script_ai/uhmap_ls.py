@@ -255,9 +255,11 @@ class DummyAlgorithmLinedAttack(DummyAlgorithmBase):
         pos_arr_2d = np.array([_info['agentLocationArr'][:2] for _info in raw_info])
         opp_pos_arr = pos_arr_2d[opp_uid_range]
 
-        self_air_uid_range = [info['uId'] for info in raw_info if info['agentAlive'] and  info['agentTeam'] == self.team and info['type']=='RLA_UAV_Support']
+        leader_type = ['RLA_UAV_Support', "RLA_CAR"]
+
+        self_air_uid_range = [info['uId'] for info in raw_info if info['agentAlive'] and  info['agentTeam'] == self.team and info['type'] in leader_type]
         N_leader = len(self_air_uid_range)
-        self_ground_uid_range = [info['uId'] for info in raw_info if info['agentAlive'] and info['agentTeam'] == self.team and info['type']!='RLA_UAV_Support']
+        self_ground_uid_range = [info['uId'] for info in raw_info if info['agentAlive'] and info['agentTeam'] == self.team and info['type'] not in leader_type]
         if N_leader > 0:
             self_air_pos_arr = pos_arr_2d[self_air_uid_range]
             assignments = assign_opponent(

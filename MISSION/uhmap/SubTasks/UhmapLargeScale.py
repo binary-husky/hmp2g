@@ -36,8 +36,8 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             event_parsed = self.parse_event(event)
             if event_parsed['Event'] == 'Destroyed':
                 team = self.find_agent_by_uid(event_parsed['UID']).team
-                reward[team]    -= 0.05    # this team
-                reward[1-team]  += 0.10    # opp team
+                reward[team]    -= 0.005    # this team
+                reward[1-team]  += 0.010    # opp team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
                 EndReason = event_parsed['EndReason']
@@ -64,14 +64,14 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                         "team_ranking": [0,1] if WinTeam==0 else [1,0],
                         "end_reason": EndReason
                     }
-                    reward[WinTeam] += 1
-                    reward[1-WinTeam] -= 1
+                    reward[WinTeam] += 5
+                    reward[1-WinTeam] -= 0
                 else:
                     WinningResult = {
                         "team_ranking": [-1, -1],
                         "end_reason": EndReason
                     }
-                    reward = [-1 for _ in range(self.n_teams)]
+                    for i in range(self.n_teams): reward[i] -= 0
         # print(reward)
         return reward, WinningResult
 
@@ -280,9 +280,9 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         if n_team_agent > 40:
             N_COL = 3
         if n_team_agent > 60:
-            N_COL = 5
+            N_COL = 7
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
-        y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
+        y = (600* (tid%N_COL) + 2000) * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
         z = 500 # 500 is slightly above the ground
         yaw = 90 if team==0 else -90
@@ -291,11 +291,11 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         agent_property.update({
                 'DebugAgent': False,
                 # max drive/fly speed
-                'MaxMoveSpeed':  720          if agent_class == 'RLA_CAR_Laser' else 600,
+                'MaxMoveSpeed':  500   if agent_class == 'RLA_CAR_Laser' else 700 ,
                 # also influence object mass, please change it with causion!
-                'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+                'AgentScale'  : { 'x': 0.6,  'y': 0.6, 'z': 0.6, } if agent_class == 'RLA_CAR_Laser' else { 'x': 0.8,  'y': 0.8, 'z': 0.8, } ,
                 # probability of escaping dmg 闪避
-                "DodgeProb": 0.0,
+                "DodgeProb": 0.00,  # 脚本队伍有规避加成
                 # ms explode dmg
                 "ExplodeDmg": 40,           
                 # team belonging
@@ -311,7 +311,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # debugging
                 'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750' if agent_class == 'RLA_CAR_Laser' else '-Ring1=2500 -Ring2=1700 -Ring3=1400',
                 # regular
-                'RSVD2': '-InitAct=ActionSet2::Idle;AsFarAsPossible',
+                'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
                 # agent hp
                 'AgentHp':np.random.randint(low=200,high=210) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=95,high=100),
                 # the rank of agent inside the team
@@ -325,6 +325,15 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # initial facing direction et.al.
                 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
         }),
+        if team == 0:
+            agent_property.update({
+                    "FireRange":  1000       if agent_class == 'RLA_CAR_Laser' else 2000,
+            })
+        else:
+            agent_property.update({
+                    "FireRange":  1200       if agent_class == 'RLA_CAR_Laser' else 2200,
+            })
+            
         return agent_property
 
     def init_air(self, agent_info, pos_ro):
@@ -349,11 +358,11 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         agent_property.update({
                 'DebugAgent': False,
                 # max drive/fly speed
-                'MaxMoveSpeed':  900,
+                'MaxMoveSpeed':  1200,
                 # also influence object mass, please change it with causion!
                 'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
                 # probability of escaping dmg 闪避
-                "DodgeProb": 0.0,
+                "DodgeProb": 0.5,
                 # ms explode dmg
                 "ExplodeDmg": 10,           
                 # team belonging

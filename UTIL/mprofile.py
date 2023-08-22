@@ -8,7 +8,7 @@ from UTIL.colorful import *
 # ubuntu command to kill process: kill -9 $(ps -ef | grep fuqingxu |grep python | grep -v grep | awk '{print $ 2}')
 
 arg_base = ['python', 'main.py']
-log_dir = '%s/'%time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
+log_dir = '%s/'%time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 run_group = "bench"
 # base_conf = 'train.json'
 
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     while True:
         is_alive = [thread.is_alive() for thread in threads]
         if any(is_alive):
-            time_now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
+            time_now = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime()) 
             print(time_now, 'I am still running!', is_alive)
             print靛('current scipt:%s, current log:%s'%(os.path.abspath(__file__), 'PROFILE/%s/run-%d.log'%(exp_log_dir, ith_run+1)))
             time.sleep(60)

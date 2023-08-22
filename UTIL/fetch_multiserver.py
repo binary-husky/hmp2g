@@ -39,7 +39,7 @@ for ith_run in range(len(n_run_mode)):
     # 将顺序改为从最早到最晚
     experiments_path = reversed(sorted(experiments_path))
     for index, exp_time in enumerate(experiments_path):
-        time_then = time.mktime(time.strptime(exp_time,"%Y-%m-%d-%H:%M:%S"))
+        time_then = time.mktime(time.strptime(exp_time,"%Y-%m-%d-%H-%M-%S"))
         time_now = time.mktime(time.localtime())
         diff_time_days = (time_now - time_then)/3600/24
         if consider_days is None:
