@@ -9,7 +9,7 @@ from collections import defaultdict
 import numpy as np
 from config import GlobalConfig
 from torch import nn
-
+from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 def load_static_model(device=None):
     from .foundation import AlgorithmConfig
     path = AlgorithmConfig.model_path
@@ -24,17 +24,31 @@ def load_trainable_model(device=None):
     from .foundation import AlgorithmConfig
     path = AlgorithmConfig.model_path
     from .chatglm1_modify.modeling_chatglm import ChatGLMForConditionalGeneration as Model
+    from peft import get_peft_config, get_peft_model, LoraConfig, PeftModel
     tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
     model = Model.from_pretrained(path, trust_remote_code=True)
     model = model.half().to(device) # half for gpu only
     training_para_list = []
     model.requires_grad_(False)
-    model.lm_head.requires_grad_(True)
-    training_para_list.extend(list(model.lm_head.parameters()))
-    for i, layer in enumerate(model.transformer.layers):
-        if i < 1:
-            layer.requires_grad_(True)
-            training_para_list.extend(list(layer.parameters()))
+
+
+    lora_path = 'RESULT/llm_trainer_critical/llm_model/saved'
+    model = PeftModel.from_pretrained(model, lora_path, is_trainable=True)
+
+    # lora_config = LoraConfig(
+    #     r=16,
+    #     lora_alpha=32,
+    #     lora_dropout=0.05,
+    #     bias="none",
+    #     task_type="CAUSAL_LM",
+    # )
+    # model = get_peft_model(model, lora_config)
+
+    model.print_trainable_parameters()
+    for _, param in model.named_parameters():
+        if param.requires_grad:
+            training_para_list.append(param)
+
     model.training_para_list = training_para_list
     return model, tokenizer
 

@@ -15,6 +15,8 @@ from .temp import tokenize_qa
 import torch.nn as nn
 import torch.nn.functional as F
 import void_terminal as vt
+from .llm_util_base import VtTopicLauncher, TopicLauncher, RewardEvaluator, Reviser, SimpleDatasetManager
+
 # vt.set_conf(key="API_KEY", value="6424e9d19e674092815cea1cb35e67a5")
 # vt.set_conf(key="AZURE_ENDPOINT", value="https://rhtjjjjjj.openai.azure.com/")
 # vt.set_conf(key="AZURE_ENGINE", value="qqwe")
@@ -71,8 +73,11 @@ class AlgorithmConfig:
     ]
     topic_launcher_prompt = f"针对“TOPIC_REPLACE”话题，提出一个引人深思的问题。限20字。"
     reward_model_prompt = f"问题：Q_REPLACE\n\n回答：A_REPLACE\n\n判断：以上文本的回答部分是否通俗，让中学学历的人也能看懂？仅回答“是”或“否”。"
-    reviser_prompt = 'Answer with Chinese, and you must use a metaphor and give a short answer. '   # 这个prompt建议使用英文
+    # reviser_prompt = 'Answer with Chinese, and you must use a metaphor and give a short answer. '   # 这个prompt建议使用英文
+    reviser_prompt_input = "\n使用抬杠的语气否定该问题的正确性。将你的回复放入json的answer字段，40字以内。"
 
+
+    dataset_size = 1000
 
 def override_cuda_settings(AlgorithmConfig):
     # change Local cuda settings according to AlgorithmConfig
@@ -84,19 +89,18 @@ def override_cuda_settings(AlgorithmConfig):
         # reflesh the cached cuda setting in tensor_ops
         from UTIL.tensor_ops import cuda_cfg; cuda_cfg.read_cfg()
 
-class LLM_Foundation(RLAlgorithmBase):
+class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser, SimpleDatasetManager):
 
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         override_cuda_settings(AlgorithmConfig)
         self.n_agent = n_agent
-        
         self.topics = AlgorithmConfig.topics
         from .bridge_llm import load_static_model, load_trainable_model, load_trainable_headless_model
-        
-        # 高温模型
-        self.launcher_llm_model, self.tokenizer = load_static_model(device=AlgorithmConfig.device_launcher_llm)
         # 主模型
         self.main_llm_model, self.tokenizer = load_trainable_model(device=AlgorithmConfig.device_main_llm)
+        self.save_model(out_dir=f'RESULT/{GlobalConfig.note}/llm_model')
+        # 高温模型
+        self.launcher_llm_model, self.tokenizer = load_static_model(device=AlgorithmConfig.device_launcher_llm)
         # # 奖励模型 （效果太差，使用更强的gpt-3.5模型）
         # self.reward_llm_model, self.tokenizer = self.launcher_llm_model, self.tokenizer # load_static_model(device=AlgorithmConfig.device_reward_llm)
 
@@ -107,36 +111,6 @@ class LLM_Foundation(RLAlgorithmBase):
 
         self.mcv = mcv
 
-    def topic_launcher_propose_question(self):
-        def pad(arr):
-            pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
-            len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
-            max_len = max(len_list)
-            for i, token_qa_prompt in enumerate(arr):
-                arr[i] = [pad_id] * (max_len - len_list[i]) + token_qa_prompt
-            return np.array(arr)
-        token_q_prompt_array = []
-        for _ in range(10):
-            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, 
-                query=AlgorithmConfig.topic_launcher_prompt.replace('TOPIC_REPLACE', random.choice(self.topics)), history=[])
-            token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
-            token_q_prompt_array.append(token_q_prompt)
-        token_q_prompt_array = pad(token_q_prompt_array)
-
-        num_beams = 4
-        num_return_sequences = 1
-        input_ids = _2tensor(token_q_prompt_array).to(AlgorithmConfig.device_launcher_llm)
-        question_token_len = input_ids.shape[-1]
-        model_result = self.launcher_llm_model.generate(input_ids=input_ids, do_sample=True, num_beams=num_beams, max_new_tokens=AlgorithmConfig.max_gen_tokens,
-                                num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=False, temperature=2.50,
-                                output_hidden_states=False, return_dict_in_generate=True)
-        sequences = model_result.sequences
-        gen_texts = self.tokenizer.batch_decode(sequences)
-        gen_texts_answer_only = self.tokenizer.batch_decode(sequences[:, question_token_len:])
-        for i, c in enumerate(gen_texts_answer_only):
-            gen_texts_answer_only[i] = gen_texts_answer_only[i].lstrip('"').rstrip('"').lstrip('「').rstrip('」')
-            print(gen_texts_answer_only[i])
-        return gen_texts_answer_only
     
     def main_llm_answer_question(self, topic_launcher_questions):
         def pad(arr):
@@ -170,213 +144,11 @@ class LLM_Foundation(RLAlgorithmBase):
         return main_sequences, main_log_probs, main_gen_texts_only_answer, tokenlen_q_pad
 
 
-    # def reward_eval_answer_question_(self, topic_launcher_questions, main_gen_texts_only_answer):
-    #     def pad(arr):
-    #         pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
-    #         len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
-    #         max_len = max(len_list)
-    #         for i, token_qa_prompt in enumerate(arr):
-    #             arr[i] = [pad_id] * (max_len - len_list[i]) + token_qa_prompt
-    #         return np.array(arr)
-    #     token_q_prompt_array = []
-    #     for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
-    #         token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=f"问题：{q}\n回答：{a}\n\n以上回答是否包含夹杂英文？仅回答“是”或“否”。", history=[])
-    #         token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
-    #         token_q_prompt_array.append(token_q_prompt)
-    #     token_q_prompt_array = pad(token_q_prompt_array)
 
-    #     input_ids = _2tensor(token_q_prompt_array).to(AlgorithmConfig.device_reward_llm)
-    #     question_token_len = input_ids.shape[-1]
-    #     num_beams = num_return_sequences = 1
-    #     model_result = self.reward_llm_model.generate(input_ids=input_ids, do_sample=True, num_beams=num_beams, max_new_tokens=AlgorithmConfig.max_gen_tokens,
-    #                             num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=False, temperature=0.1,
-    #                             output_hidden_states=False, return_dict_in_generate=True)
-    #     sequences = model_result.sequences
-    #     gen_texts = self.tokenizer.batch_decode(sequences)
-    #     gen_texts_answer_only = self.tokenizer.batch_decode(sequences[:, question_token_len:])
-    #     rewards = []
-    #     for c in gen_texts_answer_only: 
-    #         print(c)
-    #         if c.startswith('否'):
-    #             rewards.append(1.0)
-    #         else:
-    #             rewards.append(0.0)
-    #     rewards = np.expand_dims(np.array(rewards), -1)
-    #     return gen_texts_answer_only, rewards
-
-
-    def reward_eval_answer_question(self, topic_launcher_questions, main_gen_texts_only_answer):
-        from void_terminal.crazy_functions.crazy_utils import request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency
-
-        inputs_array = []
-        history_array = []
-        preference = '是'
-        for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
-            inputs = AlgorithmConfig.reward_model_prompt.replace('Q_REPLACE', q).replace('A_REPLACE', a)
-            inputs_array.append(inputs)
-            history_array.append([])
-
-        default_args = vt.get_plugin_default_kwargs()
-        results = request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency(
-            inputs_array, inputs_array, default_args["llm_kwargs"], 
-            default_args["chatbot_with_cookie"], history_array, ["仅回答“是”或“否”" for _ in inputs_array], 
-            refresh_interval=0.2, scroller_max_len=30,
-            handle_token_exceed=True, show_user_at_complete=False,
-        )
-
-        gen = Generator(results)
-        for i in gen: pass
-        results = gen.value
-        gen_texts_answer_only = results[1::2]
-        for c in gen_texts_answer_only: print(c)
-        rewards = []
-        for c in gen_texts_answer_only: 
-            if c.startswith(preference):
-                rewards.append(0.0)
-            else:
-                rewards.append(-1.0)
-        
-        with open(f'RESULT/{GlobalConfig.note}/hmp_generated_rl_datasets.jsonl', 'a', encoding='utf8') as f:
-            for q, a, g, r in zip(topic_launcher_questions, main_gen_texts_only_answer, gen_texts_answer_only, rewards):
-                pp = {
-                    "topic_launcher_questions": q,
-                    "main_gen_texts_only_answer": a,
-                    "gen_texts_answer_only": g,
-                    "rewards": r,
-                }
-
-                write_line = json.dumps(pp, ensure_ascii=False) + '\n'
-                f.write(write_line)
-
-        rewards = np.expand_dims(np.array(rewards), -1)
-
-        return gen_texts_answer_only, rewards
-    
-    # def revise_answer_question___(self, topic_launcher_questions, main_gen_texts_only_answer):
-    #     from void_terminal.crazy_functions.crazy_utils import request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency
-    #     from .json_io import GptJsonIO
-    #     inputs_array = []
-    #     history_array = []
-    #     for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
-    #         inputs = f"问题：{q}\n\n回答：{a}\n\n。"
-    #         inputs_array.append(inputs)
-    #         history_array.append([])
-
-    #     default_args = vt.get_plugin_default_kwargs()
-
-    #     # -=-=-=-=-=-=-=-=-
-    #     from pydantic import BaseModel, Field
-    #     class Schema(BaseModel):
-    #         revised_answer: str = Field(description="the revised answer.")
-    #     gjio = GptJsonIO(Schema)
-    #     formatting_sys_prompt = gjio.generate_input()
-    #     # -=-=-=-=-=-=-=-=-
-
-
-    #     with open(f'RESULT/{GlobalConfig.note}/hmp_generated_sft_datasets.jsonl', 'a', encoding='utf8') as f:
-    #         for q, g in zip(topic_launcher_questions, main_gen_texts_only_answer):
-    #             pp = {
-    #                 "topic_launcher_questions": q,
-    #                 "revised_text": "对不起，我不知道。",
-    #                 "main_text": g,
-    #             }
-    #             write_line = json.dumps(pp, ensure_ascii=False) + '\n'
-    #             f.write(write_line)
-
-    #     return "对不起，我不知道。"
-
-    def revise_answer_question(self, topic_launcher_questions, main_gen_texts_only_answer):
-        from void_terminal.crazy_functions.crazy_utils import request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency
-        from void_terminal.request_llm.bridge_all import predict_no_ui_long_connection
-        from .json_io import GptJsonIO
-        os.makedirs(f'RESULT/{GlobalConfig.note}', exist_ok=True)
-        if os.path.exists(f'RESULT/{GlobalConfig.note}/hmp_generated_sft_datasets.jsonl'):
-            with open(f'RESULT/{GlobalConfig.note}/hmp_generated_sft_datasets.jsonl', 'r', encoding='utf8') as f:
-                q = f.readlines()
-                if len(q) > 1000: return None
-        inputs_array = []
-        history_array = []
-        for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
-            inputs = f"问题：{q}\n"
-            inputs_array.append(inputs)
-            history_array.append([])
-
-        default_args = vt.get_plugin_default_kwargs()
-
-        # -=-=-=-=- create json schema =-=-=-=-
-        from pydantic import BaseModel, Field
-        class Schema(BaseModel):
-            revised_answer: str = Field(description="the answer to the question.")
-        gjio = GptJsonIO(Schema)
-        formatting_sys_prompt = gjio.generate_input()
-        
-        # -=-=-=-=- send request - chain of thought - step 1: creating =-=-=-=-
-        results_step1 = request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency(
-            inputs_array, 
-            inputs_array, 
-            default_args["llm_kwargs"], 
-            default_args["chatbot_with_cookie"], 
-            history_array, 
-            [AlgorithmConfig.reviser_prompt for _ in inputs_array], 
-            refresh_interval=0.2, scroller_max_len=30,
-            handle_token_exceed=True, show_user_at_complete=False,
-        )
-        gen = Generator(results_step1)
-        for i in gen: pass
-        results_step1 = gen.value
-
-        # -=-=-=-=- send request - chain of thought - step 2: formatting =-=-=-=-
-        history_array = [[AlgorithmConfig.reviser_prompt, '明白', q,a] for q,a in zip(results_step1[0::2], results_step1[1::2])]
-        inputs_array = ['Change your answer to json format.' + formatting_sys_prompt for _ in history_array]
-        results = request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency(
-            inputs_array, 
-            inputs_array, 
-            default_args["llm_kwargs"], 
-            default_args["chatbot_with_cookie"], 
-            history_array, 
-            ["" for _ in inputs_array], 
-            refresh_interval=0.2, scroller_max_len=30,
-            handle_token_exceed=True, show_user_at_complete=False,
-        )
-        gen = Generator(results)
-        for i in gen: pass
-        results = gen.value
-
-        # -=-=-=-=- digest json reply =-=-=-=-
-        gen_texts_answer_only = results[1::2]
-        # construct an gpt request in case that we need to repair a broken json
-        gpt_req_fn = lambda x, p: predict_no_ui_long_connection(inputs=x, llm_kwargs=vt.get_chat_default_kwargs()['llm_kwargs'], history=[], sys_prompt=p)
-        for i, c in enumerate(gen_texts_answer_only): 
-            try:
-                gen_texts_answer_only[i] = gjio.generate_output_auto_repair(gen_texts_answer_only[i], gpt_req_fn)
-                gen_texts_answer_only[i] = gen_texts_answer_only[i].revised_answer
-            except:
-                pass
-
-
-        # -=-=-=-=- write file =-=-=-=-
-        revised_text = gen_texts_answer_only
-
-        with open(f'RESULT/{GlobalConfig.note}/hmp_generated_sft_datasets.jsonl', 'a', encoding='utf8') as f:
-            for q, a, g in zip(topic_launcher_questions, revised_text, main_gen_texts_only_answer):
-                pp = {
-                    "topic_launcher_questions": q,
-                    "revised_text": a,
-                    "main_text": g,
-                }
-                write_line = json.dumps(pp, ensure_ascii=False) + '\n'
-                f.write(write_line)
-
-        return gen_texts_answer_only
-    
-    def main_llm_sft(self, topic_launcher_questions, revised_answer, n_step):
+    def main_llm_sft(self, n_step):
         from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
-        with open(f'RESULT/{GlobalConfig.note}/hmp_generated_sft_datasets.jsonl', 'r', encoding='utf8') as f:
-            dataset = []
-            for pp in f.readlines():
-                d = json.loads(pp)
-                dataset.append([d['topic_launcher_questions'], d['revised_text']])
-            dataset = np.array(dataset, dtype=object)
+
+        dataset = self.read_ds(tag='sft')
 
 
         for _ in range(n_step):
@@ -419,6 +191,12 @@ class LLM_Foundation(RLAlgorithmBase):
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
+
+            self.mcv.rec(loss.item(),'stf_loss')
+            self.mcv.rec_show()
+
+
             print(loss.item())
 
 
@@ -433,39 +211,41 @@ class LLM_Foundation(RLAlgorithmBase):
         # from .temp import tokenize_qa
         print('\n\n\n')
 
-        #  获取话题问题
-        with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-            topic_launcher_questions = self.topic_launcher_propose_question()
-        torch.cuda.empty_cache()
-        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
-        # 
-
-        
-        #  主模型回答问题
-        with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-            main_sequences, main_log_probs, main_gen_texts_only_answer, tokenlen_q_pad = self.main_llm_answer_question(topic_launcher_questions)
-        torch.cuda.empty_cache()
-        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
-        # 
-
-        if AlgorithmConfig.enable_rl:
-            #  给出奖励
+        if self.ds_size(tag='sft') < AlgorithmConfig.dataset_size:
+            #  获取话题问题
             with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-                gen_texts_answer_only, rewards = self.reward_eval_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
-                rewards, masks = self.place_reward(tokenlen_q_pad, 
-                                                main_sequences, rewards, self.tokenizer.convert_tokens_to_ids("<pad>"))
+                topic_launcher_questions = self.topic_launcher_propose_question()
             torch.cuda.empty_cache()
             print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
+            # 
+
+            
+            #  主模型回答问题
+            with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
+                main_sequences, main_log_probs, main_gen_texts_only_answer, tokenlen_q_pad = self.main_llm_answer_question(topic_launcher_questions)
+            torch.cuda.empty_cache()
+            print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
+            # 
+
+            if AlgorithmConfig.enable_rl:
+                #  给出奖励
+                with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
+                    gen_texts_answer_only, rewards = self.reward_eval_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
+                    rewards, masks = self.place_reward(tokenlen_q_pad, 
+                                                    main_sequences, rewards, self.tokenizer.convert_tokens_to_ids("<pad>"))
+                torch.cuda.empty_cache()
+                print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
+
+            if AlgorithmConfig.enable_stf:
+                #  给出修改后的参考答案
+                with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
+                    revised_answer = self.revise_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
+                torch.cuda.empty_cache()
+                print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
 
         if AlgorithmConfig.enable_stf:
-            #  给出修改后的参考答案
-            with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-                revised_answer = self.revise_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
-            torch.cuda.empty_cache()
-            print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
-
             #  训练
-            self.main_llm_sft(topic_launcher_questions, revised_answer, 5)
+            self.main_llm_sft(5)
             torch.cuda.empty_cache()
             print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
 
@@ -563,7 +343,7 @@ class LLM_Foundation(RLAlgorithmBase):
         os.makedirs(out_dir, exist_ok=True)
         model_path = os.path.join(out_dir,'saved')
         shutil.rmtree(model_path, ignore_errors=True)
-        shutil.copytree(AlgorithmConfig.model_path, model_path)
+        # shutil.copytree(AlgorithmConfig.model_path, model_path)
         self.main_llm_model.save_pretrained(model_path)
         self.tokenizer.save_pretrained(model_path)
 
