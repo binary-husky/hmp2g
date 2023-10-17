@@ -393,6 +393,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             note that keys starting with _ must have shape (self.n_thread, ...), details see fn:mask_paused_env()
         '''
         # strip info, since it is not array
+        info_allth = traj_framedata.pop('info')
         items_to_pop = ['info', 'Latest-Obs']
         for k in items_to_pop:
             if k in traj_framedata:
@@ -406,6 +407,19 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
             'Terminal-Obs-Echo') if 'Terminal-Obs-Echo' in traj_framedata else None
         # mask out pause thread
         traj_framedata = self.mask_paused_env(traj_framedata)
+
+        for th, d in enumerate(traj_framedata['_DONE_']):
+            if not d: 
+                continue
+            info = info_allth[th]
+            if 'win' in info:
+                win = info['win']
+            elif 'team_ranking' in info: 
+                win = (info['team_ranking'][self.team] == 0)
+            else:
+                assert False, 'cannot get win/lose info'
+            self.traj_manager.live_trajs[th].set_scalar('win', win)
+
         # put the frag into memory
         self.traj_manager.feed_traj_framedata(traj_framedata)
 

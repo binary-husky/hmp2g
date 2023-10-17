@@ -171,3 +171,6 @@ THIRDPARTY/casmopolitan/Temp/
 .gitignore
 
 THIRDPARTY/pymarl2/pymarl2src
+batch_experiment*
+experiment*
+.vscode

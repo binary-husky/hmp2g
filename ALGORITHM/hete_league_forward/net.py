@@ -45,9 +45,10 @@ class Net(nn.Module):
         self.attention_layer = SimpleAttention(h_dim=h_dim)
         # # # # # # # # # #        actor        # # # # # # # # # # # #
         _size = n_entity * h_dim
-        self.hyper_net = HyperNet(embed_dim=h_dim, hyper_input_dim=6, x_input_dim=_size)
+        self.reducer = nn.Sequential(nn.Linear(_size, h_dim), nn.ReLU(inplace=True))
+        self.hyper_net = HyperNet(embed_dim=h_dim, hyper_input_dim=6, x_input_dim=h_dim, use_resnet=True)
         self.policy_head = nn.Sequential(
-            nn.Linear(_size, h_dim), nn.ReLU(inplace=True),
+            nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),
             nn.Linear(h_dim, self.n_action))
 
         self.is_recurrent = False
@@ -87,8 +88,9 @@ class Net(nn.Module):
         
         # # # # # # # # # # actor # # # # # # # # # # # #
         at_bac = my_view(baec,[0,0,-1])
+        at_bac = self.reducer(at_bac)
         
-        at_bac_hn = at_bac
+        at_bac_hn = self.hyper_net(at_bac, hyper_x=obs_hfeature_norm)
 
         logits = self.policy_head(at_bac_hn)
         
@@ -98,7 +100,7 @@ class Net(nn.Module):
         # apply action selector
         act, actLogProbs, distEntropy, probs = logit2act( logits, 
                                                           eval_mode=eval_mode,
-                                                          greedy=(test_mode or self.static), 
+                                                          greedy=False, 
                                                           eval_actions=eval_act, 
                                                           avail_act=avail_act,
                                                           eprsn=eprsn )
