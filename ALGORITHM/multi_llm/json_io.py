@@ -1,3 +1,9 @@
+# Here's another example, but with a compound typed field.
+# class Actor(BaseModel):
+#     name: str = Field(description="name of an actor")
+#     film_names: List[str] = Field(description="list of names of films they starred in")
+
+
 
 class GptJsonIO():
     def __init__(self, schema):
@@ -50,30 +56,11 @@ class GptJsonIO():
             try:
                 # json 格式异常，尝试修复一次
                 print('Repairing json：', response)
-                repair_prompt = gjio.generate_repair_prompt(broken_json = response)
-                result = gjio.generate_output(gpt_gen_fn(repair_prompt, formatting_sys_prompt))
+                repair_prompt = self.generate_repair_prompt(broken_json = response)
+                result = self.generate_output(gpt_gen_fn(repair_prompt, self.generate_input()))
                 print('Repaire json success!', result)
             except Exception as e:
                 # 没辙了，放弃治疗
                 print('Repaire json fail!')
                 raise RuntimeError('Cannot repair json.', str(e))
         return result
-
-import void_terminal as vt
-from void_terminal.request_llm.bridge_all import predict_no_ui_long_connection
-vt.set_conf(key="API_KEY", value="fk195831-IdP9Pb3W6DCMUIbQwVX6MsSiyxwqybyS")
-vt.set_conf(key="LLM_MODEL", value="api2d-gpt-3.5-turbo")
-
-from pydantic import BaseModel, Field
-class Schema(BaseModel):
-    revised_answer: str = Field(description="the revised answer.")
-gjio = GptJsonIO(Schema)
-formatting_sys_prompt = gjio.generate_input()
-# res = gjio.generate_output('{\n"revised_answer": "两者都可以，宣传可以推动社会进步，而推动社会进步也可以宣传。",\n}')
-res = '{\n"revised_answer": "两者都可以，"宣传"可以推动社会进步，而推动社会进步也可以宣传。",\n}'
-res = gjio.generate_output_auto_repair(
-    res, 
-    lambda x, p: predict_no_ui_long_connection(inputs=x, llm_kwargs=vt.get_chat_default_kwargs()['llm_kwargs'], history=[], sys_prompt=p)
-)
-print(res.revised_answer)
-

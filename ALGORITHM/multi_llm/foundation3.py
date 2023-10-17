@@ -6,7 +6,7 @@ from UTIL.tensor_ops import repeat_at
 from ALGORITHM.common.rl_alg_base import RLAlgorithmBase
 from ALGORITHM.common.logit2act import Logit2Act
 from .temp import sample_good_QA_from_turns, get_log_prob, get_log_probs_with_input_ids
-from UTIL.tensor_ops import repeat_at, _2tensor, scatter_righthand, my_view
+from UTIL.tensor_ops import repeat_at, _2tensor, scatter_righthand
 from .temp import RewardBySimilarity, gae_vectorize
 from .bridge_llm import ChatGLMCritic
 from pathlib import Path
@@ -15,15 +15,10 @@ from .temp import tokenize_qa
 import torch.nn as nn
 import torch.nn.functional as F
 import void_terminal as vt
-from .llm_util_base import VtTopicLauncher, TopicLauncher, RewardEvaluator, Reviser, SimpleDatasetManager
-
-# vt.set_conf(key="API_KEY", value="6424e9d19e674092815cea1cb35e67a5")
-# vt.set_conf(key="AZURE_ENDPOINT", value="https://rhtjjjjjj.openai.azure.com/")
-# vt.set_conf(key="AZURE_ENGINE", value="qqwe")
-# vt.set_conf(key="LLM_MODEL", value="azure-gpt-3.5")
-
-vt.set_conf(key="API_KEY", value="fk195831-IdP9Pb3W6DCMUIbQwVX6MsSiyxwqybyS")
-vt.set_conf(key="LLM_MODEL", value="api2d-gpt-3.5-turbo")
+vt.set_conf(key="API_KEY", value="6424e9d19e674092815cea1cb35e67a5")
+vt.set_conf(key="AZURE_ENDPOINT", value="https://rhtjjjjjj.openai.azure.com/")
+vt.set_conf(key="AZURE_ENGINE", value="qqwe")
+vt.set_conf(key="LLM_MODEL", value="azure-gpt-3.5")
 
 class Generator:
     def __init__(self, gen):
@@ -46,8 +41,7 @@ class AlgorithmConfig:
     model_path = "/home/hmp/Miraclemarvel55_RLHF/chatglm_6b"
     max_source_length = 100
     max_gen_tokens = 100
-    mini_batch_size = 16
-    sft_batch_size = 16
+    mini_batch_size = 18
     debug = False
 
     # device_override = "cuda:1"
@@ -60,24 +54,7 @@ class AlgorithmConfig:
     device_main_llm = 'cuda:1'
     device_reward_llm = 'cuda:0'
 
-    enable_rl = False
-    enable_stf = True
-
     save_step = 50
-    topics = [
-        "房价过高", "内卷", "AI威胁", "量子计算",
-        "房地产调控", "汇率", "字幕组", "网红",
-        "GDP", "家庭", "视觉", "守望先锋",
-        "金砖国家","俄罗斯","月球","美国中央情报局",
-        "被骗到缅北", "平壤", "特斯拉", "未来生活"
-    ]
-    topic_launcher_prompt = f"针对“TOPIC_REPLACE”话题，提出一个引人深思的问题。限20字。"
-    reward_model_prompt = f"问题：Q_REPLACE\n\n回答：A_REPLACE\n\n判断：以上文本的回答部分是否通俗，让中学学历的人也能看懂？仅回答“是”或“否”。"
-    # reviser_prompt = 'Answer with Chinese, and you must use a metaphor and give a short answer. '   # 这个prompt建议使用英文
-    reviser_prompt_input = "\n使用抬杠的语气否定该问题的正确性。将你的回复放入json的answer字段，40字以内。"
-
-
-    dataset_size = 1000
 
 def override_cuda_settings(AlgorithmConfig):
     # change Local cuda settings according to AlgorithmConfig
@@ -89,18 +66,22 @@ def override_cuda_settings(AlgorithmConfig):
         # reflesh the cached cuda setting in tensor_ops
         from UTIL.tensor_ops import cuda_cfg; cuda_cfg.read_cfg()
 
-class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser, SimpleDatasetManager):
-
+class LLM_Foundation(RLAlgorithmBase):
     def __init__(self, n_agent, n_thread, space, mcv=None, team=None):
         override_cuda_settings(AlgorithmConfig)
         self.n_agent = n_agent
-        self.topics = AlgorithmConfig.topics
+        
+        self.topics = [
+            "房价过高", "内卷", "AI威胁", "量子计算",
+            "房地产调控", "汇率", "字幕组", "网红",
+            "GDP", "家庭", "视觉中国", "守望先锋",
+        ]
         from .bridge_llm import load_static_model, load_trainable_model, load_trainable_headless_model
-        # 主模型
-        self.main_llm_model, self.tokenizer = load_trainable_model(device=AlgorithmConfig.device_main_llm)
-        self.save_model(out_dir=f'RESULT/{GlobalConfig.note}/llm_model')
+        
         # 高温模型
         self.launcher_llm_model, self.tokenizer = load_static_model(device=AlgorithmConfig.device_launcher_llm)
+        # 主模型
+        self.main_llm_model, self.tokenizer = load_trainable_model(device=AlgorithmConfig.device_main_llm)
         # # 奖励模型 （效果太差，使用更强的gpt-3.5模型）
         # self.reward_llm_model, self.tokenizer = self.launcher_llm_model, self.tokenizer # load_static_model(device=AlgorithmConfig.device_reward_llm)
 
@@ -111,6 +92,33 @@ class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser,
 
         self.mcv = mcv
 
+    def topic_launcher_propose_question(self):
+        def pad(arr):
+            pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
+            len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
+            max_len = max(len_list)
+            for i, token_qa_prompt in enumerate(arr):
+                arr[i] = [pad_id] * (max_len - len_list[i]) + token_qa_prompt
+            return np.array(arr)
+        token_q_prompt_array = []
+        for _ in range(5):
+            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=f"针对“{random.choice(self.topics)}”话题，提出一个引人深思的问题。限20字。", history=[])
+            token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
+            token_q_prompt_array.append(token_q_prompt)
+        token_q_prompt_array = pad(token_q_prompt_array)
+
+        num_beams = 4
+        num_return_sequences = 2
+        input_ids = _2tensor(token_q_prompt_array).to(AlgorithmConfig.device_launcher_llm)
+        question_token_len = input_ids.shape[-1]
+        model_result = self.launcher_llm_model.generate(input_ids=input_ids, do_sample=True, num_beams=num_beams, max_new_tokens=AlgorithmConfig.max_gen_tokens,
+                                num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=False, temperature=2.50,
+                                output_hidden_states=False, return_dict_in_generate=True)
+        sequences = model_result.sequences
+        gen_texts = self.tokenizer.batch_decode(sequences)
+        gen_texts_answer_only = self.tokenizer.batch_decode(sequences[:, question_token_len:])
+        for c in gen_texts_answer_only: print(c)
+        return gen_texts_answer_only
     
     def main_llm_answer_question(self, topic_launcher_questions):
         def pad(arr):
@@ -122,7 +130,7 @@ class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser,
             return np.array(arr)
         token_q_prompt_array = []
         for q in topic_launcher_questions:
-            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=q, history=[])
+            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=q+'\n请用一句话回答。', history=[])
             token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
             token_q_prompt_array.append(token_q_prompt)
         token_q_prompt_array = pad(token_q_prompt_array)
@@ -132,7 +140,7 @@ class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser,
         num_beams = num_return_sequences = 1
         assert num_beams >= num_return_sequences, "candidates num should greater than returns num"
         # max_new_tokens = 8
-        gen_method = "greedy_search" # if num_beams == 1 else "beam_search" 
+        gen_method = "greedy_search" if num_beams == 1 else "beam_search" 
         main_model_result = self.main_llm_model.generate(input_ids=input_ids, do_sample=False, num_beams=num_beams, max_new_tokens=AlgorithmConfig.max_gen_tokens,
                             num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=True,
                             output_hidden_states=False, return_dict_in_generate=True)
@@ -143,65 +151,86 @@ class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser,
         for c in main_gen_texts_only_answer: print(c)
         return main_sequences, main_log_probs, main_gen_texts_only_answer, tokenlen_q_pad
 
+    def reward_eval_answer_question(self, topic_launcher_questions, main_gen_texts_only_answer):
+        from void_terminal.crazy_functions.crazy_utils import request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency
 
+        inputs_array = []
+        history_array = []
+        preference = '是'
+        for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
+            inputs = f"问题：{q}\n\n回答：{a}\n\n判断：以上文本的回答部分是否通俗，让中学学历的人也能看懂？仅回答“是”或“否”。"
+            inputs_array.append(inputs)
+            history_array.append([])
 
-    def main_llm_sft(self, n_step):
-        from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
+        default_args = vt.get_plugin_default_kwargs()
+        results = request_gpt_model_multi_threads_with_very_awesome_ui_and_high_efficiency(
+            inputs_array, inputs_array, default_args["llm_kwargs"], 
+            default_args["chatbot_with_cookie"], history_array, ["仅回答“是”或“否”" for _ in inputs_array], 
+            refresh_interval=0.2, scroller_max_len=30,
+            handle_token_exceed=True, show_user_at_complete=False,
+        )
 
-        dataset = self.read_ds(tag='sft')
+        gen = Generator(results)
+        for i in gen: pass
+        results = gen.value
+        gen_texts_answer_only = results[1::2]
+        for c in gen_texts_answer_only: print(c)
+        rewards = []
+        for c in gen_texts_answer_only: 
+            if c.startswith(preference):
+                rewards.append(0.0)
+            else:
+                rewards.append(-1.0)
+        
+        with open(f'RESULT/{GlobalConfig.note}/hmp_generated_datasets.jsonl', 'a', encoding='utf8') as f:
+            for q, a, g, r in zip(topic_launcher_questions, main_gen_texts_only_answer, gen_texts_answer_only, rewards):
+                pp = {
+                    "topic_launcher_questions": q,
+                    "main_gen_texts_only_answer": a,
+                    "gen_texts_answer_only": g,
+                    "rewards": r,
+                }
 
+                write_line = json.dumps(pp, ensure_ascii=False) + '\n'
+                f.write(write_line)
 
-        for _ in range(n_step):
-            big_batch_size = len(dataset)
-            self.sampler = BatchSampler(SubsetRandomSampler(range(big_batch_size)), AlgorithmConfig.sft_batch_size, drop_last=False)
-            self.sampler = iter(self.sampler)
-            indices = next(self.sampler)
-            samples = dataset[indices]
+        rewards = np.expand_dims(np.array(rewards), -1)
 
-            def pad(arr):
-                pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
-                len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
-                max_len = max(len_list)
-                for i, token_qa_prompt in enumerate(arr):
-                    arr[i] = [pad_id] * (max_len - len_list[i]) + token_qa_prompt
-                return np.array(arr)
-            
-            token_q_prompt_array = []
-            for q, a in samples:
-                a = a[:AlgorithmConfig.max_gen_tokens]
-                token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query="", history=[[q, a]])
-                token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
-                token_q_prompt_array.append(token_q_prompt)
-            token_q_prompt_array = pad(token_q_prompt_array)
+        return gen_texts_answer_only, rewards
 
-            input_ids = _2tensor(token_q_prompt_array).to(AlgorithmConfig.device_main_llm)
-            tokenlen_q_pad = question_token_len = input_ids.shape[-1]
-            num_beams = num_return_sequences = 1
-            assert num_beams >= num_return_sequences, "candidates num should greater than returns num"
+    def reward_eval_answer_question_(self, topic_launcher_questions, main_gen_texts_only_answer):
+        def pad(arr):
+            pad_id = self.tokenizer.convert_tokens_to_ids("<pad>")
+            len_list = [len(token_qa_prompt) for i, token_qa_prompt in enumerate(arr)]
+            max_len = max(len_list)
+            for i, token_qa_prompt in enumerate(arr):
+                arr[i] = [pad_id] * (max_len - len_list[i]) + token_qa_prompt
+            return np.array(arr)
+        token_q_prompt_array = []
+        for q, a in zip(topic_launcher_questions, main_gen_texts_only_answer):
+            token_q_prompt, gen_len, prompt = tokenize_qa(self.tokenizer, query=f"问题：{q}\n回答：{a}\n\n以上回答是否包含夹杂英文？仅回答“是”或“否”。", history=[])
+            token_q_prompt = token_q_prompt['input_ids'].tolist()[0]
+            token_q_prompt_array.append(token_q_prompt)
+        token_q_prompt_array = pad(token_q_prompt_array)
 
-            # max_new_tokens = 8
-            model_inputs = self.main_llm_model.prepare_inputs_for_generation(input_ids)
-            output = self.main_llm_model(**model_inputs)
-            logits = output.logits
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = input_ids[..., 1:].contiguous()
-            
-            loss = nn.functional.cross_entropy(my_view(shift_logits, [-1, 0]), my_view(shift_labels, [-1]))
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-
-
-            self.mcv.rec(loss.item(),'stf_loss')
-            self.mcv.rec_show()
-
-
-            print(loss.item())
-
-
-
-
+        input_ids = _2tensor(token_q_prompt_array).to(AlgorithmConfig.device_reward_llm)
+        question_token_len = input_ids.shape[-1]
+        num_beams = num_return_sequences = 1
+        model_result = self.reward_llm_model.generate(input_ids=input_ids, do_sample=True, num_beams=num_beams, max_new_tokens=AlgorithmConfig.max_gen_tokens,
+                                num_return_sequences=num_return_sequences, use_cache=True, num_beam_groups=1, output_scores=False, temperature=0.1,
+                                output_hidden_states=False, return_dict_in_generate=True)
+        sequences = model_result.sequences
+        gen_texts = self.tokenizer.batch_decode(sequences)
+        gen_texts_answer_only = self.tokenizer.batch_decode(sequences[:, question_token_len:])
+        rewards = []
+        for c in gen_texts_answer_only: 
+            print(c)
+            if c.startswith('否'):
+                rewards.append(1.0)
+            else:
+                rewards.append(0.0)
+        rewards = np.expand_dims(np.array(rewards), -1)
+        return gen_texts_answer_only, rewards
 
     def interact_with_env(self, StateRecall):
         '''
@@ -211,51 +240,34 @@ class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser,
         # from .temp import tokenize_qa
         print('\n\n\n')
 
-        if self.ds_size(tag='sft') < AlgorithmConfig.dataset_size:
-            #  获取话题问题
-            with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-                topic_launcher_questions = self.topic_launcher_propose_question()
-            torch.cuda.empty_cache()
-            print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
-            # 
+        # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-
+        with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
+            topic_launcher_questions = self.topic_launcher_propose_question()
+        torch.cuda.empty_cache()
+        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
+        # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-
 
-            
-            #  主模型回答问题
-            with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-                main_sequences, main_log_probs, main_gen_texts_only_answer, tokenlen_q_pad = self.main_llm_answer_question(topic_launcher_questions)
-            torch.cuda.empty_cache()
-            print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
-            # 
+        
+        # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-
+        with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
+            main_sequences, main_log_probs, main_gen_texts_only_answer, tokenlen_q_pad = self.main_llm_answer_question(topic_launcher_questions)
+        torch.cuda.empty_cache()
+        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
+        # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-
 
-            if AlgorithmConfig.enable_rl:
-                #  给出奖励
-                with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-                    gen_texts_answer_only, rewards = self.reward_eval_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
-                    rewards, masks = self.place_reward(tokenlen_q_pad, 
-                                                    main_sequences, rewards, self.tokenizer.convert_tokens_to_ids("<pad>"))
-                torch.cuda.empty_cache()
-                print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
+        # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-
+        with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
+            gen_texts_answer_only, rewards = self.reward_eval_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
+            rewards, masks = self.place_reward(tokenlen_q_pad, 
+                                               main_sequences, rewards, self.tokenizer.convert_tokens_to_ids("<pad>"))
+        torch.cuda.empty_cache()
+        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
+        # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-
 
-            if AlgorithmConfig.enable_stf:
-                #  给出修改后的参考答案
-                with torch.no_grad(): # 此处不需要梯度，后面PPO会二次计算
-                    revised_answer = self.revise_answer_question(topic_launcher_questions, main_gen_texts_only_answer)
-                torch.cuda.empty_cache()
-                print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
-
-        if AlgorithmConfig.enable_stf:
-            #  训练
-            self.main_llm_sft(5)
-            torch.cuda.empty_cache()
-            print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-')
-
-
-        if AlgorithmConfig.enable_rl:
-            torch.cuda.empty_cache()
-            self.ppo(ppo_epochs=5, sequences=main_sequences, log_probs=main_log_probs, rewards=rewards, masks=masks, clip_param=0.2)
-
-
+        torch.cuda.empty_cache()
+        self.ppo(ppo_epochs=5, sequences=main_sequences, log_probs=main_log_probs, rewards=rewards, masks=masks, clip_param=0.2)
         action = np.zeros(shape=(1, 1))
+
         if StateRecall['Current-Obs-Step'][0] % AlgorithmConfig.save_step == 1: # AlgorithmConfig.save_step-1:
             self.save_model(out_dir=f'RESULT/{GlobalConfig.note}/llm_model')
         return action, StateRecall
@@ -276,6 +288,7 @@ class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser,
         self.data_set_collection = np.array(self.data_set_collection, dtype=object)
         return 
     
+
 
     def sample_qa(self):
         if not hasattr(self, 'sampler'):
@@ -338,12 +351,14 @@ class LLM_Foundation(RLAlgorithmBase, VtTopicLauncher, RewardEvaluator, Reviser,
         res["tokenlen_a_pad"] = res["tokenlen_qa_pad"] - res["tokenlen_q_pad"]
         return res
 
+
+
     def save_model(self, out_dir):
         import shutil
         os.makedirs(out_dir, exist_ok=True)
         model_path = os.path.join(out_dir,'saved')
         shutil.rmtree(model_path, ignore_errors=True)
-        # shutil.copytree(AlgorithmConfig.model_path, model_path)
+        shutil.copytree(AlgorithmConfig.model_path, model_path)
         self.main_llm_model.save_pretrained(model_path)
         self.tokenizer.save_pretrained(model_path)
 
