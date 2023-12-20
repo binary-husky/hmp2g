@@ -1,21 +1,22 @@
 from config import GlobalConfig
 from transformers import AutoTokenizer, AutoModel
-from ALGORITHM.llm.chatglm1_modify.modeling_chatglm import ChatGLMForConditionalGeneration as Model
 from UTIL.tensor_ops import repeat_at, _2tensor, scatter_righthand
 from ALGORITHM.llm.temp import tokenize_qa
 import torch
-
-path = 'RESULT/llm_trainer/llm_model/saved'
+from peft import get_peft_config, get_peft_model, LoraConfig, PeftModel
+model_path = "/home/hmp/Miraclemarvel55_RLHF/chatglm_6b"
+lora_path = 'RESULT/llm_trainer_critical/llm_model/saved'
 # path = 'RESULT/LLM'
-tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
-model = Model.from_pretrained(path, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+model = PeftModel.from_pretrained(model, lora_path)
 model = model.half().to(GlobalConfig.device) # half for gpu only
 model.requires_grad_(False)
-
-max_gen_tokens = 64
+max_gen_tokens = 128
 
 while True:
-    token_qa_prompt, gen_len, prompt = tokenize_qa(tokenizer, query="清旭是谁", history=[])
+    q = input('>>')
+    token_qa_prompt, gen_len, prompt = tokenize_qa(tokenizer, query=q, history=[])
     input_ids = torch.Tensor(token_qa_prompt['input_ids']).to(GlobalConfig.device)
     num_beams, num_return_sequences = 1, 1
     assert num_beams >= num_return_sequences, "candidates num should greater than returns num"
@@ -26,5 +27,4 @@ while True:
     sequences = model_result.sequences
     
     gen_texts = tokenizer.batch_decode(sequences)
-    print(gen_texts[0])
     print(gen_texts[0])

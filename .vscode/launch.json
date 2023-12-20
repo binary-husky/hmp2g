@@ -17,6 +17,17 @@
             "console": "integratedTerminal",
             "justMyCode": false
         },
+        {
+            "name": "Hmp: Current Launcher",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "-d",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
 
         {
             "name": "Python: Current File",
