@@ -58,6 +58,7 @@ class PPO():
                           draw_mode=cfg.draw_mode,
                           tag='[ppo.py]' )
         self.mcv2.rec_init(color='g')
+        self.prev_pool = []
 
     def freeze_body(self):
         self.freeze_body = True
@@ -67,11 +68,38 @@ class PPO():
         self.ct_optimizer = optim.Adam(self.ct_parameter, lr=self.lr*10.0) #(self.lr)
         print('change train object')
 
+    def compute_wr_each_combo(self, traj_pool):
+        
+        traj_pool__ = traj_pool + self.prev_pool
+        d = {}
+        for combo, win in zip([t.gp_sel_summary[0] for t in traj_pool__], [t.win for t in traj_pool__]):
+            d[tuple(combo.tolist())] = d.get(tuple(combo.tolist()), {"True":0, "False":0})
+            d[tuple(combo.tolist())][str(win)] += 1
+
+        d_type = {}
+        for k, v in d.items():
+            k_type = tuple(['F' if i==0 else 'L' for i in k])
+            d_type[k_type] = d_type.get(k_type, {"True":0, "False":0})
+            d_type[k_type]["True"] += v["True"]
+            d_type[k_type]["False"] += v["False"]
+            d_type[k_type]["beta"] = d_type[k_type]["True"] / (d_type[k_type]["True"]+d_type[k_type]["False"])
+
+        beta_avg = sum([t.win for t in traj_pool__]) / len(traj_pool__)
+        max_size = 128
+        if len(traj_pool__) < max_size:  # 样本太少
+            d_type = None
+
+        self.prev_pool += traj_pool
+        while len(self.prev_pool) > max_size: self.prev_pool.pop(0)
+        return d_type, beta_avg
+
+
     def train_on_traj(self, traj_pool, task):
         while True:
             try:
                 with self.gpu_share_unit:
-                    self.train_on_traj_(traj_pool, task) 
+                    beta_info, beta_avg = self.compute_wr_each_combo(traj_pool)
+                    self.train_on_traj_(traj_pool, task, beta_info, beta_avg) 
                 break # 运行到这说明显存充足
             except RuntimeError as err:
                 print(traceback.format_exc())
@@ -106,7 +134,7 @@ class PPO():
             mcv2.rec(np.array(tags[k]).mean(), k)
         mcv2.rec_show()
 
-    def train_on_traj_(self, traj_pool, task):
+    def train_on_traj_(self, traj_pool, task, beta_info, beta_avg):
         self.log_reward_rich(traj_pool, self.mcv2)
         ppo_valid_percent_list = []
         sampler = TrajPoolSampler(n_div=1, traj_pool=traj_pool, flag=task, prevent_batchsize_oom=self.prevent_batchsize_oom, mcv=self.mcv)
@@ -117,12 +145,16 @@ class PPO():
             # ! get traj fragment
             sample = next(sample_iter)
             # ! build graph, then update network
-            loss_final, others = self.establish_pytorch_graph(task, sample, e)
+            loss_final, others = self.establish_pytorch_graph(task, sample, e, beta_info, beta_avg)
             loss_final = loss_final*0.5
             if e==0: print('[PPO.py] Memory Allocated %.2f GB'%(torch.cuda.memory_allocated()/1073741824))
             loss_final.backward()
             # log
             ppo_valid_percent_list.append(others.pop('PPO valid percent').item())
+            if beta_info is not None:
+                others.update({
+                    str(''.join(k)):v['beta'] for k,v in  beta_info.items()
+                })
             self.log_trivial(dictionary=others); others = None
             nn.utils.clip_grad_norm_(self.parameter, self.max_grad_norm)
             self.optimizer.step()
@@ -174,7 +206,7 @@ class PPO():
         self.trivial_dict = {}
 
 
-    def establish_pytorch_graph(self, flag, sample, n):
+    def establish_pytorch_graph(self, flag, sample, n, beta_info, beta_avg):
         obs = _2tensor(sample['obs'])
         advantage = _2tensor(sample['advantage'])
         action = _2tensor(sample['action'])
@@ -185,6 +217,13 @@ class PPO():
         gp_sel_summary = _2tensor(sample['gp_sel_summary'])
         avail_act = _2tensor(sample['avail_act']) if 'avail_act' in sample else None
 
+        # adv_beta
+        adv_beta = torch.ones(size=gp_sel_summary[..., 0].shape, dtype=obs.dtype, device=obs.device)
+        if beta_info is not None:
+            for x, k in enumerate(gp_sel_summary): 
+                k_type = tuple(['F' if i==0 else 'L' for i in k.cpu().numpy().tolist()])
+                psi = 0.5
+                adv_beta[x] = (psi + beta_avg) / (psi + beta_info[k_type]['beta'])
         # batchsize = advantage.shape[0]#; print亮紫(batchsize)
         batch_agent_size = advantage.shape[0]*advantage.shape[1]
 
@@ -214,7 +253,7 @@ class PPO():
         E_clip = torch.where(advantage > 0, torch.clamp(E, max=np.log(1.0+self.clip_param)), E_clip)
         E_clip = torch.where(advantage < 0, torch.clamp(E, min=np.log(1.0-self.clip_param), max=np.log(5) ), E_clip)
         ratio  = torch.exp(E_clip)
-        policy_loss = -(ratio*advantage).mean()
+        policy_loss = -(ratio*advantage*adv_beta).mean()
 
         # add all loses
         value_loss = 0.5 * F.mse_loss(real_value, newPi_value)

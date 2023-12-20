@@ -17,6 +17,9 @@ class TRAJ_BASE():
         self.need_reward_bootstrap = False
         self.deprecated_flag = False
 
+    def set_scalar(self, key, value):
+        setattr(self, key, value)
+
     # remember something in a time step, add it to trajectory
     def remember(self, key, content):
         assert not self.readonly_lock

@@ -29,7 +29,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         """
         UhmapEnv.reset(self)
         self.t = 0
-        pos_ro = np.random.rand()*2*np.pi * 0.1
+        pos_ro = np.random.rand()*2*np.pi * 0.25
         # spawn agents
         AgentSettingArray = []
 
@@ -378,7 +378,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             })
         else:
             agent_property.update({
-                    "FireRange":  1100       if agent_class == 'RLA_CAR_Laser' else 2100,
+                    "FireRange":  1200       if agent_class == 'RLA_CAR_Laser' else 2200,
             })
             
         return agent_property
