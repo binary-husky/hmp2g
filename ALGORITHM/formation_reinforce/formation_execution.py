@@ -53,8 +53,8 @@ class main_formation(object):
         V_Struct = self.init_vs(n_agent)
 
         # calculate delta_xy in virtual struture
-        target_vs_pos = V_Struct[f_id.astype(np.int)] 
-        self_vs_pos = V_Struct[id.astype(np.int)] 
+        target_vs_pos = V_Struct[f_id.astype(int)] 
+        self_vs_pos = V_Struct[id.astype(int)] 
         vs_Dpos = target_vs_pos-repeat_at(self_vs_pos, insert_dim=-2, n_times=target_vs_pos.shape[-2])
         # -1 index will point to wrong position, which must be fixed later
         
@@ -201,10 +201,10 @@ class main_formation(object):
         proj_r = (vel_r * vec).sum(-1)
         proj_l = (vel_l * vec).sum(-1)
 
-        _u = ((vec * e_u).sum(-1)>0).astype(np.int)
-        _d = ((vec * e_d).sum(-1)>0).astype(np.int)
-        _r = ((vec * e_r).sum(-1)>0).astype(np.int)
-        _l = ((vec * e_l).sum(-1)>0).astype(np.int)
+        _u = ((vec * e_u).sum(-1)>0).astype(int)
+        _d = ((vec * e_d).sum(-1)>0).astype(int)
+        _r = ((vec * e_r).sum(-1)>0).astype(int)
+        _l = ((vec * e_l).sum(-1)>0).astype(int)
 
         proj_u = proj_u + _u*2
         proj_d = proj_d + _d*2
@@ -219,7 +219,7 @@ class main_formation(object):
         action += np.where(direct == 2, 1, 0)   # 1 right
         action += np.where(direct == 3, 2, 0)   # 2 left
 
-        action = (dis2target>0.05).astype(np.int)*action
+        action = (dis2target>0.05).astype(int)*action
         # make sure that all nan vec become invalid act 0, 
         # be careful when a different numpy version is used
         assert (action[np.isnan(np.sum(dot_stack,0))] == 0).all()

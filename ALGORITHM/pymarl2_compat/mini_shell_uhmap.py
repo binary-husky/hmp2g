@@ -1,8 +1,8 @@
 import numpy as np
+import importlib
 from config import GlobalConfig
 from UTIL.colorful import *
-from UTIL.tensor_ops import my_view, __hash__, repeat_at, gather_righthand
-from MISSION.uhmap.actset_lookup import encode_action_as_digits
+from UTIL.tensor_ops import my_view, __hash__, repeat_at
 from .pymarl2_compat import AlgorithmConfig
 from ALGORITHM.common.norm import DynamicNormFix
 class ShellEnv(object):
@@ -22,11 +22,16 @@ class ShellEnv(object):
             self.state_size = self.n_entity * self.obssize
         else:
             assert False, 'compat method error'
-        self.action_converter = ActionConvertLegacy(
+
+        # init action converter
+        module_, class_ = AlgorithmConfig.action_converter.split('->')
+        init_f = getattr(importlib.import_module(module_), class_)
+        self.action_converter = init_f(
                 SELF_TEAM_ASSUME=team, 
                 OPP_TEAM_ASSUME=(1-team), 
                 OPP_NUM_ASSUME=GlobalConfig.ScenarioConfig.N_AGENT_EACH_TEAM[1-team]
         )
+
         self.rl_foundation.space = {
             'act_space':{
                 'n_actions': len(self.action_converter.dictionary_args),
@@ -88,75 +93,15 @@ class ShellEnv(object):
         R  = ~StateRecall['ENV-PAUSE']
         
         act_converted = np.array([
-            [ 
-                self.action_converter.convert_act_arr(self.agent_type[agentid], int(act)) 
+            [ self.action_converter.convert_act_arr(self.agent_type[agentid], int(act)) 
                     if not np.isnan(act) else 
                     self.action_converter.convert_act_arr(self.agent_type[agentid], 0) + np.nan
-                for agentid, act in enumerate(th) ] 
-            for th in ret_action_list])
+                    for agentid, act    in enumerate(th)    ] 
+                    for th              in ret_action_list  ])
         
         # act_converted[mask] = np.nan
-        act_converted = np.swapaxes(act_converted, 0, 1)
+        if GlobalConfig.mt_act_order != 'new_method':
+            act_converted = np.swapaxes(act_converted, 0, 1)
         return act_converted, team_intel
     
     
-    
-    
-class ActionConvertLegacy():
-    def __init__(self, SELF_TEAM_ASSUME, OPP_TEAM_ASSUME, OPP_NUM_ASSUME) -> None:
-        self.SELF_TEAM_ASSUME = SELF_TEAM_ASSUME
-        self.OPP_TEAM_ASSUME = OPP_TEAM_ASSUME
-        self.OPP_NUM_ASSUME = OPP_NUM_ASSUME
-        # (main_cmd, sub_cmd, x=None, y=None, z=None, UID=None, T=None, T_index=None)
-        self.dictionary_args = [
-            ('N/A',         'N/A',              None, None, None, None, None, None),   # 0
-            ('Idle',        'DynamicGuard',     None, None, None, None, None, None),   # 1
-            ('Idle',        'StaticAlert',      None, None, None, None, None, None),   # 2
-            ('Idle',        'AsFarAsPossible',              None, None, None, None, None, None),   # 4
-            ('Idle',        'StayWhenTargetInRange',        None, None, None, None, None, None),   # 5
-            ('SpecificMoving',      'Dir+X',    None, None, None, None, None, None),   # 7
-            ('SpecificMoving',      'Dir+Y',    None, None, None, None, None, None),   # 8
-            ('SpecificMoving',      'Dir-X',    None, None, None, None, None, None),   # 9
-            ('SpecificMoving',      'Dir-Y',    None, None, None, None, None, None),   # 10
-        ] 
-        for i in range(self.OPP_NUM_ASSUME):
-            self.dictionary_args.append( ('SpecificAttacking',   'N/A',      None, None, None, None, OPP_TEAM_ASSUME, i) )
-    
-    
-
-    def convert_act_arr(self, type, a):
-        if type == 'RLA_UAV_Support':
-            args = self.dictionary_args[a]
-            # override wrong actions
-            if args[0] == 'SpecificAttacking':
-                return encode_action_as_digits('N/A',         'N/A',              None, None, None, None, None, None)
-            # override incorrect actions
-            if args[0] == 'Idle':
-                return encode_action_as_digits('Idle',        'StaticAlert',      None, None, None, None, None, None)
-            return encode_action_as_digits(*args)
-        else:
-            return encode_action_as_digits(*self.dictionary_args[a])
-
-    def get_tp_avail_act(self, type):
-        DISABLE = 0
-        ENABLE = 1
-        n_act = len(self.dictionary_args)
-        ret = np.zeros(n_act) + ENABLE
-        for i in range(n_act):
-            args = self.dictionary_args[i]
-            
-            # for all kind of agents
-            if args[0] == 'PatrolMoving':       ret[i] = DISABLE
-            
-            if type == 'RLA_UAV_Support':
-                if args[0] == 'PatrolMoving':       ret[i] = DISABLE
-                if args[0] == 'SpecificAttacking':  ret[i] = DISABLE
-                if args[0] == 'Idle':               ret[i] = DISABLE
-                if args[1] == 'StaticAlert':        ret[i] = ENABLE
-        return ret
-    
-    def confirm_parameters_are_correct(self, team, agent_num, opp_agent_num):
-        assert team == self.SELF_TEAM_ASSUME
-        assert self.SELF_TEAM_ASSUME + self.OPP_TEAM_ASSUME == 1
-        assert self.SELF_TEAM_ASSUME + self.OPP_TEAM_ASSUME == 1
-        assert opp_agent_num == self.OPP_NUM_ASSUME

@@ -3,7 +3,7 @@ base = """
     "config.py->GlobalConfig": {
         "note": "Run1-Lr-Study",   // 实验存储路径
         "env_name": "dca_multiteam",  // 环境（任务名称）
-        "env_path": "MISSION.dca_multiteam", 
+        "env_path": "MISSION.dca_multiteam",
         "draw_mode": "Img",
         "num_threads": 32,    // 环境并行数量
         "report_reward_interval": 32,
@@ -21,7 +21,7 @@ base = """
             "MISSION/dca_multiteam"
         ]
     },
-    "MISSION.dca_multiteam.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca_multiteam.collective_assault_parallel_run.py->ScenarioConfig": {
         "N_TEAM": 2,
         "N_AGENT_EACH_TEAM": [20, 20],
         "introduce_terrain": true,
@@ -78,7 +78,7 @@ assert len(n_run_mode)==n_run
 sum_note = "test-stable"
 conf_override = {
 
-    "config.py->GlobalConfig-->seed":       
+    "config.py->GlobalConfig-->seed":
         [
             np.random.randint(0, 10000) for _ in range(n_run)
         ],
@@ -157,8 +157,8 @@ if __name__ == '__main__':
     # copy the experiments
     if not args.debug:
         shutil.copyfile(file, os.path.join(os.path.dirname(file), 'batch_experiment_backup.py'))
-        shutil.copyfile(file, os.path.join(os.path.dirname(file), 
-            f'private {time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())} batch_experiment_backup {sum_note}.py'))
+        shutil.copyfile(file, os.path.join(os.path.dirname(file),
+            f'private {time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())} batch_experiment_backup {sum_note}.py'))
     # run experiments remotely
     from UTIL.batch_exp import run_batch_exp
     print('Execute in server:', n_run_mode[0])

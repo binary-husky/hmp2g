@@ -220,7 +220,7 @@ def add_obs_container_subject(container_emb, subject_emb, div):
     subject_out_emb = np.concatenate((subject_emb, subject_belonging_info), -1)
     # for container, add add multi-hot embedding of its subjects
     container_multihot = np.concatenate(
-        [np.expand_dims((div == nth_container).astype(np.long), 1) 
+        [np.expand_dims((div == nth_container).astype(np.int64), 1) 
             for nth_container in range(n_container)],
         1,
     )
@@ -383,21 +383,22 @@ def _2cpu2numpy(x):
 
 def _2tensor(x):
     # if not cuda_cfg.init: cuda_cfg.read_cfg()
+    cuda_cfg_device = cuda_cfg.device if ',' not in cuda_cfg.device else 'cuda'
     if isinstance(x, torch.Tensor):
-        return x.to(cuda_cfg.device)
+        return x.to(cuda_cfg_device)
     elif isinstance(x, np.ndarray):
         if (not cuda_cfg.use_float64) and x.dtype == np.float64:
             x = x.astype(np.float32)
         if cuda_cfg.use_float64 and x.dtype == np.float32:
             x = x.astype(np.float64)
-        return torch.from_numpy(x).to(cuda_cfg.device)
+        return torch.from_numpy(x).to(cuda_cfg_device)
     elif isinstance(x, dict):
         y = {}
         for key in x:
             y[key] = _2tensor(x[key])
         return y
     elif isinstance(x, torch.nn.Module):
-        x.to(cuda_cfg.device)
+        x.to(cuda_cfg_device)
         return x
     else:
         return x
@@ -419,7 +420,7 @@ def pad_vec_array(arr_list, max_len):
 def one_hot_with_nan_np(tensr, num_classes):
     tensr = tensr.copy()
     tensr[np.isnan(tensr)] = num_classes
-    Res_1MoreCol = np_one_hot(tensr.astype(np.long), num_classes + 1)
+    Res_1MoreCol = np_one_hot(tensr.astype(np.int64), num_classes + 1)
     return Res_1MoreCol[..., :-1]
 
 
@@ -696,7 +697,7 @@ def gather_righthand(src, index, check=True):
     numpy version of 'gather_righthand'
 """
 def np_gather_righthand(src, index, check=True):
-    index = index.astype(np.long)
+    index = index.astype(np.int64)
     dim = lambda x: len(x.shape)
     i_dim = dim(index)
     s_dim = dim(src)
@@ -752,27 +753,23 @@ def scatter_righthand(scatter_into, src, index, check=True):
                     [0, 1],])
     distance_mat_between(A, B) == [ [ 1 1 1  ], [sqrt(5), 1, 1 ]] => shape = (2,3)
 """
+from scipy.spatial.distance import cdist
 def distance_mat_between(A, B):
-    n_subject_a = A.shape[-2]  # A (64, 3)
-    n_subject_b = B.shape[-2]  # B (28, 3)
-    A = np.repeat(np.expand_dims(A, -2), n_subject_b, axis=-2)  # =>(64, 28, 3)
-    B = np.repeat(np.expand_dims(B, -2), n_subject_a, axis=-2)  # =>(28, 64, 3)
-    B = np.swapaxes(B, -2, -3)  # =>(64, 28, 3)
-    dis = A - B  # =>(64, 100, 100, 2)
-    dis = np.linalg.norm(dis, axis=-1)
-    return dis
+    return cdist(A, B)
 
 
 """
     calculate distance matrix for a position vector array A, support 3d and 2d
 """
 def distance_matrix(A):
-    n_subject = A.shape[-2]  # is 2
-    A = np.repeat(np.expand_dims(A, -2), n_subject, axis=-2)  # =>(64, 100, 100, 2)
-    At = np.swapaxes(A, -2, -3)  # =>(64, 100, 100, 2)
-    dis = At - A  # =>(64, 100, 100, 2)
-    dis = np.linalg.norm(dis, axis=-1)
-    return dis
+    return cdist(A,A)
+
+
+"""
+    calculate distance matrix for a position vector array A, support 3d and 2d
+"""
+def distance_matrix_efficient(X):
+    return cdist(X,X)
 
 
 """

@@ -141,7 +141,7 @@ class ShellEnvWrapper(object):
             self.cold_start_warmup(StateRecall)
             
         # action init to: -1
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1
         
         # read and reshape observation
         obs = StateRecall['Latest-Obs']
@@ -170,7 +170,7 @@ class ShellEnvWrapper(object):
             EpRsn = np.random.rand(self.n_thread) < eprsn_yita
             StateRecall['_EpRsn_'] = EpRsn
             # heterogeneous agent identification
-            StateRecall['_hete_type_'] = repeat_at(self.hete_type, 0, self.n_thread)
+            StateRecall['_hete_type_'] = repeat_at(self.hete_type, 0, self.n_thread)    # type (thread, agent)
             # select static/frontier actor network
             StateRecall['_hete_pick_'], StateRecall['_gp_pick_'] = select_nets_for_shellenv(
                                         n_types=self.n_hete_types, 
@@ -214,7 +214,7 @@ class ShellEnvWrapper(object):
         act_converted = np.array([[ self.action_converter.convert_act_arr(self.agent_type[agentid], act) for agentid, act in enumerate(th) ] for th in act])
         
         # swap thread(batch) axis and agent axis
-        actions_list = np.swapaxes(act_converted, 0, 1)
+        actions_list = act_converted if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(act_converted, 0, 1)
 
         # register callback hook
         if not StateRecall['Test-Flag']:

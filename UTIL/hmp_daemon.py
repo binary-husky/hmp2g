@@ -92,7 +92,7 @@ def periodic_daemon_(cfg):
     report = {
         'type': 'hmp-client',
         'note': cfg.note,
-        'time': time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime()),
+        'time': time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()),
         'client_status': 'Running',
         'StartingTime': cfg.machine_info['StartDateTime'],
         'HostIP': cfg.machine_info['HostIP'],

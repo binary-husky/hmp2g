@@ -26,7 +26,7 @@ bin-release/
 # pytorch model
 *.pt
 core
-!MISSION/collective_assult/malib/core
+!MISSION/collective_assault/malib/core
 TODO
 __pycache__/
 ./build/
@@ -40,10 +40,6 @@ result
 # .vscode/
 forattack-train/
 full-cargo/
-<<<<<<< HEAD
-=======
-# T*/
->>>>>>> origin/master-mt
 checkpoint/
 
 PROFILE/
@@ -67,70 +63,77 @@ my_*.jsonc
 result.prof
 ignore
 bvrAI.log
-ZHECKPOINT/*
+RESULT/*
 
 THIRDPARTY/pymarl2/test
 
-!ZHECKPOINT/test-50+50
-ZHECKPOINT/test-50+50/*
-!ZHECKPOINT/test-50+50/model.pt
-!ZHECKPOINT/test-50+50/experiment.json
-!ZHECKPOINT/test-50+50/test-50+50.jsonc
-!ZHECKPOINT/test-50+50/test50.gif
+!RESULT/test-50+50
+RESULT/test-50+50/*
+!RESULT/test-50+50/model.pt
+!RESULT/test-50+50/experiment.json
+!RESULT/test-50+50/test-50+50.jsonc
+!RESULT/test-50+50/test50.gif
 
-!ZHECKPOINT/test-100+100
-ZHECKPOINT/test-100+100/*
-!ZHECKPOINT/test-100+100/model.pt
-!ZHECKPOINT/test-100+100/experiment.json
-!ZHECKPOINT/test-100+100/test-100+100.jsonc
+!RESULT/test-100+100
+RESULT/test-100+100/*
+!RESULT/test-100+100/model.pt
+!RESULT/test-100+100/experiment.json
+!RESULT/test-100+100/test-100+100.jsonc
 
-!ZHECKPOINT/50RL-55opp
-ZHECKPOINT/50RL-55opp/*
-!ZHECKPOINT/50RL-55opp/test-50RL-55opp.jsonc
-!ZHECKPOINT/50RL-55opp/model.pt
-ZHECKPOINT/50RL-55opp/experiment.json
+!RESULT/50RL-55opp
+RESULT/50RL-55opp/*
+!RESULT/50RL-55opp/test-50RL-55opp.jsonc
+!RESULT/50RL-55opp/model.pt
+RESULT/50RL-55opp/experiment.json
 
-!ZHECKPOINT/test-cargo50
-ZHECKPOINT/test-cargo50/*
-!ZHECKPOINT/test-cargo50/model.pt
-!ZHECKPOINT/test-cargo50/experiment.json
-!ZHECKPOINT/test-cargo50/test-cargo50.jsonc
-!ZHECKPOINT/test-cargo50/cargo50.jpg
+!RESULT/test-cargo50
+RESULT/test-cargo50/*
+!RESULT/test-cargo50/model.pt
+!RESULT/test-cargo50/experiment.json
+!RESULT/test-cargo50/test-cargo50.jsonc
+!RESULT/test-cargo50/cargo50.jpg
 
-!ZHECKPOINT/test-cargo50/history_cpt
-ZHECKPOINT/test-cargo50/history_cpt/*
-!ZHECKPOINT/test-cargo50/history_cpt/init.pkl
+!RESULT/test-cargo50/history_cpt
+RESULT/test-cargo50/history_cpt/*
+!RESULT/test-cargo50/history_cpt/init.pkl
 
-!ZHECKPOINT/test-50+50/butterfly.webp
+!RESULT/test-50+50/butterfly.webp
 
-!ZHECKPOINT/test-aii515
-ZHECKPOINT/test-aii515/*
-!ZHECKPOINT/test-aii515/model.pt
-!ZHECKPOINT/test-aii515/experiment.json
-!ZHECKPOINT/test-aii515/test-aii515.jsonc
-!ZHECKPOINT/test-aii515/aii.jpg
+!RESULT/test-aii515
+RESULT/test-aii515/*
+!RESULT/test-aii515/model.pt
+!RESULT/test-aii515/experiment.json
+!RESULT/test-aii515/test-aii515.jsonc
+!RESULT/test-aii515/aii.jpg
 
-!ZHECKPOINT/test-aii515/history_cpt
-ZHECKPOINT/test-aii515/history_cpt/*
-!ZHECKPOINT/test-aii515/history_cpt/init.pkl
+!RESULT/test-aii515/history_cpt
+RESULT/test-aii515/history_cpt/*
+!RESULT/test-aii515/history_cpt/init.pkl
 
-!ZHECKPOINT/basic-ma-40-demo
-ZHECKPOINT/basic-ma-40-demo/*
-!ZHECKPOINT/basic-ma-40-demo/trained_model.pt
-!ZHECKPOINT/basic-ma-40-demo/train.json
-!ZHECKPOINT/basic-ma-40-demo/test.json
+!RESULT/basic-ma-40-demo
+RESULT/basic-ma-40-demo/*
+!RESULT/basic-ma-40-demo/trained_model.pt
+!RESULT/basic-ma-40-demo/train.json
+!RESULT/basic-ma-40-demo/test.json
 
-!ZHECKPOINT/adca-demo
-ZHECKPOINT/adca-demo/*
-!ZHECKPOINT/adca-demo/model_trained.pt
-!ZHECKPOINT/adca-demo/train.json
-!ZHECKPOINT/adca-demo/test.json
+!RESULT/adca-demo
+RESULT/adca-demo/*
+!RESULT/adca-demo/model_trained.pt
+!RESULT/adca-demo/train.json
+!RESULT/adca-demo/test.json
 
-!ZHECKPOINT/uhmap_hete10vs10
-ZHECKPOINT/uhmap_hete10vs10/backup_files
-ZHECKPOINT/uhmap_hete10vs10/logger
-!ZHECKPOINT/uhmap_hete10vs10/model_trained.pt
-ZHECKPOINT/uhmap_hete10vs10/experiment.jsonc
+!RESULT/uhmap_hete10vs10
+RESULT/uhmap_hete10vs10/backup_files
+RESULT/uhmap_hete10vs10/logger
+!RESULT/uhmap_hete10vs10/model_trained.pt
+RESULT/uhmap_hete10vs10/experiment.jsonc
+
+!RESULT/adca-100+
+RESULT/adca-100+/backup_files
+RESULT/adca-100+/logger
+!RESULT/adca-100+/model_95wr.pt
+RESULT/adca-100+/experiment.jsonc
+
 
 !ZHECKPOINT/adca-100+
 ZHECKPOINT/adca-100+/backup_files
@@ -172,3 +175,8 @@ AUTORL
 AUTORL_BK
 THIRDPARTY/casmopolitan/Temp/
 .gitignore
+
+THIRDPARTY/pymarl2/pymarl2src
+batch_experiment*
+experiment*
+.vscode

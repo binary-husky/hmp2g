@@ -92,7 +92,7 @@ class World():
         self.contact_force = 1e+2
         self.contact_margin = 1e-10 # 1e-3
         ## wall positions
-        from .collective_assult_parallel_run import ScenarioConfig
+        from .collective_assault_parallel_run import ScenarioConfig
         self.s_cfg = ScenarioConfig
 
 

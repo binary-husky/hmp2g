@@ -30,7 +30,7 @@ class ShellEnvWrapper(object):
         self._division_obsL_init = None
 
     def interact_with_env(self, State_Recall):
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         # read internal coop graph info
         obs = State_Recall['Latest-Obs']
         n_thread = obs.shape[0]
@@ -117,10 +117,10 @@ class ShellEnvWrapper(object):
         proj_r = (vel_r * vec).sum(-1)
         proj_l = (vel_l * vec).sum(-1)
 
-        _u = ((vec * e_u).sum(-1)>0).astype(np.int)
-        _d = ((vec * e_d).sum(-1)>0).astype(np.int)
-        _r = ((vec * e_r).sum(-1)>0).astype(np.int)
-        _l = ((vec * e_l).sum(-1)>0).astype(np.int)
+        _u = ((vec * e_u).sum(-1)>0).astype(int)
+        _d = ((vec * e_d).sum(-1)>0).astype(int)
+        _r = ((vec * e_r).sum(-1)>0).astype(int)
+        _l = ((vec * e_l).sum(-1)>0).astype(int)
 
         proj_u = proj_u + _u*2
         proj_d = proj_d + _d*2
@@ -135,7 +135,7 @@ class ShellEnvWrapper(object):
         action += np.where(direct == 2, 1, 0)   # 1 right
         action += np.where(direct == 3, 2, 0)   # 2 left
 
-        action = (dis2target>0.05).astype(np.int)*action
+        action = (dis2target>0.05).astype(int)*action
         # make sure that all nan vec become invalid act 0, 
         # be careful when a different numpy version is used
         assert (action[np.isnan(np.sum(dot_stack,0))] == 0).all()

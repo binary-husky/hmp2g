@@ -4,14 +4,14 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/fuqingxu/hmp.svg?maxAge=2592000)](https://registry.hub.docker.com/r/fuqingxu/hmp)
 ## Introduction
 The Hybrid Multi-agent Playground (HMP) is an experimental framework designed for Reinforcement Learning (RL) researchers.
-Unlike any other framework which only isolates the TASKs from the framework, 
+Unlike any other framework which only isolates the TASKs from the framework,
 HMP also separates the ALGORITHMs from the framework to achieve excellent compatibility.
 
 Any algorithm, from the most straightforward script-AI to sophisticated RL learner,
 is abstracted into a module inside ./ALGORITHM/*.
 
 We also put effect to interface all kinds of multi-agent environments,
-including gym, SMAC, air combat, et.al. These can be found in 
+including gym, SMAC, air combat, et.al. These can be found in
 ./MISSION/*.
 
 Other frameworks, such as pymarl2, mappo, can interface with HMP as well.
@@ -23,16 +23,7 @@ runs pymarl2 in a subprocess. This work is ongoing. Currently, HMP can link to a
 
 Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/tree/aaai-conc```.
 
-## Contact us: 
-- Qingxu Fu, CASIA, fuqingxu2019@ia.ac.cn，QQ505030475
-- Shijie Wang, CASIA, wangshijie2020@ia.ac.cn
-- Min Chen, CASIA, chenmin2020@ia.ac.cn
-- Tianyi Hu, CASIA, hutianyi2021@ia.ac.cn
-- Yifan Xu, CASIA, xuyifan2021@ia.ac.cn
-- Organization：
-    - Institute of Automation, Chinese Academy of Sciences
-    - School of Artificial Intelligence, University of Chinese Academy of Sciences
-    - Yiteam Swarm Intelligent Research Group
+
 ## Content
 
 1. [Introduction](#introduction)
@@ -55,72 +46,82 @@ Archived code used in our AAAI papers: ```https://github.com/binary-husky/hmp2g/
 
 ## Demo
 This resp is frequently updating.
-
-If any unexpected problem is encountered, 
+```sh
+# to clone this resp
+git clone https://github.com/binary-husky/hmp2g.git
+```
+If any unexpected problem is encountered,
 please clean the temp files by running
  ```sh
+ # update code version
  git checkout master --force && git pull --force && git clean -xfd
+ ```
+ If you'd like to use pymarl2 algorithm, please download submodules first:
+ ```
+ # download submodules
+ git submodule update --init
+ git submodule foreach -q --recursive 'branch="$(git config -f $toplevel/.gitmodules submodule.$name.branch)"; git switch $branch'
  ```
 
 If the problem does not go away, do not hesitate to [contact us](#contact-us) or send an issue!
 
 ### 1. Unreal-Engine-Based Simulation
 <div align="center">
-<img src="ZDOCS/examples/uhmap/uhmp_demo.gif" width="300" >
+<img src="DOCS/examples/uhmap/uhmp_demo.gif" width="300" >
 </div>
 
 
 ``` sh
-git pull && python main.py -c ZHECKPOINT/uhmap_hete10vs10/render_result.jsonc
+git pull && python main.py -c RESULT/uhmap_hete10vs10/render_result.jsonc
 ```
 To visualize:
 - (Option 1) Run trained model on Windows, switch ```"render": false``` option to ```true```.
-- (Option 2) Link to a headless simulation remotely. Download Windows client [UHMP.exe](./ZDOCS/use_unreal_hmap.md), run it with ```./UHMP.exe -OpenLevel=Ip:Port``` (Port is random, see program terminal output).
+- (Option 2) Link to a headless simulation remotely. Download Windows client [UHMP.exe](./DOCS/use_unreal_hmap.md), run it with ```./UHMP.exe -OpenLevel=Ip:Port``` (Port is random, see program terminal output).
 
 
 Redirection to another MARL project: Building high efficient multiagent environment with Unreal Engine! Please refer to resp ```https://github.com/binary-husky/unreal-hmp```.
 
 
 
-### 2. DCA: Decentralized Collective Assult
+### 2. DCA: Decentralized Collective assault
 #### Web Demo of DCA (AAAI Paper Version)
 
 ```
 http://cloud.fuqingxu.top:11601/
 ```
 <div align="center">
-<img src="ZHECKPOINT/test-50+50/test50.gif" width="300" >
+<img src="RESULT/test-50+50/test50.gif" width="300" >
 </div>
 
 
 ```
-git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
-git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
+git pull && python main.py -c RESULT/test-50+50/test-50+50.jsonc --skip
+git pull && python main.py -c RESULT/test-100+100/test-100+100.jsonc --skip
 ```
 
 #### (Improved Version, more Difficult than AAAI Paper Version)
 
 ```
-git pull && python main.py -c ZHECKPOINT/50RL-55opp/test-50RL-55opp.jsonc
+git pull && python main.py -c RESULT/50RL-55opp/test-50RL-55opp.jsonc
 (Also see https://www.bilibili.com/video/BV1vF411M7N9/)
 ```
 
 ### 3. Anti-Invasion Interception
 <div align="center">
-<img src="ZHECKPOINT/test-aii515/aii.jpg" width="300" >
+<img src="RESULT/test-aii515/aii.jpg" width="300" >
 </div>
 
 ```
-git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip 
+git pull && python main.py -c RESULT/test-aii515/test-aii515.jsonc --skip
 ```
 
 ### 4. Hazardous Cargo Transport
 <div align="center">
-<img src="ZHECKPOINT/test-cargo50/cargo50.jpg" width="300" >
+<img src="RESULT/test-cargo50/cargo50.jpg" width="300" >
 </div>
 
 ```
-git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
+git pull && python main.py -c RESULT/test-cargo50/test-cargo50.jsonc --skip
 ```
 
 
@@ -135,7 +136,7 @@ git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
 </div>
 
 ### 2. HMP's Config System (How to experiment)
-HMP aims to optimize the parameter control experience as a framework for researchers. 
+HMP aims to optimize the parameter control experience as a framework for researchers.
 One configuration file is all that is needed for the config insertion.
 
 <div align="center">
@@ -150,20 +151,20 @@ python main.py --cfg Json_Experiment_Config_File.jsonc
 ### <2> How to Add and Override A Parameter:
 Parameters assigned and overridden in the JSON file are NOT passed via init functions layer by layer as other frameworks usually do; instead, at the start of the ```main.py```, a special program defined in ```UTIL/config_args.py``` will directly INJECT the overridden parameters to the desired location.
 
-We give an example to demonstrate how simple it is to add new parameters. 
+We give an example to demonstrate how simple it is to add new parameters.
 Suppose we want to introduce HP into DCA, then an initial HP, let say ```HP_MAX``` need to be defined as a parameter.
 Then:
-- Open ```MISSION/collective_assult/collective_assult_parallel_run.py```. (You can create new file if you wish so.)
+- Open ```MISSION/collective_assault/collective_assault_parallel_run.py```. (You can create new file if you wish so.)
 - (Step1, Define It !) In ```ScenarioConfig``` class add a new line writing ```HP_MAX=100```. (You can create another class if you wish so.)
-- (Step2, Use It !) Anywhere you want to use the ```HP_MAX```, first ```from xxx.collective_assult_parallel_run import ScenarioConfig```,
+- (Step2, Use It !) Anywhere you want to use the ```HP_MAX```, first ```from xxx.collective_assault_parallel_run import ScenarioConfig```,
 then use the parameter by ```init_hp_of_some_agent = ScenarioConfig.HP_MAX```.
-- (Step3, Change It !) To override the default value ```HP_MAX=100``` in JSON (e.g., in ```./example_dca.jsonc```), 
-you just need to add a line in the field ```"MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig"```,
+- (Step3, Change It !) To override the default value ```HP_MAX=100``` in JSON (e.g., in ```./example_dca.jsonc```),
+you just need to add a line in the field ```"MISSION.dca.collective_assault_parallel_run.py->ScenarioConfig"```,
 for example:
 ```Jsonc
 {
     ...... (other field)
-    "MISSION.dca.collective_assult_parallel_run.py->ScenarioConfig": {
+    "MISSION.dca.collective_assault_parallel_run.py->ScenarioConfig": {
         "HP_MAX": 222,  # <------ add this!
         "random_jam_prob": 0.05,    # (other config override in ScenarioConfig)
         ......
@@ -176,11 +177,11 @@ for example:
 - All Done! Say bye-bye to annoying args passing and kwargs passing!
 
 ### <3> How to Deal with Parameter Dependency:
-Our framework can fully support complicated parameter dependency. 
-Some parameters are sometimes just Chained together. 
-Changing one of them can lead to the change of another. 
-E.g., Let the number of parallel envs (```num_threads```) be 32, 
-and we test the performance of every ```test_interval``` episode. We wish to have relate them with ```test_interval``` = 8*```num_threads```, 
+Our framework can fully support complicated parameter dependency.
+Some parameters are sometimes just Chained together.
+Changing one of them can lead to the change of another.
+E.g., Let the number of parallel envs (```num_threads```) be 32,
+and we test the performance of every ```test_interval``` episode. We wish to have relate them with ```test_interval``` = 8*```num_threads```,
 meaning that a test run is shot every 8 rounds of parallel env executions.
 This function can be satisfied by defining a Chained var structure:
 ``` python
@@ -197,11 +198,11 @@ After this, you can expect the following override (JSON config override) behavio
 - Changing only ```test_interval``` in JSON, the Chain will not work, obey JSON override, nothing has higher priority than an explicit JSON override.
 - Changing both JSON, the Chain will not work, both obey JSON override, and nothing has higher priority than an explicit JSON override.
 
-For details, please refer to ```config.py``` and ```UTIL/config_args.py```, 
+For details, please refer to ```config.py``` and ```UTIL/config_args.py```,
 it is straightforward to understand once you read an example of this.
 
 ### <4> How to Recover Configuration's Auto Backup:
-When the experiment starts, the Json config override will be stored in ```ZHECKPOINT/the-experiment-note-you-defined/experiment.json```.
+When the experiment starts, the Json config override will be stored in ```RESULT/the-experiment-note-you-defined/experiment.json```.
 If the experiment later produces surprising results,
 you can consistently reproduce it again using this config backup.
 
@@ -211,9 +212,9 @@ Task Runner (```task_runner.py```) only has three lines of important code:
 ``` python
 # line 1
 actions_list, self.info_runner = self.platform_controller.act(self.info_runner)
-# line 2: 
+# line 2:
 obs, reward, done, info = self.envs.step(actions_list)
-# line 3: 
+# line 3:
 self.info_runner = self.update_runner(done, obs, reward, info)
 ```
 
@@ -227,22 +228,22 @@ self.info_runner = self.update_runner(done, obs, reward, info)
 ### 4. The Time Sequence of HMP
 In general, the HMP task runner can operate two ways:
 - (Deprecated due) self.align_episode = False: threads immediately restart at terminal state, threads do not wait for each other
-- self.align_episode = True: threads pause at terminal state, waiting until all threads terminate, then reset. Please refer to [Hmp Time Sequence](./VISUALIZE/md_imgs/hmp2g_timeline.svg). 
+- self.align_episode = True: threads pause at terminal state, waiting until all threads terminate, then reset. Please refer to [Hmp Time Sequence](./VISUALIZE/md_imgs/hmp2g_timeline.svg).
 <div align="center">
 <img src="VISUALIZE/md_imgs/timeline.jpg" width="700" >
 </div>
 
 
 ## VHMAP, Visualization of HMP
-[VHMAP](./VISUALIZE/README.md) is a visualization component of HMP. 
+[VHMAP](./VISUALIZE/README.md) is a visualization component of HMP.
 
 
 
-It is unfortunate that 
+It is unfortunate that
 all existing RL environments fail to provide a visual
 interface satisfying the following useful features:
 
-- Allowing visualizing while training without slowing down the training server. 
+- Allowing visualizing while training without slowing down the training server.
 - Using as few resources as possible.
 - Friendly to SSH users, faster than RDP and X server, which is notoriously slow.
 - No dependency, even an Android with a browser can access it.
@@ -281,27 +282,27 @@ More details of VHMAP can be found in [VHMAP README](./VISUALIZE/README.md).
 
 
 ##  Dependency
-We use docker to solve dependency: [SetupDocker](./ZDOCS/setup_docker.md).
+We use docker to solve dependency: [SetupDocker](./DOCS/setup_docker.md).
 
-Please do not run on WindowsOS (low efficiency), 
-but if you have to, 
-also refer to the last part of [SetupDocker](./ZDOCS/setup_docker.md) for pip requirements list. 
+Please do not run on WindowsOS (low efficiency),
+but if you have to,
+also refer to the last part of [SetupDocker](./DOCS/setup_docker.md) for pip requirements list.
 
 
 
 ## Quick Start
 
 ### 1. Dependency
-We use docker to solve dependency: 
-[SetupDocker](./ZDOCS/setup_docker.md). 
-This project uses techniques such as shared memory for extreme training efficiency, 
-as a cost, 
+We use docker to solve dependency:
+[SetupDocker](./DOCS/setup_docker.md).
+This project uses techniques such as shared memory for extreme training efficiency,
+as a cost,
 WindowsOS+GPU training is not well supported (using pipe IO for Windows compat).
 
-For Windows (Not recommended, please do NOT run under Windows if possible), 
-also refer to the last part of [SetupDocker](./ZDOCS/setup_docker.md) for pip requirements list. 
+For Windows (Not recommended, please do NOT run under Windows if possible),
+also refer to the last part of [SetupDocker](./DOCS/setup_docker.md) for pip requirements list.
 
-Please read [setup_docker.md](./ZDOCS/setup_docker.md) first, and then set up the container using:
+Please read [setup_docker.md](./DOCS/setup_docker.md) first, and then set up the container using:
 ```bash
 $ docker run -itd   --name  hmp-$USER \
 --net host \
@@ -318,8 +319,8 @@ $ cd ~   # (go to home directory)
 ### 2. AAAI 2022
 ### 2.1. All Default: Testing
 ```
-git pull && python main.py -c ZHECKPOINT/test-50+50/test-50+50.jsonc --skip
-git pull && python main.py -c ZHECKPOINT/test-100+100/test-100+100.jsonc --skip
+git pull && python main.py -c RESULT/test-50+50/test-50+50.jsonc --skip
+git pull && python main.py -c RESULT/test-100+100/test-100+100.jsonc --skip
 ```
 When the testing starts, open the revealed URL for ```monitoring```. The front end is done by JavaScript and ThreeJS.
 ```
@@ -331,30 +332,30 @@ JS visualizer online (localhost): http://localhost:aRandomPort
 ### 2.2. All Default: Training
 
 ```
-git pull && python main.py -c ZDOCS/examples/dca/example_dca.jsonc
-git pull && python main.py -c ZDOCS/examples/dca/train_old_dca.jsonc
+git pull && python main.py -c DOCS/examples/dca/example_dca.jsonc
+git pull && python main.py -c DOCS/examples/dca/train_old_dca.jsonc
 ```
 
 
 ### 2.3. Change Settings
 
-Launch with: 
+Launch with:
 ```
 python main.py --cfg xx.json
 ```
 
 ### 3. IJCNN 2022
-### 
+###
 ```
-git pull && python main.py -c ZHECKPOINT/test-aii515/test-aii515.jsonc --skip 
-git pull && python main.py -c ZHECKPOINT/test-cargo50/test-cargo50.jsonc --skip
+git pull && python main.py -c RESULT/test-aii515/test-aii515.jsonc --skip
+git pull && python main.py -c RESULT/test-cargo50/test-cargo50.jsonc --skip
 ```
 
 ### 4. Others
 
 ```
-git pull && python main.py --cfg ZHECKPOINT/adca-demo/test.json
-git pull && python main.py --cfg ZHECKPOINT/basic-ma-40-demo/test.json
+git pull && python main.py --cfg RESULT/adca-demo/test.json
+git pull && python main.py --cfg RESULT/basic-ma-40-demo/test.json
 ```
 
 
@@ -366,23 +367,23 @@ Please refer to [MISSION README](./MISSION/readme.md) for more details.
 
 - Make a new jsonc config file, using 'example.jsonc' as a template
 - mkdir in MISSION, e.g. ./MISSION/bvr_sim, copy src code of the environment inside it.
-- Open ```MISSION/env_router.py```, add the path of environment's init function in ```env_init_function_ref```, 
+- Open ```MISSION/env_router.py```, add the path of environment's init function in ```env_init_function_ref```,
 for example:
 ``` python
 env_init_function_ref = {
     "bvr": ("MISSION.bvr_sim.init_env", "make_bvr_env"),
-}   
-# bvr is the final name that HMP recognizes, 
-# MISSION.bvr_sim.init_env is a py file, 
+}
+# bvr is the final name that HMP recognizes,
+# MISSION.bvr_sim.init_env is a py file,
 # ScenarioConfig is a class
 ```
 - Open ```MISSION/env_router.py```, add the path of environment's configuration in ```import_path_ref```
 ``` python
 import_path_ref = {
     "bvr": ("MISSION.bvr_sim.init_env", 'ScenarioConfig'),
-}   
-# bvr will be the final name that HMP recognizes, 
-# MISSION.bvr_sim.init_env is a py file, 
+}
+# bvr will be the final name that HMP recognizes,
+# MISSION.bvr_sim.init_env is a py file,
 # make_bvr_env is a function
 ```
 - Write your own ScenarioConfig. (refer to ```MISSION.bvr_sim.init_env.ScenarioConfig```, as a template).
@@ -391,8 +392,8 @@ import_path_ref = {
 ## Execution Pool
 We designed a parallel execution pool based on shared memory,
 the most efficient inter-process communication method possible.
-This parallel pool is only functional on Linux, 
-therefore, 
+This parallel pool is only functional on Linux,
+therefore,
 when running on Windows,
 we will automatically switch to a backup pool using the pipe.
 
@@ -405,7 +406,7 @@ smart_pool = SmartPool(...)
 ```
 
 Furthermore, the pickle and the reverse-pickle process is slow for large NumPy arrays,
-we solve this problem by copying raw NumPy memory directly to the shared memory area without pickle 
+we solve this problem by copying raw NumPy memory directly to the shared memory area without pickle
 and significantly improve the data transfer efficiency.
 
 When dealing with a large number of parallel environments (100+),
@@ -452,56 +453,22 @@ If you are interested in something, you may continue to read:
 ## Other READMEs
 This resp is frequently updating.
 
-For more information on how to use HMP, please check out the README list below, most of other READMEs are located in ./ZDOCS/*.
+For more information on how to use HMP, please check out the README list below, most of other READMEs are located in ./DOCS/*.
 
 How to change environments(missions): [MISSION README](./MISSION/readme.md)
 
-How to solve dependency with Docker: [SetupDocker](./ZDOCS/setup_docker.md) 
+How to solve dependency with Docker: [SetupDocker](./DOCS/setup_docker.md)
 
-How to solve dependency without Docker: [SetupNODocker](./ZDOCS/setup_no_docker.md) 
+How to solve dependency without Docker: [SetupNODocker](./DOCS/setup_no_docker.md)
 
-How to get Docker with unreal engine: [SetupUEDocker](./ZDOCS/setup_ue_docker.md)
+How to get Docker with unreal engine: [SetupUEDocker](./DOCS/setup_ue_docker.md)
 
-How to use third-party framework(pymarl2): [UsePymarl2 ](./ZDOCS/use_pymarl2.md)
+How to use third-party framework(pymarl2): [UsePymarl2 ](./DOCS/use_pymarl2.md)
 
-How to use Unreal-Engine-Based HMP: [UseUHMP](./ZDOCS/use_unreal_hmap.md)
-
-
-##  Papers Supported by HMP
-
-```
-@article{fu2022concentration,
-    title        = {Concentration Network for Reinforcement Learning of Large-Scale Multi-Agent Systems},
-    author       = {Fu, Qingxu and Qiu, Tenghai and Yi, Jianqiang and Pu, Zhiqiang and Wu, Shiguang},
-    year         = 2022,
-    month        = {Jun.},
-    journal      = {Proceedings of the AAAI Conference on Artificial Intelligence},
-    volume       = 36,
-    number       = 9,
-    pages        = {9341--9349},
-    doi          = {10.1609/aaai.v36i9.21165},
-    url          = {https://ojs.aaai.org/index.php/AAAI/article/view/21165}
-}
+How to use Unreal-Engine-Based HMP: [UseUHMP](./DOCS/use_unreal_hmap.md)
 
 
-@inproceedings{fu2022cooperation,
-    title        = {A Cooperation Graph Approach for Multiagent Sparse Reward Reinforcement Learning},
-    author       = {Fu, Qingxu and Qiu, Tenghai and Pu, Zhiqiang and Yi, Jianqiang and Yuan, Wanmai},
-    year         = 2022,
-    booktitle    = {2022 International Joint Conference on Neural Networks (IJCNN)},
-    pages        = {1--8},
-    doi          = {10.1109/IJCNN55064.2022.9891991}
-}
 
-@article{fu2022solving,
-    title        = {Solving the Diffusion of Responsibility Problem in Multiagent Reinforcement Learning with a Policy Resonance Approach},
-    author       = {Fu, Qingxu and Qiu, Tenghai and Yi, Jianqiang and Pu, Zhiqiang and Ai, Xiaolin and Yuan, Wanmai},
-    year         = 2022,
-    journal      = {arXiv preprint arXiv:2208.07753}
-}
-
-
-```
 
 
 

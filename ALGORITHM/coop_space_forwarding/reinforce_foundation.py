@@ -1,8 +1,8 @@
 import os, torch, copy, pickle
 import numpy as np
-try: 
+try:
     from numba import njit, jit
-except: 
+except:
     from UTIL.tensor_ops import dummy_decorator as jit
     from UTIL.tensor_ops import dummy_decorator as njit
 from UTIL.colorful import *
@@ -17,7 +17,7 @@ class CoopAlgConfig(object):
     g_num = 5
     max_internal_step = 1
     decision_interval = 5
-    head_start_cnt = 1 # first 3 step have 
+    head_start_cnt = 1 # first 3 step have
     head_start_hold_n = 1 # how many to control at first few step
 
     eval_mode = False
@@ -28,7 +28,7 @@ class CoopAlgConfig(object):
     one_more_container = False
     reverse_container = False
     use_fixed_random_start = True
-    use_zero_start = False 
+    use_zero_start = False
     use_empty_container = False
     use_complete_random = False
 
@@ -42,7 +42,7 @@ class CoopAlgConfig(object):
     clip_param = 0.2
     lr = 1e-4
     balance = 0.5
-    
+
     gamma = 0.99
     tau = 0.95
     # ?
@@ -75,7 +75,7 @@ class ReinforceAlgorithmFoundation():
             self.可视化桥 = mcom(path='TEMP/v2d_logger/', draw_mode='Threejs')
             self.可视化桥.初始化3D()
             self.可视化桥.设置样式('gray')
-            self.可视化桥.其他几何体之旋转缩放和平移('box', 'BoxGeometry(1,1,1)',   0,0,0,  1,1,1, 0,0,0) 
+            self.可视化桥.其他几何体之旋转缩放和平移('box', 'BoxGeometry(1,1,1)',   0,0,0,  1,1,1, 0,0,0)
 
         self.n_basic_dim = ScenarioConfig.obs_vec_length
         self.n_entity = ScenarioConfig.num_entity
@@ -133,12 +133,12 @@ class ReinforceAlgorithmFoundation():
 
     def get_internal_step(self, n_step):
 
-        n_internal_step = [np.ceil(self.max_internal_step) if x<self.head_start_cnt 
-                                else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]  
-        n_internal_step = np.array(n_internal_step, dtype=np.int)
+        n_internal_step = [np.ceil(self.max_internal_step) if x<self.head_start_cnt
+                                else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]
+        n_internal_step = np.array(n_internal_step, dtype=int)
 
-        hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]      
-        hold_n = np.array(hold_n, dtype=np.int)
+        hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]
+        hold_n = np.array(hold_n, dtype=int)
 
         return n_internal_step, hold_n
 
@@ -152,8 +152,8 @@ class ReinforceAlgorithmFoundation():
         else:
             from .coopgraph import CoopGraph
             self.coopgraph = CoopGraph(
-                self.n_agent, self.n_thread, 
-                n_entity = self.n_entity, 
+                self.n_agent, self.n_thread,
+                n_entity = self.n_entity,
                 load_checkpoint = self.load_checkpoint,
                 ObsAsUnity = self.ObsAsUnity,
                 agent_uid = self.agent_uid,
@@ -164,7 +164,7 @@ class ReinforceAlgorithmFoundation():
                 logdir = self.logdir,
                 n_basic_dim = self.n_basic_dim,
                 )
-            
+
         self.coopgraph.reset_terminated_threads(just_got_reset=State_Recall['Env-Suffered-Reset'])
 
         raw_obs = copy_clone(State_Recall['Latest-Obs'])
@@ -188,7 +188,7 @@ class ReinforceAlgorithmFoundation():
         # self.synWorker.sychronize_experiment(key='cter_fifoR',data=self.coopgraph._SubFifo_R_)
         if CoopAlgConfig.render_graph:
             self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
-        
+
         for _ in range(iter_n):
             LIVE = active_env & (thread_internal_step > 0)
             if not LIVE.any(): continue
@@ -205,15 +205,15 @@ class ReinforceAlgorithmFoundation():
                             'value_R':              Active_value_top,               'value_L':              Active_value_bottom,
                             'g_actionLogProbs_R':   Active_action_log_prob_R,       'g_actionLogProbs_L':   Active_action_log_prob_L,
                             'g_obs':                Active_emb,                     'g_actions':            Active_action,
-                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.long),
-                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.long),
+                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.int64),
+                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.int64),
                             'reward':               np.array([0.0 for _ in range(self.n_thread)])}
             # _______Internal_Environment_Step________
             self.coopgraph.adjust_edge(Active_action, mask=LIVE, hold=hold_n_o)
 
             if CoopAlgConfig.render_graph:
                 self.coopgraph.render_thread0_graph(可视化桥=self.可视化桥, step=State_Recall['Current-Obs-Step'][0], internal_step=thread_internal_step[0])
-            
+
             if not test_mode: self.batch_traj_manager.feed_traj(traj_frag, require_hook=False)
             thread_internal_step = thread_internal_step - 1
 
@@ -259,7 +259,7 @@ class ReinforceAlgorithmFoundation():
             final_sel_pos = entity_pos
         else:   # 为没有装入任何entity的container解析一个nan动作
             final_sel_pos = np.concatenate( (entity_pos,  np.zeros(shape=(self.n_thread, 1, 3))+np.nan ) , axis=1)
-            
+
         sel_entity_pos  = np.take_along_axis(final_sel_pos, axis=1, indices=link_indices)  # 6 in final_indices /cluster_entity_div
         sel_target_vel  = np.take_along_axis(target_vel, axis=1, indices=link_indices)  # 6 in final_indices /cluster_entity_div
         delta_pos = sel_entity_pos - agent_pos
@@ -289,7 +289,7 @@ class ReinforceAlgorithmFoundation():
 
     # debugging functions
     def __check_data_hash(self):
-        if self.patience > 0: 
+        if self.patience > 0:
             self.hash_debug = {}
             # for debugging, to detect write protection error
             for key in self.__incomplete_frag__:
@@ -303,7 +303,7 @@ class ReinforceAlgorithmFoundation():
                     self.hash_debug[key] = __hash__(item)
 
     def __check_data_curruption(self):
-        if self.patience > 0: 
+        if self.patience > 0:
             assert self.__incomplete_frag__ is not None
             assert self.hash_debug is not None
             for key in self.__incomplete_frag__:
@@ -329,5 +329,5 @@ class ReinforceAlgorithmFoundation():
         self.batch_traj_manager.feed_traj(__completed_frag, require_hook=False)
         self.__incomplete_frag__ = None
 
-    def __dummy_hook(self, f2): 
+    def __dummy_hook(self, f2):
         return

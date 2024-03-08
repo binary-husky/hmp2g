@@ -46,7 +46,7 @@ class DummyAlgorithmBase():
         actions[ENV_PAUSE] = np.nan
         
         # swap (self.n_thread, self.n_agent) -> (self.n_agent, self.n_thread) 
-        actions = np.swapaxes(actions, 0, 1)
+        actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
         return actions, {}
 
 
@@ -262,7 +262,7 @@ class DummyAlgorithmIdle(DummyAlgorithmBase):
         # set actions of in-active threads to NaN (will be done again in multi_team.py, this line is not necessary)
         actions[ENV_PAUSE] = np.nan
         # swap (self.n_thread, self.n_agent) -> (self.n_agent, self.n_thread) 
-        actions = np.swapaxes(actions, 0, 1)
+        actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
         return actions, {}
 
     def DeltaLocation2Angle(self, delta_x, delta_y):

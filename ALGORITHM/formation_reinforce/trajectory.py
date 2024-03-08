@@ -71,9 +71,9 @@ class trajectory(TRAJ_BASE):
         for i in reversed(range(self.time_pointer)):
             # threat[:(i+1)] 不包含threat[(i+1)]
             if i+1 < self.time_pointer:
-                threat[:(i+1)] += (~(dead_mask[i+1]&dead_mask[i])).astype(np.int)
+                threat[:(i+1)] += (~(dead_mask[i+1]&dead_mask[i])).astype(int)
             elif i+1 == self.time_pointer:
-                threat[:] += (~dead_mask[i]).astype(np.int)
+                threat[:] += (~dead_mask[i]).astype(int)
 
         filter = None
         s_time = threat[0] + 1

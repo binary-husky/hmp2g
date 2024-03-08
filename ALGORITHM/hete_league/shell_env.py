@@ -139,7 +139,7 @@ class ShellEnvWrapper(object):
                 self.avail_act = np.stack(tuple(ActionConvertLegacy.get_tp_avail_act(tp) for tp in self.agent_type))
                 self.avail_act = repeat_at(self.avail_act, insert_dim=0, n_times=self.n_thread)
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         
         # read internal coop graph info
         obs = StateRecall['Latest-Obs']
@@ -204,7 +204,7 @@ class ShellEnvWrapper(object):
         # translate action into ue4 tuple action
         act_converted = np.array([[ ActionConvertLegacy.convert_act_arr(self.agent_type[agentid], act) for agentid, act in enumerate(th) ] for th in act])
         # swap thread(batch) axis and agent axis
-        actions_list = np.swapaxes(act_converted, 0, 1)
+        actions_list = act_converted if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(act_converted, 0, 1)
 
 
         if not StateRecall['Test-Flag']:

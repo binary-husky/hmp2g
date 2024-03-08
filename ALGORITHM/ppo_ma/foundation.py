@@ -17,7 +17,6 @@ class AlgorithmConfig:
     TakeRewardAsUnity = False
     use_normalization = True
     add_prob_loss = False
-    n_entity_placeholder = 10
     load_checkpoint = False
     load_specific_checkpoint = ''
 
@@ -49,14 +48,11 @@ class AlgorithmConfig:
 
     ConfigOnTheFly = True
 
-
-    
-
     policy_resonance = False
 
     use_avail_act = True
+    ignore_test = True
     
-    debug = False
     
 def str_array_to_num(str_arr):
     out_arr = []
@@ -139,7 +135,7 @@ class ReinforceAlgorithmFoundation(RLAlgorithmBase):
         # make decision
         with torch.no_grad():
             action, value, action_log_prob = self.policy.act(obs=obs,
-                                                             test_mode=test_mode,
+                                                             test_mode=(test_mode and not AlgorithmConfig.ignore_test),
                                                              avail_act=avail_act,
                                                              eprsn=eprsn,
                                                              )

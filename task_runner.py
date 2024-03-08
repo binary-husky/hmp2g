@@ -1,7 +1,7 @@
 """
     Author: Fu Qingxu,CASIA
     Description: HMP task runner, coordinates environments and algorithms
-    Notes before you read code: 
+    Notes before you read code:
     In general, HMP task runner can operate two ways:
         self.align_episode = False: threads immediately restart at terminal state, threads do not wait each other
         self.align_episode = True: threads pause at terminal state, waiting until all threads terminate, then reset
@@ -25,7 +25,7 @@ class Runner(object):
         self.n_agent  =  sum(cfg.ScenarioConfig.N_AGENT_EACH_TEAM)
         self.n_team  =   len(cfg.ScenarioConfig.N_AGENT_EACH_TEAM)
         # please specify: env gives reward of each team instead of agent ?
-        self.RewardAsUnity = False  
+        self.RewardAsUnity = False
         if hasattr(cfg.ScenarioConfig, 'RewardAsUnity'):
             self.RewardAsUnity = cfg.ScenarioConfig.RewardAsUnity
         # let test env sleep (when not used) to save memory ?
@@ -45,7 +45,7 @@ class Runner(object):
         self.test_only = cfg.test_only
         self.align_episode = cfg.align_episode
         self._exit_early_ = False
-        self._init_interested_agent_logging() 
+        self._init_interested_agent_logging()
 
     # -------------------------------------------------------------------------
     # ------------------------------ Major Loop -------------------------------
@@ -63,7 +63,7 @@ class Runner(object):
             # line 2: multi-thread environment step (LINK to MISSION)
             # (When thread align is needed, NaN actions will be used to make envs freeze for a step)
             obs, reward, done, info = self.envs.step(actions_list)
-            # line 3: prepare obs and reward for next round 
+            # line 3: prepare obs and reward for next round
             # (If required, a test run will be started at proper time)
             self.info_runner = self.update_runner(done, obs, reward, info)
             toc=time.time(); dt = toc-tic; tic = toc
@@ -86,10 +86,7 @@ class Runner(object):
         self.info_runner['Latest-Reward']      = np.zeros(shape=(self.n_thread, self.n_agent))
         self.info_runner['Latest-Reward-Sum']  = np.zeros(shape=(self.n_thread, self.n_agent))
         self.info_runner['Thread-Episode-Cnt'] = np.array([0 for _ in range(self.n_thread)])
-        self.info_runner['t0_win_cnt_avg'] = []
-        self.info_runner['t1_win_cnt_avg'] = []
-        self.info_runner['t2_win_cnt_avg'] = []
-        self.info_runner['td_win_cnt_avg'] = []
+        for i in range(self.n_team): self.info_runner[f't{i}_win_cnt_avg'] = []
         if self.RewardAsUnity:
             self.info_runner['Latest-Reward']  = np.zeros(shape=(self.n_thread, self.n_team))
             self.info_runner['Latest-Reward-Sum'] = np.zeros(shape=(self.n_thread, self.n_team))
@@ -117,7 +114,7 @@ class Runner(object):
             # update win/lose (single-team), or team ranking (multi-team)
             win = 1 if 'win' in term_info and term_info['win']==True else 0
             self.info_runner['Recent-Win'].append(win)
-            if 'team_ranking' in term_info: 
+            if 'team_ranking' in term_info:
                 self.info_runner['Recent-Team-Ranking'].append(term_info['team_ranking'].copy())
             self.info_runner['Latest-Reward-Sum'][i] = 0
             self.info_runner['Current-Obs-Step'][i] = 0
@@ -125,13 +122,13 @@ class Runner(object):
             # hault finished threads to wait unfinished ones
             if self.align_episode: self.info_runner['ENV-PAUSE'][i] = True
             # monitoring agents/team of interest
-            if self.current_n_episode % self.report_interval == 0: 
+            if self.current_n_episode % self.report_interval == 0:
                 self._checkout_interested_agents(self.info_runner)  # monitor rewards for some specific agents
                 self.info_runner['Recent-Reward-Sum'] = []
                 self.info_runner['Recent-Win'] = []
                 self.info_runner['Recent-Team-Ranking'] = []
             # begin a testing session?
-            if self.train_time_testing and (not self.test_only) and (self.current_n_episode % self.test_interval == 0): 
+            if self.train_time_testing and (not self.test_only) and (self.current_n_episode % self.test_interval == 0):
                 self.platform_controller.before_terminate(self.info_runner)
                 self.start_a_test_run()
         # all threads haulted, finished and Aligned, then restart all thread
@@ -213,7 +210,7 @@ class Runner(object):
                 term_info = self.test_info_runner['Latest-Team-Info'][i]
                 win = 1 if 'win' in term_info and term_info['win']==True else 0
                 self.test_info_runner['Recent-Win'].append(win)
-                if 'team_ranking' in term_info: 
+                if 'team_ranking' in term_info:
                     self.test_info_runner['Recent-Team-Ranking'].append(term_info['team_ranking'].copy())
                 if self.align_episode: self.test_info_runner['ENV-PAUSE'][i] = True
             if self.align_episode and self.test_info_runner['ENV-PAUSE'].all(): self.test_info_runner['ENV-PAUSE'][:] = False
@@ -249,7 +246,7 @@ class Runner(object):
             self.mcv.rec(mean_reward_each_team[team], f'{prefix}reward of=team-{team}')
 
         # (2).reflesh historical top reward
-        if not testing: 
+        if not testing:
             if self.top_rewards is None: self.top_rewards = mean_reward_each_team
             top_rewards_list_pointer = self.top_rewards
         else:
@@ -277,35 +274,40 @@ class Runner(object):
             self.mcv.rec(win_rate, f'{prefix}win rate of=team-{team}')
 
         if not testing:
-            self.info_runner['t0_win_cnt_avg'].append(win_rate_each_team[0])
-            self.info_runner['t1_win_cnt_avg'].append(win_rate_each_team[1])
-            if self.n_team == 3: 
-                self.info_runner['t2_win_cnt_avg'].append(win_rate_each_team[2])
-                self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[2]-win_rate_each_team[1]-win_rate_each_team[0])
-            else:
-                self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[1]-win_rate_each_team[0])
+# <<<<<<< HEAD
+#             self.info_runner['t0_win_cnt_avg'].append(win_rate_each_team[0])
+#             self.info_runner['t1_win_cnt_avg'].append(win_rate_each_team[1])
+#             if self.n_team == 3:
+#                 self.info_runner['t2_win_cnt_avg'].append(win_rate_each_team[2])
+#                 self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[2]-win_rate_each_team[1]-win_rate_each_team[0])
+#             else:
+#                 self.info_runner['td_win_cnt_avg'].append(1-win_rate_each_team[1]-win_rate_each_team[0])
 
-            t0 = np.array(self.info_runner['t0_win_cnt_avg']).mean()
-            t1 = np.array(self.info_runner['t1_win_cnt_avg']).mean()
-            td = np.array(self.info_runner['td_win_cnt_avg']).mean()
-            self.mcv.rec(t0, f'{prefix}acc win ratio of=team-0')
-            self.mcv.rec(t1, f'{prefix}acc win ratio of=team-1')
-            if self.n_team == 3: 
-                t2 = np.array(self.info_runner['t2_win_cnt_avg']).mean()
-                self.mcv.rec(t2, f'{prefix}acc win ratio of=team-2')
-            self.mcv.rec(td, f'{prefix}acc win ratio of=draw')
+#             t0 = np.array(self.info_runner['t0_win_cnt_avg']).mean()
+#             t1 = np.array(self.info_runner['t1_win_cnt_avg']).mean()
+#             td = np.array(self.info_runner['td_win_cnt_avg']).mean()
+#             self.mcv.rec(t0, f'{prefix}acc win ratio of=team-0')
+#             self.mcv.rec(t1, f'{prefix}acc win ratio of=team-1')
+#             if self.n_team == 3:
+#                 t2 = np.array(self.info_runner['t2_win_cnt_avg']).mean()
+#                 self.mcv.rec(t2, f'{prefix}acc win ratio of=team-2')
+#             self.mcv.rec(td, f'{prefix}acc win ratio of=draw')
+# =======
+            for i in range(self.n_team):
+                self.info_runner[f't{i}_win_cnt_avg'].append(win_rate_each_team[i])
+                ti = np.array(self.info_runner[f't{i}_win_cnt_avg']).mean()
+                self.mcv.rec(ti, f'{prefix}acc win ratio of=team-{i}')
 
         # plot the figure
         self.mcv.rec_show()
-        if testing: 
-            print_info = ['\r[task runner]: Test result at episode %d.'%(self.current_n_episode)]
+        if testing:
+            print_info = [f'\r[task runner]: Test result at episode {self.current_n_episode}.']
         else:
-            print_info = ['\r[task runner]: (%s) Finished episode %d, frame %d.'%(self.note, self.current_n_episode, self.current_n_frame)]
-
-        for team in range(self.n_team): 
+            print_info = [f'\r[task runner]: ({self.note}) Finished episode {self.current_n_episode}, frame {self.current_n_frame}.']
+        for team in range(self.n_team):
             print_info.append(' | team-%d: win rate: %.3f, recent reward %.3f'%(team, win_rate_each_team[team], mean_reward_each_team[team]))
         print靛(''.join(print_info))
-            
+
         return win_rate_each_team, mean_reward_each_team
 
     def conclude_experiment(self):
@@ -345,11 +347,11 @@ class Runner(object):
         if beat is None: beat = self.info_runner['Current-Obs-Step']
         beat = beat % len(sym)
         beat = beat[:int(width*0.2)]
-        beat.astype(np.int)
+        beat.astype(int)
         beat = [sym[t] for t in beat]
         return ''.join(beat)
 
-    
+
     def get_fps(self, dt):
         new_fps = int(self.n_thread/dt)
         if not hasattr(self, 'fps_smooth'):

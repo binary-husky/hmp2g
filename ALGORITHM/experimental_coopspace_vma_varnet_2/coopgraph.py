@@ -18,9 +18,9 @@ def pad_at_dim(array, dim, n, pad=0):
 
 
 class CoopGraph(object):
-    def __init__(self, n_agent, n_thread, 
-                    n_entity=0, 
-                    load_checkpoint=False, 
+    def __init__(self, n_agent, n_thread,
+                    n_entity=0,
+                    load_checkpoint=False,
                     ObsAsUnity=None,
                     agent_uid = None,
                     sub_cluster_size = 1,
@@ -40,8 +40,8 @@ class CoopGraph(object):
         self.target_uid = target_uid
         self.ObsAsUnity = ObsAsUnity
         self.agent_uid = agent_uid
-        self.pos_decs = pos_decs 
-        self.vel_decs = vel_decs 
+        self.pos_decs = pos_decs
+        self.vel_decs = vel_decs
         self.logdir = logdir
         # define graph nodes
         self.n_cluster = CoopAlgConfig.g_num if not CoopAlgConfig.one_more_container else CoopAlgConfig.g_num+1
@@ -51,10 +51,10 @@ class CoopGraph(object):
         self.n_subject_CT = self.n_cluster if not CoopAlgConfig.reverse_container else self.n_entity
         self.debug_cnt = 0
         # graph state
-        self._Edge_AC_    = np.zeros(shape=(self.n_thread, self.n_subject_AC), dtype=np.long)
-        self._Edge_CT_    = np.zeros(shape=(self.n_thread, self.n_subject_CT), dtype=np.long)
-        self._SubFifo_AC_ = np.ones(shape=(self.n_thread, self.n_container_AC, self.n_subject_AC), dtype=np.long) * -1
-        self._SubFifo_CT_ = np.ones(shape=(self.n_thread, self.n_container_CT, self.n_subject_CT), dtype=np.long) * -1
+        self._Edge_AC_    = np.zeros(shape=(self.n_thread, self.n_subject_AC), dtype=np.int64)
+        self._Edge_CT_    = np.zeros(shape=(self.n_thread, self.n_subject_CT), dtype=np.int64)
+        self._SubFifo_AC_ = np.ones(shape=(self.n_thread, self.n_container_AC, self.n_subject_AC), dtype=np.int64) * -1
+        self._SubFifo_CT_ = np.ones(shape=(self.n_thread, self.n_container_CT, self.n_subject_CT), dtype=np.int64) * -1
 
         # load checkpoint
         if load_checkpoint or self.test_mode:
@@ -122,7 +122,7 @@ class CoopGraph(object):
             agent_pure_emb = my_view(agent_pure_emb, [0, self.n_agent//self.sub_cluster_size, self.sub_cluster_size, 0])    # (32, 30, 8)
             agent_pure_emb = agent_pure_emb.mean(-2)
         target_pure_emb = objects_emb[:,self.target_uid,:]
-        
+
         n_thread = live_obs.shape[0]
         cluster_pure_emb = np.zeros(shape=(n_thread, _n_cluster, 0)) # empty
 
@@ -131,7 +131,7 @@ class CoopGraph(object):
         cluster_hot_emb = add_onehot_id_at_last_dim(cluster_pure_emb)
         cluster_hot_emb, agent_hot_emb  = add_obs_container_subject(container_emb=cluster_hot_emb, subject_emb=agent_hot_emb, div=Active_Edge_AC)
         target_hot_emb, cluster_hot_emb = add_obs_container_subject(container_emb=target_hot_emb, subject_emb=cluster_hot_emb, div=Active_Edge_CT)
-        
+
 
         agent_final_emb = agent_hot_emb
         target_final_emb = target_hot_emb
@@ -171,10 +171,10 @@ class CoopGraph(object):
         Active_Edge_AC, Active_SubFifo_AC = self.swap_according_to_aciton(container_AC_act, div=Active_Edge_AC, fifo=Active_SubFifo_AC, hold_n=hold_n)
         Active_Edge_CT, Active_SubFifo_CT = self.swap_according_to_aciton(container_CT_act, div=Active_Edge_CT, fifo=Active_SubFifo_CT)
 
-        self._Edge_AC_    [mask] = Active_Edge_AC    
-        self._Edge_CT_    [mask] = Active_Edge_CT    
-        self._SubFifo_AC_ [mask] = Active_SubFifo_AC 
-        self._SubFifo_CT_ [mask] = Active_SubFifo_CT 
+        self._Edge_AC_    [mask] = Active_Edge_AC
+        self._Edge_CT_    [mask] = Active_Edge_CT
+        self._SubFifo_AC_ [mask] = Active_SubFifo_AC
+        self._SubFifo_CT_ [mask] = Active_SubFifo_CT
 
 
     def get_graph_encoding_masked(self, mask):
@@ -187,10 +187,10 @@ class CoopGraph(object):
         if not CoopAlgConfig.reverse_container:
             cluster_target_div = self._Edge_CT_   # 每个cluster在哪个entity容器中
         else:   # figure out cluster_target_div with fifo # 每个cluster指向那个entity
-            cluster_target_div = np.ones(shape=(self.n_thread, self.n_cluster), dtype=np.long) * self.n_entity #point to n_entity+1
+            cluster_target_div = np.ones(shape=(self.n_thread, self.n_cluster), dtype=np.int64) * self.n_entity #point to n_entity+1
             for thread, jth_cluster, pos in np.argwhere(self._SubFifo_CT_ >= 0):
                 cluster_target_div[thread, jth_cluster] = self._SubFifo_CT_[thread, jth_cluster, pos]    # 指向队列中的最后一个目标
-            if CoopAlgConfig.one_more_container: 
+            if CoopAlgConfig.one_more_container:
                 cluster_target_div[:,self.n_cluster] = self.n_entity
 
         agent_target_link = np.take_along_axis(cluster_target_div, axis=1, indices=self._Edge_AC_)
@@ -198,7 +198,7 @@ class CoopGraph(object):
         if self.sub_cluster_size != 1:
             agent_target_link = my_view(repeat_at(agent_target_link, insert_dim=-1, n_times=self.sub_cluster_size),[0,-1])
         return agent_target_link
-    
+
 
     @staticmethod
     # @jit(forceobj=True)
@@ -213,7 +213,7 @@ class CoopGraph(object):
         vec = np_mat3d_normalize_each_line(vec_dx+vec_dv)
         vec = np.where(dis<0.15, vec2, vec)
         return vec
-    
+
     ##################### ######################
     def target_micro_control(self, agent_target_link, act_dec):
 
@@ -226,7 +226,7 @@ class CoopGraph(object):
         all_action = self.dir_to_action3d(vec=delta_pos, vel=target_vel) # 矢量指向selected entity
 
         return all_action
-    
+
     ##################### ######################
     def 目标解析(self, link_indices, act_dec):
         target_pos, agent_pos, target_vel = (act_dec['target_pos'], act_dec['agent_pos'], act_dec['target_vel'])
@@ -235,7 +235,7 @@ class CoopGraph(object):
             final_sel_pos = target_pos
         else:   # 为没有装入任何entity的container解析一个nan动作
             final_sel_pos = np.concatenate( (target_pos,  np.zeros(shape=(self.n_thread, 1, 3))+np.nan ) , axis=1)
-            
+
         sel_target_pos  = np.take_along_axis(final_sel_pos, axis=1, indices=link_indices)  # 6 in final_indices /cluster_target_div
         sel_target_vel  = np.take_along_axis(target_vel, axis=1, indices=link_indices)  # 6 in final_indices /cluster_target_div
         delta_pos = sel_target_pos - agent_pos
@@ -246,10 +246,10 @@ class CoopGraph(object):
 
     def random_disturb(self, prob, mask):
         random_hit = (np.random.rand(self.n_thread) < prob)
-        ones = np.ones_like(random_hit, dtype=np.long)
+        ones = np.ones_like(random_hit, dtype=np.int64)
         mask = mask&random_hit
         if not any(mask): return
-        Active_action = np.zeros(shape=(self.n_thread, 4), dtype=np.long)
+        Active_action = np.zeros(shape=(self.n_thread, 4), dtype=np.int64)
         avail_act = self.get_avail_act(mask=np.array([True]*self.n_thread))
 
         for procindex in range(self.n_thread):
@@ -270,7 +270,7 @@ class CoopGraph(object):
 
     def reset_terminated_threads(self, just_got_reset):
         for procindex in range(self.n_thread):
-            if not just_got_reset[procindex]: 
+            if not just_got_reset[procindex]:
                 continue # otherwise reset
 
             if CoopAlgConfig.use_fixed_random_start:
@@ -297,7 +297,7 @@ class CoopGraph(object):
     def __random_select_init_value_(n_container, n_subject):
         t_final = []; entropy = np.array([])
         for _ in range(20): # max entropy in samples
-            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.long); t_final.append(tmp)
+            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.int64); t_final.append(tmp)
             entropy = np.append(entropy, sum([ -(sum(tmp==i)/n_subject)*np.log(sum(tmp==i)/n_subject) if sum(tmp==i)!=0 else -np.inf for i in range(n_container)]))
         return t_final[np.argmax(entropy)]
 
@@ -322,9 +322,9 @@ class CoopGraph(object):
         for 目标组, 移除组, i in zip(act_switch_1, act_switch_2, range(n_thread)):
             if 目标组 == 移除组:  continue
             else:
-                for _ in range(hold_n[i]):     # check this       
+                for _ in range(hold_n[i]):     # check this
                     移除组智能体成员 = np.where(div[i] == 移除组)[0]
-                    if len(移除组智能体成员) == 0: 
+                    if len(移除组智能体成员) == 0:
                         assert False
                         continue  # 已经是空组别
                     转移体 = pop(fifo[i, 移除组])
@@ -346,8 +346,8 @@ class CoopGraph(object):
             0,
             -1,
             ro_x=0, ro_y=0, ro_z=0,  # Euler Angle y-x-z
-            label=f'step {step}, internal_step {internal_step}', 
-            label_color='BlueViolet', 
+            label=f'step {step}, internal_step {internal_step}',
+            label_color='BlueViolet',
             opacity=0
         )
 
@@ -357,7 +357,7 @@ class CoopGraph(object):
             可视化桥.发送几何体(
                 f'box|{uid}|Red|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
                 0, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
-                track_n_frame=0)              
+                track_n_frame=0)
 
         for i in range(self.n_cluster):
             uid = i+200
@@ -365,7 +365,7 @@ class CoopGraph(object):
             可视化桥.发送几何体(
                 f'box|{uid}|Blue|0.1',     # 填入 ‘形状|几何体之ID标识|颜色|大小’即可
                 2, y, 0, ro_x=0, ro_y=0, ro_z=0,    # 三维位置+欧拉旋转变换，六自由度
-                track_n_frame=0)                
+                track_n_frame=0)
 
         for i in range(self.n_subject_AC):
             uid = i+300

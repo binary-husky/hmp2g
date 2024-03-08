@@ -26,8 +26,8 @@ class Net(nn.Module):
         self.use_normalization = AlgorithmConfig.use_normalization
         self.use_policy_resonance = AlgorithmConfig.policy_resonance
         self.n_action = n_action
-        
-        
+
+
         if self.use_policy_resonance:
             self.ccategorical = CCategorical(kwargs['stage_planner'])
             self.is_resonance_active = lambda: kwargs['stage_planner'].is_resonance_active()
@@ -39,7 +39,7 @@ class Net(nn.Module):
             self._batch_norm = DynamicNormFix(rawob_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True)
 
         n_entity = AlgorithmConfig.n_entity_placeholder
-        
+
         # # # # # # # # # #  actor-critic share # # # # # # # # # # # #
         self.obs_encoder = nn.Sequential(nn.Linear(rawob_dim, h_dim), nn.ReLU(inplace=True), nn.Linear(h_dim, h_dim))
         self.attention_layer = SimpleAttention(h_dim=h_dim)
@@ -64,13 +64,13 @@ class Net(nn.Module):
     def _act(self, obs=None, test_mode=None, eval_mode=False, eval_actions=None, avail_act=None, agent_ids=None, eprsn=None, obs_hfeature=None):
         assert (self.ready_to_go)
         mask_dead = torch.isnan(obs).any(-1)    # find dead agents
-        
+
         # if not (obs[..., -3+self.tp][~mask_dead] == -1).all().item():
         #     assert False
-        
+
         if self.static:
             assert self.gp >=1
-            
+
         # if not test_mode: assert not self.ready_to_go
         eval_act = eval_actions if eval_mode else None
         others = {}
@@ -81,27 +81,26 @@ class Net(nn.Module):
 
         mask_dead = torch.isnan(obs).any(-1)
         obs = torch.nan_to_num_(obs, 0)         # replace dead agents' obs, from NaN to 0
-        
+
         # # # # # # # # # # actor-critic share # # # # # # # # # # # #
         baec = self.obs_encoder(obs)
         baec = self.attention_layer(k=baec,q=baec,v=baec, mask=mask_dead)
-        
+
         # # # # # # # # # # actor # # # # # # # # # # # #
         at_bac = my_view(baec,[0,0,-1])
         at_bac = self.reducer(at_bac)
-        
         at_bac_hn = self.hyper_net(at_bac, hyper_x=obs_hfeature_norm)
 
         logits = self.policy_head(at_bac_hn)
-        
+
         # choose action selector
         logit2act = self._logit2act_rsn if self.use_policy_resonance and self.is_resonance_active() else self._logit2act
-        
+
         # apply action selector
-        act, actLogProbs, distEntropy, probs = logit2act( logits, 
+        act, actLogProbs, distEntropy, probs = logit2act( logits,
                                                           eval_mode=eval_mode,
-                                                          greedy=False, 
-                                                          eval_actions=eval_act, 
+                                                          greedy=False,
+                                                          eval_actions=eval_act,
                                                           avail_act=avail_act,
                                                           eprsn=eprsn )
 
@@ -111,11 +110,11 @@ class Net(nn.Module):
     def _logit2act_rsn(self, logits_agent_cluster, eval_mode, greedy, eval_actions=None, avail_act=None, eprsn=None):
         if avail_act is not None: logits_agent_cluster = torch.where(avail_act>0, logits_agent_cluster, -pt_inf())
         act_dist = self.ccategorical.feed_logits(logits_agent_cluster)
-        
+
         if not greedy:    act = self.ccategorical.sample(act_dist, eprsn) if not eval_mode else eval_actions
         else:             act = torch.argmax(act_dist.probs, axis=2)
         # the policy gradient loss will feedback from here
-        actLogProbs = self._get_act_log_probs(act_dist, act) 
+        actLogProbs = self._get_act_log_probs(act_dist, act)
         # sum up the log prob of all agents
         distEntropy = act_dist.entropy().mean(-1) if eval_mode else None
         return act, actLogProbs, distEntropy, act_dist.probs
@@ -145,8 +144,8 @@ class NetCentralCritic(nn.Module):
         self.use_normalization = AlgorithmConfig.use_normalization
         self.use_policy_resonance = AlgorithmConfig.policy_resonance
         self.n_action = n_action
-        
-        
+
+
         if self.use_policy_resonance:
             self.ccategorical = CCategorical(kwargs['stage_planner'])
             self.is_resonance_active = lambda: kwargs['stage_planner'].is_resonance_active()
@@ -158,16 +157,16 @@ class NetCentralCritic(nn.Module):
             self._batch_norm = DynamicNormFix(rawob_dim, only_for_last_dim=True, exclude_one_hot=True, exclude_nan=True)
 
         n_entity = AlgorithmConfig.n_entity_placeholder
-        
+
         # # # # # # # # # #  actor-critic share # # # # # # # # # # # #
         self.obs_encoder = nn.Sequential(nn.Linear(rawob_dim, h_dim), nn.ReLU(inplace=True), nn.Linear(h_dim, h_dim))
         self.attention_layer = SimpleAttention(h_dim=h_dim)
 
         # # # # # # # # # # critic # # # # # # # # # # # #
-        
+
         _size = n_entity * h_dim
         self.hyper_net = HyperNet(embed_dim=h_dim, hyper_input_dim=6, x_input_dim=_size)
-        
+
         self.ct_encoder = nn.Sequential(nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True), nn.Linear(h_dim, h_dim))
         self.ct_attention_layer = SimpleAttention(h_dim=h_dim)
         self.get_value = nn.Sequential(nn.Linear(h_dim, h_dim), nn.ReLU(inplace=True),nn.Linear(h_dim, 1))
@@ -198,9 +197,8 @@ class NetCentralCritic(nn.Module):
         ct_bac = self.ct_attention_layer(k=ct_bac,q=ct_bac,v=ct_bac)
         value = self.get_value(ct_bac)
         return value
-        
 
 
 
-    
-    
+
+

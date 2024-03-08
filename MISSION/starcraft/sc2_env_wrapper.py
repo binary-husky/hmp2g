@@ -139,7 +139,7 @@ class Env_Compat_Wrapper():
         from smac.env import StarCraft2Env
         # To solve StarCraft2Env.__init__() got an unexpected keyword argument 'sc_version'
         #       replace file : /home/hmp/.local/lib/python?/site-packages/smac/env/starcraft2/starcraft2.py 
-        #       with file    : ./ZDOCS/sc2checkversion
+        #       with file    : ./DOCS/sc2checkversion
         self.env = StarCraft2Env(
                             sc_version=ScenarioConfig.sc_version,
                             map_name=ScenarioConfig.map_,

@@ -230,7 +230,7 @@ class ReplayBuffer():
     def __init__(self, trainer_hook, buffer_size):
         self.observations = np.zeros((self.buffer_size, self.n_envs) + self.obs_shape, dtype=np.float64)
         self.next_observations = np.zeros((self.buffer_size, self.n_envs) + self.obs_shape, dtype=np.float64)
-        self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=np.long)
+        self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=np.int64)
         self.rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.dones = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.pos = 0

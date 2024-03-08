@@ -27,10 +27,10 @@ class BayesianOptimizationInterface:
 
     # this should be changed if we are tackling a mixed, or continuous problem, for e.g.
     problem_type = 'categorical'
-    
+
     def compute(self, X, normalize=False):
         print亮绿(f'*** computing f({X}) ***')
-        with FileLock(self.recall_cache_path+'.lock'): 
+        with FileLock(self.recall_cache_path+'.lock'):
             X_Y_already_calculated = read_json_handle_empty(self.recall_cache_path)
 
         if str(X) in X_Y_already_calculated:
@@ -39,7 +39,7 @@ class BayesianOptimizationInterface:
         else:
             result = self.compute_(X, normalize=normalize)
             X_Y_already_calculated.update({str(X): result.tolist()})
-            with FileLock(self.recall_cache_path+'.lock'): 
+            with FileLock(self.recall_cache_path+'.lock'):
                 write_json_handle_empty(self.recall_cache_path, X_Y_already_calculated)
             print亮绿(f'*** computing f({X}) done ***')
             return np.array(X_Y_already_calculated[str(X)])
@@ -53,7 +53,7 @@ class BayesianOptimizationInterface:
         # set the logging level for the handler
         handler.setLevel(logging.DEBUG)
         # create a formatter
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H-%M-%S')
         # add the formatter to the handler
         handler.setFormatter(formatter)
         # add the handler to the self.logger
@@ -121,13 +121,13 @@ import pandas as pd
 import time, datetime
 from THIRDPARTY.casmopolitan.test_funcs.random_seed_config import *
 from VISUALIZE.mcom import mcom
-    
+
 
 def BayesianOptimisation(nth_trial, mcv, args, MasterAutoRLKey, interface):
     # n_trials: number of trials for the experiment
     kwargs = {}
-    # random_seed_objective? what is 
-    if args.random_seed_objective is not None:  
+    # random_seed_objective? what is
+    if args.random_seed_objective is not None:
         assert 1 <= int(args.random_seed_objective) <= 25
         args.random_seed_objective -= 1
 
@@ -148,37 +148,37 @@ def BayesianOptimisation(nth_trial, mcv, args, MasterAutoRLKey, interface):
 
     if problem_type == 'mixed':
         optim = MixedOptimizer(
-            f.P_NumCategoryList, 
-            f.P_ContinuousLowerBound, 
-            f.P_ContinuousUpperBound, 
-            f.P_ContinuousDims, 
+            f.P_NumCategoryList,
+            f.P_ContinuousLowerBound,
+            f.P_ContinuousUpperBound,
+            f.P_ContinuousDims,
             f.P_CategoricalDims,
-            n_init=args.n_init, 
-            use_ard=args.ard, 
+            n_init=args.n_init,
+            use_ard=args.ard,
             acq=args.acq,
             kernel_type=kernel_type,
             noise_variance=noise_variance,
             **kwargs)
     else:
         optim = Optimizer(
-            f.P_NumCategoryList, 
-            n_init=args.n_init, 
-            use_ard=args.ard, 
+            f.P_NumCategoryList,
+            n_init=args.n_init,
+            use_ard=args.ard,
             acq=args.acq,
             kernel_type=kernel_type,
             noise_variance=noise_variance, **kwargs)
-        
+
     if os.path.exists(f"{args.save_path}/opti.bo"):
         input('warning, loading and overriding old checkpoint! confirm?')
         optim = objloadf(f"{args.save_path}/opti.bo")
         begin_iter = objloadf(f"{args.save_path}/opti_step.bo")
     else:
         begin_iter = 0
-        
+
     for i in range(begin_iter, args.max_iters):
         st_start = time.time()
 
-        x_next = optim.suggest(args.batch_size) 
+        x_next = optim.suggest(args.batch_size)
         # x_next是？  x_next.shape = (1, 8)
         st_end = time.time()
 
@@ -219,7 +219,7 @@ def BayesianOptimisation(nth_trial, mcv, args, MasterAutoRLKey, interface):
             argmin = np.argmin(Y[:i*args.batch_size])
 
             print('Iter %d, Last X [%s] || fX:  %.4f || X_best: %s || fX_best: %.4f'
-                  % (i, 
+                  % (i,
                      ''.join(['%.4f '%xx for xx in x_next.flatten()]),
                      float(Y[-1]),
                      ''.join([str(int(i)) for i in optim.casmopolitan.X[:i * args.batch_size][argmin].flatten()]),

@@ -10,6 +10,7 @@ import platform
 import os
 import sys
 from config import GlobalConfig
+from UTIL.network import TcpServerP2P, UnixTcpServerP2P, find_free_port
 
 class AlgorithmConfig():
     pymarl2_alg_select = 'qmix' # please see yaml listed in THIRDPARTY/pymarl2/pymarl2src/config/algs
@@ -20,6 +21,7 @@ class AlgorithmConfig():
     use_shell_normalization = False
     load_checkpoint = False
     load_specific_checkpoint = ''
+    action_converter = 'ALGORITHM.common.converter->LegacyUmapActionConverter'
 
 def encrpt_string(s):  # encrpt_string
     k = ''.join(['@']*1000)
@@ -61,8 +63,12 @@ class PymarlFoundation():
             'test_only': GlobalConfig.test_only,
             'test_epoch': GlobalConfig.test_epoch,
         })
+        if platform.system() == "Windows":
+            compat_windows_port = find_free_port()
+            AlgorithmConfig.pymarl_config_injection['config.py->GlobalConfig'].update({'compat_windows_port':compat_windows_port})
 
         # Get the location of the current Python executable
+        assert os.path.exists("./THIRDPARTY/pymarl2/pymarl2src/main.py")
         subprocess.Popen([sys.executable, 
             "./THIRDPARTY/pymarl2/pymarl2src/main.py", 
             "--force", 
@@ -72,11 +78,9 @@ class PymarlFoundation():
             "--env_uuid=%s"%self.remote_uuid], stdout=fp)
         
         if platform.system() == "Windows":
-            from UTIL.network import TcpServerP2P
-            unix_path = ('localhost', 12235)
+            unix_path = ('localhost', compat_windows_port)
             self.remote_link_server = TcpServerP2P(unix_path, obj='pickle')
         else:
-            from UTIL.network import UnixTcpServerP2P
             unix_path = 'TEMP/Sockets/unix/%s'%self.remote_uuid
             self.remote_link_server = UnixTcpServerP2P(unix_path, obj='pickle')
 

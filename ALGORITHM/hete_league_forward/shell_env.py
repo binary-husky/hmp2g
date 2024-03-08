@@ -66,7 +66,6 @@ class ActionConvertLegacy():
             if type == 'RLA_UAV_Support':
                 if args[0] == 'PatrolMoving':       ret[i] = DISABLE
         return ret
-
     def confirm_parameters_are_correct(self, team, agent_num, opp_agent_num):
         assert team == self.SELF_TEAM_ASSUME
         assert self.SELF_TEAM_ASSUME + self.OPP_TEAM_ASSUME == 1
@@ -79,7 +78,6 @@ def count_list_type(x):
         if xx not in type_cnt: type_cnt[xx] = 0
         type_cnt[xx] += 1
     return len(type_cnt)
-
 
 
 class ShellEnvWrapper(object):
@@ -206,7 +204,6 @@ class ShellEnvWrapper(object):
 
         # get decision results
         act[R] = act_active
-
         # confirm actions are valid (satisfy 'avail-act')
         if ShellEnvConfig.add_avail_act and self.patience>0:
             self.patience -= 1
@@ -226,7 +223,6 @@ class ShellEnvWrapper(object):
             if AlgorithmConfig.policy_matrix_testing:
                 StateRecall['_hook_'] = internal_recall['_hook_']
                 assert StateRecall['_hook_'] is not None
-
 
         # all done
         return actions_list, StateRecall

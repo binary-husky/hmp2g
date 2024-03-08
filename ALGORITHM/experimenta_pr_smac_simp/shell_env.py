@@ -27,7 +27,7 @@ class ShellEnvWrapper(object):
         # whether to use avail_act to block forbiden actions
         self.AvailActProvided = False
         if hasattr(self.ScenarioConfig, 'AvailActProvided'):
-            self.AvailActProvided = self.ScenarioConfig.AvailActProvided 
+            self.AvailActProvided = self.ScenarioConfig.AvailActProvided
 
         # whether to load previously saved checkpoint
         self.load_checkpoint = alg_config.load_checkpoint
@@ -57,7 +57,7 @@ class ShellEnvWrapper(object):
             obs = np.concatenate((obs, repeat_at(previous_act_onehot, -2, obs.shape[-2])), -1)
         obs[~alive] = np.nan
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         his_pool_obs = State_Recall['_Histpool_Obs_'] if '_Histpool_Obs_' in State_Recall \
             else my_view(np.zeros_like(obs),[0, 0, -1, self.core_dim])
         his_pool_obs[RST] = 0
@@ -73,12 +73,12 @@ class ShellEnvWrapper(object):
         eprsn = self.rl_functional.stage_planner.eprsn[~P] if self.use_policy_resonance else None
 
         I_State_Recall = {
-            'obs':obs_feed_in, 
+            'obs':obs_feed_in,
             'alive':alive,
-            'state':state_feed, 
-            'eprsn':eprsn, 
-            'Test-Flag':State_Recall['Test-Flag'], 
-            'threads_active_flag':~P, 
+            'state':state_feed,
+            'eprsn':eprsn,
+            'Test-Flag':State_Recall['Test-Flag'],
+            'threads_active_flag':~P,
             'Latest-Team-Info':State_Recall['Latest-Team-Info'][~P],
             }
         if self.AvailActProvided:
@@ -98,9 +98,9 @@ class ShellEnvWrapper(object):
         State_Recall['_Histpool_Obs_'] = his_pool_obs
         State_Recall['_Previous_Act_Onehot_'] = np_one_hot(act, n=self.n_action)
         if not State_Recall['Test-Flag']:
-            State_Recall['_hook_'] = internal_recall['_hook_'] 
+            State_Recall['_hook_'] = internal_recall['_hook_']
             assert State_Recall['_hook_'] is not None
-        return actions_list, State_Recall 
+        return actions_list, State_Recall
 
     def solve_duplicate(self, obs_feed_new, prev_his_pool, alive):
         # input might be (n_thread, n_agent, n_entity, basic_dim), or (n_thread, n_agent, n_entity*basic_dim)

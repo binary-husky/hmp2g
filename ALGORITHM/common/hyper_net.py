@@ -11,6 +11,7 @@ class HyperNet(nn.Module):
         self.x_input_dim = kwargs['x_input_dim']
         self.embed_dim = kwargs['embed_dim']
         self.hyper_input_dim = kwargs['hyper_input_dim']
+        self.use_resnet = kwargs.get('use_resnet', False)
         
         # hyper w1 b1
         self.hyper_w1 = nn.Sequential( nn.Linear(self.hyper_input_dim, self.embed_dim),
@@ -44,12 +45,15 @@ class HyperNet(nn.Module):
         ## w1 shape = (..., x_input_dim, embed_dim)
         
         # x reshape = (..., 1, x_input_dim)
-        x = x.unsqueeze(-2)
-        hidden = F.elu(torch.matmul(x, w1) + b1) # b * t, 1, emb
+        x_ = x.unsqueeze(-2)
+        hidden = F.relu(torch.matmul(x_, w1) + b1) # b * t, 1, emb
         # Forward (batch, 1, 32) * w2(batch, 32, 1) => y(batch, 1)
         y = torch.matmul(hidden, w2) + b2 # b * t, 1, 1
         
-        return y.squeeze(-2)
+        if self.use_resnet:
+            return y.squeeze(-2) + x
+        else:
+            return y.squeeze(-2)
 
 
 

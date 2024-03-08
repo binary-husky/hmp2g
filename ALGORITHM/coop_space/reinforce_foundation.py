@@ -1,8 +1,8 @@
 import os, torch
 import numpy as np
-try: 
+try:
     from numba import njit, jit
-except: 
+except:
     from UTIL.tensor_ops import dummy_decorator as jit
     from UTIL.tensor_ops import dummy_decorator as njit
 from UTIL.colorful import *
@@ -17,7 +17,7 @@ class CoopAlgConfig(object):
     g_num = 5
     max_internal_step = 15
     decision_interval = 5
-    head_start_cnt = 1 # first 3 step have 
+    head_start_cnt = 1 # first 3 step have
     head_start_hold_n = 1 # how many to control at first few step
 
     eval_mode = False
@@ -28,7 +28,7 @@ class CoopAlgConfig(object):
     one_more_container = False
     reverse_container = False
     use_fixed_random_start = True
-    use_zero_start = False 
+    use_zero_start = False
     use_empty_container = False
     use_complete_random = False
 
@@ -42,7 +42,7 @@ class CoopAlgConfig(object):
     clip_param = 0.2
     lr = 1e-4
     balance = 0.5
-    
+
     gamma = 0.99
     tau = 0.95
     # ?
@@ -103,8 +103,8 @@ class ReinforceAlgorithmFoundation(object):
                 self.policy.load_state_dict(torch.load(ckpt_dir))
             else:
                 self.policy.load_state_dict(torch.load(ckpt_dir, map_location=cuda_n))
-        
-        
+
+
         t = [int(np.ceil(self.max_internal_step)) if x<self.head_start_cnt  else 1 if x%self.decision_interval==0 else 0
                 for x in range(50)]
         print('control_squence:', t)
@@ -123,12 +123,12 @@ class ReinforceAlgorithmFoundation(object):
 
     def get_internal_step(self, n_step):
 
-        n_internal_step = [np.ceil(self.max_internal_step) if x<self.head_start_cnt 
-                                else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]  
-        n_internal_step = np.array(n_internal_step, dtype=np.int)
+        n_internal_step = [np.ceil(self.max_internal_step) if x<self.head_start_cnt
+                                else 1.0 if x%self.decision_interval==0 else 0.0  for x in n_step]
+        n_internal_step = np.array(n_internal_step, dtype=int)
 
-        hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]      
-        hold_n = np.array(hold_n, dtype=np.int)
+        hold_n = [np.ceil(self.head_start_hold_n / 4**x ) if x<self.head_start_cnt  else 1.0  for x in n_step]
+        hold_n = np.array(hold_n, dtype=int)
 
         return n_internal_step, hold_n
 
@@ -155,7 +155,7 @@ class ReinforceAlgorithmFoundation(object):
             Active_cter_fifoR = cter_fifoR[threads_active_flag]
             Active_cter_fifoL = cter_fifoL[threads_active_flag]
             hold_n = hold_n_o[threads_active_flag]
-            
+
             Active_emb, Active_act_dec = self.regroup_obs(Active_raw_obs, div_R=Active_div_R, div_L=Active_div_L)
             with torch.no_grad():
                 Active_action, Active_value_top, Active_value_bottom, Active_action_log_prob_R, Active_action_log_prob_L = self.policy.act(Active_emb, test_mode=test_mode)
@@ -163,8 +163,8 @@ class ReinforceAlgorithmFoundation(object):
                             'value_R':              Active_value_top,               'value_L':              Active_value_bottom,
                             'g_actionLogProbs_R':   Active_action_log_prob_R,       'g_actionLogProbs_L':   Active_action_log_prob_L,
                             'g_obs':                Active_emb,                     'g_actions':            Active_action,
-                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.long),
-                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.long),
+                            'ctr_mask_R':           (Active_cter_fifoR < 0).all(2).astype(np.int64),
+                            'ctr_mask_L':           (Active_cter_fifoL < 0).all(2).astype(np.int64),
                             'reward':               np.array([0.0 for _ in range(self.n_thread)])}
             # _______Internal_Environment_Step________
             container_actR = copy_clone(Active_action[:,(0,1)])
@@ -221,7 +221,7 @@ class ReinforceAlgorithmFoundation(object):
         self.batch_traj_manager.feed_traj(__completed_frag, require_hook=False)
         self.__incomplete_frag__ = None
 
-    def __dummy_hook(self, f2): 
+    def __dummy_hook(self, f2):
         return
 
     def read_loopback(self, State_Recall):
@@ -236,18 +236,18 @@ class ReinforceAlgorithmFoundation(object):
         co_step = copy_clone(State_Recall['Current-Obs-Step'])
 
         if '_division_obsR_' not in State_Recall: # 算法初始化时，第一次测试环境时
-            State_Recall['_division_obsR_'] = np.zeros(shape=(self.n_thread, n_subject_R), dtype=np.long)
-            State_Recall['_division_obsL_'] = np.zeros(shape=(self.n_thread, n_subject_L), dtype=np.long)
-            State_Recall['_division_fifoR_'] = np.ones(shape=(self.n_thread, n_container_R, n_subject_R), dtype=np.long) * -1
-            State_Recall['_division_fifoL_'] = np.ones(shape=(self.n_thread, n_container_L, n_subject_L), dtype=np.long) * -1
+            State_Recall['_division_obsR_'] = np.zeros(shape=(self.n_thread, n_subject_R), dtype=np.int64)
+            State_Recall['_division_obsL_'] = np.zeros(shape=(self.n_thread, n_subject_L), dtype=np.int64)
+            State_Recall['_division_fifoR_'] = np.ones(shape=(self.n_thread, n_container_R, n_subject_R), dtype=np.int64) * -1
+            State_Recall['_division_fifoL_'] = np.ones(shape=(self.n_thread, n_container_L, n_subject_L), dtype=np.int64) * -1
 
         if self._division_obsR_init is None: # 仅算法初始化时
             self.处理组成员初始化(just_got_reset, State_Recall, init=True)
 
         self.处理组成员初始化(just_got_reset, State_Recall)
         # if a var named with with _x_ format, it will loop back at next iteration
-        subj_div_R = copy_clone(State_Recall['_division_obsR_'])  
-        subj_div_L = copy_clone(State_Recall['_division_obsL_'])  
+        subj_div_R = copy_clone(State_Recall['_division_obsR_'])
+        subj_div_L = copy_clone(State_Recall['_division_obsL_'])
         cter_fifoR = copy_clone(State_Recall['_division_fifoR_'])
         cter_fifoL = copy_clone(State_Recall['_division_fifoL_'])
         return raw_obs, co_step, cter_fifoR, subj_div_R, cter_fifoL, subj_div_L
@@ -259,15 +259,15 @@ class ReinforceAlgorithmFoundation(object):
         State_Recall['_division_fifoR_'] = cter_fifoR  # overwrite
         State_Recall['_division_obsL_'] = subj_div_L  # overwrite
         State_Recall['_division_fifoL_'] = cter_fifoL  # overwrite
-        
+
         return State_Recall
 
-    
+
     @staticmethod
     def __random_select_init_value_(n_container, n_subject):
         t_final = []; entropy = np.array([])
         for _ in range(20): # max entropy in samples
-            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.long); t_final.append(tmp)
+            tmp = np.random.randint(low=0, high=n_container, size=(n_subject,), dtype=np.int64); t_final.append(tmp)
             entropy = np.append(entropy, sum([ -(sum(tmp==i)/n_subject)*np.log(sum(tmp==i)/n_subject) if sum(tmp==i)!=0 else -np.inf for i in range(n_container)]))
         return t_final[np.argmax(entropy)]
 
@@ -279,7 +279,7 @@ class ReinforceAlgorithmFoundation(object):
         n_subject_R = self.n_agent
         n_container_L = self.n_entity if not CoopAlgConfig.reverse_container else _n_cluster
         n_subject_L = _n_cluster if not CoopAlgConfig.reverse_container else self.n_entity
- 
+
         # fixed random init
         if init and CoopAlgConfig.use_fixed_random_start:
             assert self._division_obsR_init is None
@@ -297,16 +297,16 @@ class ReinforceAlgorithmFoundation(object):
         for procindex in range(self.n_thread):
             if not just_got_reset[procindex]: continue # otherwise reset
             if CoopAlgConfig.use_zero_start:
-                _division_obsR_= np.zeros(shape=(n_subject_R, ), dtype=np.long)
-                _division_obsL_= np.zeros(shape=(n_subject_L, ), dtype=np.long)
+                _division_obsR_= np.zeros(shape=(n_subject_R, ), dtype=np.int64)
+                _division_obsL_= np.zeros(shape=(n_subject_L, ), dtype=np.int64)
             elif CoopAlgConfig.use_fixed_random_start:
                 assert self._division_obsR_init is not None
                 _division_obsR_ = self._division_obsR_init
                 _division_obsL_ = self._division_obsL_init
             elif CoopAlgConfig.use_empty_container:
                 # 最后一个容器是全体，其他的全空
-                _division_obsR_= np.ones(shape=(n_subject_R, ), dtype=np.long) * (n_container_R - 1)
-                _division_obsL_= np.ones(shape=(n_subject_L, ), dtype=np.long) * (n_container_L - 1)
+                _division_obsR_= np.ones(shape=(n_subject_R, ), dtype=np.int64) * (n_container_R - 1)
+                _division_obsL_= np.ones(shape=(n_subject_L, ), dtype=np.int64) * (n_container_L - 1)
             elif CoopAlgConfig.use_complete_random:
                 _division_obsR_ = self.__random_select_init_value_(n_container_R, n_subject_R)
                 _division_obsL_ = self.__random_select_init_value_(n_container_L, n_subject_L)
@@ -345,10 +345,10 @@ class ReinforceAlgorithmFoundation(object):
         if not CoopAlgConfig.reverse_container:
             cluster_entity_div = div2   # 每个cluster在哪个entity容器中
         else:   # figure out cluster_entity_div with fifo # 每个cluster指向那个entity
-            cluster_entity_div = np.ones(shape=(n_thread, _n_cluster), dtype=np.long) * self.n_entity #point to n_entity+1
+            cluster_entity_div = np.ones(shape=(n_thread, _n_cluster), dtype=np.int64) * self.n_entity #point to n_entity+1
             for thread, jth_cluster, pos in  np.argwhere(cter_fifoL >= 0):
                 cluster_entity_div[thread, jth_cluster] = cter_fifoL[thread, jth_cluster, pos]    # 指向队列中的最后一个目标
-            if CoopAlgConfig.one_more_container: 
+            if CoopAlgConfig.one_more_container:
                 cluster_entity_div[:,self.n_cluster] = self.n_entity
 
         agent_entity_div = np.take_along_axis(cluster_entity_div, axis=1, indices=agent_cluster_div)
@@ -357,7 +357,7 @@ class ReinforceAlgorithmFoundation(object):
             final_sel_pos = entity_pos
         else:   # 为没有装入任何entity的container解析一个nan动作
             final_sel_pos = np.concatenate( (entity_pos,  np.zeros(shape=(n_thread, 1, 3))+np.nan ) , axis=1)
-            
+
         sel_entity_pos  = np.take_along_axis(final_sel_pos, axis=1, indices=final_indices)  # 6 in final_indices /cluster_entity_div
         sel_target_vel  = np.take_along_axis(target_vel, axis=1, indices=final_indices)  # 6 in final_indices /cluster_entity_div
         delta_pos = sel_entity_pos - agent_pos
@@ -383,7 +383,7 @@ class ReinforceAlgorithmFoundation(object):
         for 目标组, 移除组, i in zip(act_switch_1, act_switch_2, range(n_thread)):
             if 目标组 == 移除组:  continue
             else:
-                for _ in range(hold_n[i]):     # check this       
+                for _ in range(hold_n[i]):     # check this
                     移除组智能体成员 = np.where(div[i] == 移除组)[0]
                     if len(移除组智能体成员) == 0: continue  # 已经是空组别
                     转移体 = pop(fifo[i, 移除组])
@@ -406,7 +406,7 @@ class ReinforceAlgorithmFoundation(object):
 
         agent_pure_emb = objects_emb[:,self.agent_uid,:]
         entity_pure_emb = objects_emb[:,self.entity_uid,:]
-        
+
         n_thread = main_obs.shape[0]
         cluster_pure_emb = np.zeros(shape=(n_thread, _n_cluster, 0)) # empty
 
@@ -469,10 +469,10 @@ class ReinforceAlgorithmFoundation(object):
         proj_r = (vel_r * vec).sum(-1)
         proj_l = (vel_l * vec).sum(-1)
 
-        _u = ((vec * e_u).sum(-1)>0).astype(np.int)
-        _d = ((vec * e_d).sum(-1)>0).astype(np.int)
-        _r = ((vec * e_r).sum(-1)>0).astype(np.int)
-        _l = ((vec * e_l).sum(-1)>0).astype(np.int)
+        _u = ((vec * e_u).sum(-1)>0).astype(int)
+        _d = ((vec * e_d).sum(-1)>0).astype(int)
+        _r = ((vec * e_r).sum(-1)>0).astype(int)
+        _l = ((vec * e_l).sum(-1)>0).astype(int)
 
         proj_u = proj_u + _u*2
         proj_d = proj_d + _d*2
@@ -487,9 +487,9 @@ class ReinforceAlgorithmFoundation(object):
         action += np.where(direct == 2, 1, 0)
         action += np.where(direct == 3, 3, 0)
 
-        action = (dis2target>0.05).astype(np.int)*action
+        action = (dis2target>0.05).astype(int)*action
 
-        # make sure that all nan vec become invalid act 0, 
+        # make sure that all nan vec become invalid act 0,
         # be careful when a different numpy version is used
         assert (action[np.isnan(np.sum(dot_stack,0))] == 0).all()
         # action *= 0
@@ -511,7 +511,7 @@ class ReinforceAlgorithmFoundation(object):
 
     # debugging functions
     def __check_data_hash(self):
-        if self.patience > 0: 
+        if self.patience > 0:
             self.hash_debug = {}
             # for debugging, to detect write protection error
             for key in self.__incomplete_frag__:
@@ -525,7 +525,7 @@ class ReinforceAlgorithmFoundation(object):
                     self.hash_debug[key] = __hash__(item)
 
     def __check_data_curruption(self):
-        if self.patience > 0: 
+        if self.patience > 0:
             assert self.__incomplete_frag__ is not None
             assert self.hash_debug is not None
             for key in self.__incomplete_frag__:

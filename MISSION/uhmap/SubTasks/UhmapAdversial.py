@@ -108,7 +108,6 @@ class UhmapAdversial(UhmapCommonFn, UhmapEnv):
         OBS_RANGE_PYTHON_SIDE = 1500
         MAX_NUM_OPP_OBS = 5
         MAX_NUM_ALL_OBS = 5
-
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
         for i, agent in enumerate(self.agents): pos3d_arr[i] = agent.pos3d
@@ -183,7 +182,6 @@ class UhmapAdversial(UhmapCommonFn, UhmapEnv):
             a2h_dis_sorted = a2h_dis[h_iden_sort]
             h_alive_sorted = h_alive[h_iden_sort]
             h_vis_mask = (a2h_dis_sorted <= OBS_RANGE_PYTHON_SIDE) & h_alive_sorted
-
             # scope <all>
             h_vis_index = h_iden_sort[h_vis_mask]
             h_invis_index = h_iden_sort[~h_vis_mask]
@@ -253,7 +251,6 @@ class UhmapAdversial(UhmapCommonFn, UhmapEnv):
                     #     obj['location']['x'], obj['location']['y'], obj['location']['z']  # agent.pos3d
                     # ], 6, ScenarioConfig.ObsBreakBase, 0)
                 )
-
                 obs_arr.append([
                     obj['velocity']['x'], obj['velocity']['y'], obj['velocity']['z']  # agent.vel3d
                 ]+
@@ -385,7 +382,6 @@ class UhmapAdversial(UhmapCommonFn, UhmapEnv):
         n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
-
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
         y = 2000 * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))

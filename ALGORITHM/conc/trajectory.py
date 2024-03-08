@@ -60,8 +60,8 @@ class trajectory(TRAJ_BASE):
     def reward_push_forward(self, dead_mask):
         for i in reversed(range(self.time_pointer)):
             if i==0: continue
-            self.reward[i-1] += self.reward[i]* dead_mask[i].astype(np.int)
-            self.reward[i] = self.reward[i]* (~dead_mask[i]).astype(np.int)
+            self.reward[i-1] += self.reward[i]* dead_mask[i].astype(int)
+            self.reward[i] = self.reward[i]* (~dead_mask[i]).astype(int)
 
     # new finalize
     def finalize(self):
@@ -77,9 +77,9 @@ class trajectory(TRAJ_BASE):
         for i in reversed(range(self.time_pointer)):
             # threat[:(i+1)] 不包含threat[(i+1)]
             if i+1 < self.time_pointer:
-                threat[:(i+1)] += (~(dead_mask[i+1]&dead_mask[i])).astype(np.int)
+                threat[:(i+1)] += (~(dead_mask[i+1]&dead_mask[i])).astype(int)
             elif i+1 == self.time_pointer:
-                threat[:] += (~dead_mask[i]).astype(np.int)
+                threat[:] += (~dead_mask[i]).astype(int)
         
         SAFE_LIMIT = 11
         threat = np.clip(threat, -1, SAFE_LIMIT)

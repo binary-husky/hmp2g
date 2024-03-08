@@ -9,7 +9,7 @@ from UTIL.colorful import *
 from UTIL.tensor_ops import _2tensor, _2cpu2numpy, repeat_at
 from UTIL.tensor_ops import my_view, scatter_with_nan, sample_balance
 from config import GlobalConfig as cfg
-from UTIL.gpu_share import gpu_share_unit
+from UTIL.gpu_share import GpuShareUnit
 
 class TrajPoolSampler():
     def __init__(self, n_div, traj_pool, flag, ratio):
@@ -172,7 +172,7 @@ class PPO():
         ratio = 1.0
         while True:
             try:
-                with gpu_share_unit(cfg.device, gpu_party=cfg.gpu_party):
+                with GpuShareUnit(cfg.device, gpu_party=cfg.gpu_party):
                     self.train_on_traj_(traj_pool, task, ratio=ratio) 
                     # 运行到这说明显存充足
                 break

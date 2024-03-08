@@ -78,7 +78,7 @@ class ShellEnvWrapper(object):
                 for agent_meta in State_Recall['Latest-Team-Info'][0]['dataArr']
                 if agent_meta['uId'] in self.agent_uid]
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         # read internal coop graph info
         obs = State_Recall['Latest-Obs']
         P = State_Recall['ENV-PAUSE']
@@ -111,7 +111,7 @@ class ShellEnvWrapper(object):
             [
                 ActionConvertLegacy.convert_act_arr(self.agent_type[agentid], act)  for agentid, act in enumerate(th) 
             ] for th in act])
-        actions_list = np.swapaxes(act_converted, 0, 1) # swap thread(batch) axis and agent axis
+        actions_list = act_converted if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(act_converted, 0, 1) # swap thread(batch) axis and agent axis
 
         # return necessary handles to main platform
         if self.cold_start: self.cold_start = False

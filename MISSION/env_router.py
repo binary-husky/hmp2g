@@ -1,7 +1,7 @@
 import_path_ref = {
-    "collective_assult": ("MISSION.collective_assult.collective_assult_parallel_run",           'ScenarioConfig'),
-    "dca_multiteam": ("MISSION.dca_multiteam.collective_assult_parallel_run",                   'ScenarioConfig'),
-    "dca": ("MISSION.dca.collective_assult_parallel_run", 'ScenarioConfig'),
+    "collective_assault": ("MISSION.collective_assault.collective_assault_parallel_run",        'ScenarioConfig'),
+    "dca_multiteam": ("MISSION.dca_multiteam.collective_assault_parallel_run",                  'ScenarioConfig'),
+    "dca": ("MISSION.dca.collective_assault_parallel_run", 'ScenarioConfig'),
     "air_fight": ("MISSION.air_fight.environment.air_fight_compat",                            'ScenarioConfig'),
     "native_gym": ("MISSION.native_gym.native_gym_config",                                     'ScenarioConfig'),
     "starcraft2": ("MISSION.starcraft.sc2_env_wrapper",                                        'ScenarioConfig'),
@@ -14,12 +14,13 @@ import_path_ref = {
     "bvr": ("MISSION.bvr_sim.init_env",                                                        'ScenarioConfig'),
     "mathgame": ("MISSION.math_game.env",                                                      'ScenarioConfig'),
     "uhmap": ("MISSION.uhmap.uhmap_env_wrapper",                                               'ScenarioConfig'),
+    "llm_trainer": ("MISSION.llm_trainer.llm_env",                                             'ScenarioConfig'),
 }
 
 env_init_function_ref = {
-    "collective_assult": ("MISSION.collective_assult.collective_assult_parallel_run",          'make_collective_assult_env'),
-    "dca_multiteam": ("MISSION.dca_multiteam.collective_assult_parallel_run",                  'make_collective_assult_env'),
-    "dca": ("MISSION.dca.collective_assult_parallel_run", 'make_collective_assult_env'),
+    "collective_assault": ("MISSION.collective_assault.collective_assault_parallel_run",          'make_collective_assault_env'),
+    "dca_multiteam": ("MISSION.dca_multiteam.collective_assault_parallel_run",                  'make_collective_assault_env'),
+    "dca": ("MISSION.dca.collective_assault_parallel_run", 'make_collective_assault_env'),
     "air_fight": ("MISSION.air_fight.environment.air_fight_compat",                            'make_air_fight_env'),
     "native_gym": ("MISSION.native_gym.native_gym_config",                                     'env_init_function'),
     "starcraft2": ("MISSION.starcraft.sc2_env_wrapper",                                        'make_sc2_env'),
@@ -29,6 +30,7 @@ env_init_function_ref = {
     "bvr": ("MISSION.bvr_sim.init_env",                                                        'make_bvr_env'),
     "mathgame": ("MISSION.math_game.env",                                                      'make_math_env'),
     "uhmap": ("MISSION.uhmap.uhmap_env_wrapper",                                               'make_uhmap_env'),
+    "llm_trainer": ("MISSION.llm_trainer.llm_env",                                             'make_llm_env'),
 }
 
 ##################################################################################################################################
@@ -68,15 +70,15 @@ def make_parallel_envs(process_pool, marker=''):
     from config import GlobalConfig
     from MISSION.env_router import load_ScenarioConfig
     load_ScenarioConfig()
-    
+
     env_args_dict_list = [({
-        'env_name':GlobalConfig.env_name, 
-        'proc_index':i if 'test' not in marker else -(i+1), 
+        'env_name':GlobalConfig.env_name,
+        'proc_index':i if 'test' not in marker else -(i+1),
         'marker':marker
     },) for i in range(GlobalConfig.num_threads)]
 
     if GlobalConfig.env_name == 'air_fight':
-        # This particular env has a dll file 
+        # This particular env has a dll file
         # that must be loaded in main process
         # 艹tmd有个dll必须在主进程加载
         from MISSION.air_fight.environment.pytransform import pyarmor_runtime
@@ -106,7 +108,7 @@ def make_parallel_envs(process_pool, marker=''):
         # This particular env has a cython file that needs to be compiled in main process
         # that must be loaded in main process
         from MISSION.uhmap.SubTasks.cython_func import tear_number_apart
-    
+
     if GlobalConfig.num_threads > 1:
         envs = SuperpoolEnv(process_pool, env_args_dict_list)
     else:

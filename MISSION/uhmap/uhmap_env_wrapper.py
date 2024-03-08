@@ -132,7 +132,6 @@ class ScenarioConfig(object):
     # 演示demo类别
     DemoType = "Default"
 
-
 class UhmapEnvParseHelper:
     def parse_response_ob_info(self, response):
         raise NotImplementedError

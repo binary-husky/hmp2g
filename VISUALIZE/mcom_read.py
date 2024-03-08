@@ -4,7 +4,7 @@ def validate_path():
     root_dir_assume = os.path.abspath(os.path.dirname(__file__) +  '/..')
     os.chdir(root_dir_assume)
     sys.path.append(root_dir_assume)
-    
+
 validate_path() # validate path so you can run from base directory
 
 
@@ -47,7 +47,7 @@ def read_experiment(base_path):
         cmd_lines.extend(lines)
     dictionary = {}
 
-    def rec(value,name): 
+    def rec(value,name):
         if name not in dictionary:
             dictionary[name] = []
         dictionary[name].append(value)
@@ -95,7 +95,7 @@ party = [
     {
         "Method": "AddBn",
         "path": [
-            "ZHECKPOINT/Run1_wr_reward_T0addhist",
+            "RESULT/Run1_wr_reward_T0addhist",
         ]
     },
 

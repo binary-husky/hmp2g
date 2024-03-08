@@ -128,7 +128,7 @@ class Scenario(BaseScenario):
     def observation(self, agent, world):
         # positions of all entities in this agent's reference frame
         entity_pos = [entity.state.p_pos - agent.state.p_pos for entity in world.landmarks]
-        index_onehot = np.zeros(shape=(9,), dtype=np.int)
+        index_onehot = np.zeros(shape=(9,), dtype=int)
         index_onehot[agent.iden] = 1
         default_obs = np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + [index_onehot])
         if self.identity_size != 0:

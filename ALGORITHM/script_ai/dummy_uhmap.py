@@ -48,7 +48,7 @@ class DummyAlgorithmBase():
         actions[ENV_PAUSE] = np.nan
 
         # swap (self.n_thread, self.n_agent) -> (self.n_agent, self.n_thread)
-        actions = np.swapaxes(actions, 0, 1)
+        actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
         return actions, {}
 
 
@@ -60,7 +60,7 @@ class DummyAlgorithmT1(DummyAlgorithmBase):
         except:
             actions = np.zeros(shape=(self.n_thread, self.n_agent, 8))
             actions[:] = encode_action_as_digits("N/A", "N/A", x=None, y=None, z=None, UID=None, T=None, T_index=None)
-            actions = np.swapaxes(actions, 0, 1)
+            actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
             res = (actions, None)
         return res
 
@@ -204,7 +204,7 @@ class DummyAlgorithmT1(DummyAlgorithmBase):
         actions[ENV_PAUSE] = np.nan
 
         # swap (self.n_thread, self.n_agent) -> (self.n_agent, self.n_thread)
-        actions = np.swapaxes(actions, 0, 1)
+        actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
         return actions, {}
 
 
@@ -216,7 +216,7 @@ class DummyAlgorithmT2(DummyAlgorithmBase):
         except:
             actions = np.zeros(shape=(self.n_thread, self.n_agent, 8))
             actions[:] = encode_action_as_digits("N/A", "N/A", x=None, y=None, z=None, UID=None, T=None, T_index=None)
-            actions = np.swapaxes(actions, 0, 1)
+            actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
             res = (actions, None)
         return res
 
@@ -337,7 +337,7 @@ class DummyAlgorithmT2(DummyAlgorithmBase):
         actions[ENV_PAUSE] = np.nan
 
         # swap (self.n_thread, self.n_agent) -> (self.n_agent, self.n_thread)
-        actions = np.swapaxes(actions, 0, 1)
+        actions = actions if GlobalConfig.mt_act_order == 'new_method' else np.swapaxes(actions, 0, 1)
         return actions, {}
 
 

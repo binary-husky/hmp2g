@@ -9,7 +9,7 @@ except:
 from scipy.optimize import linear_sum_assignment
 from scipy.cluster.vq import kmeans2
 from .cheat_script_ai import CheatScriptAI
-from .collective_assult_parallel_run import ScenarioConfig
+from .collective_assault_parallel_run import ScenarioConfig
 from .cython_func import laser_hit_improve3
 # action of the agent
 
@@ -17,7 +17,7 @@ from .cython_func import laser_hit_improve3
 # properties and state of physical world entity
 class Entity(object):
     def __init__(self, size = 0.05 ,color = None):
-        # name 
+        # name
         self.name = ''
         # properties:
         self.size = size
@@ -34,7 +34,7 @@ class Entity(object):
         self.accel = None
         # state
         self.initial_mass = 1.0
-        
+
     @property
     def mass(self):
         return self.initial_mass
@@ -69,7 +69,7 @@ class Agent(Entity):
         self.hit = False        # in last time
         self.wasHit = False
         ## shooting cone's radius and width (in radian)
-        self.shootBaseRadius = ScenarioConfig.agent_shoot_base_radius # default value (same for guards and attackers, can be changed in collective_assult_env)
+        self.shootBaseRadius = ScenarioConfig.agent_shoot_base_radius # default value (same for guards and attackers, can be changed in collective_assault_env)
         self.shootWin = ScenarioConfig.agent_shoot_win
         self.alive = True   # alive/dead
         self.justDied = False   # helps compute reward for agent when it just died
@@ -118,7 +118,7 @@ class World(CheatScriptAI):
         # self.tar_pos[3][1] = 1
         self.teams_result_step1 = None
         self.team_centroid_step1 = None
-        from .collective_assult_parallel_run import ScenarioConfig
+        from .collective_assault_parallel_run import ScenarioConfig
         self.s_cfg = ScenarioConfig
 
     # return all alive agents
@@ -190,10 +190,10 @@ class World(CheatScriptAI):
 
         # 留给内置AI的后门
         if len(self.scripted_agents) != 0: self.attackers_policy_1(self.scripted_agents, self.guards)
-        
+
         ## -------- apply effects of laser ------------- ##
-        self.apply_laser_effect()  
-        
+        self.apply_laser_effect()
+
         # ------------- Calculate total physical (p_force) on each agent ------------- #
         p_force = [None] * len(self.active_entities)
         # apply agent physical controls
@@ -209,7 +209,7 @@ class World(CheatScriptAI):
     # gather agent action forces
     def apply_action_force(self, p_force):
         for i,agent in enumerate(self.alive_agents):
-            p_force[i] = agent.act[:2] 
+            p_force[i] = agent.act[:2]
         return p_force
 
 
@@ -218,7 +218,7 @@ class World(CheatScriptAI):
             f = self.get_wall_collision_force(agent)
             if(f is not None):
                 assert p_force[a] is not None
-                p_force[a] = f + p_force[a] 
+                p_force[a] = f + p_force[a]
         return p_force
 
     def set_terrain_adv(self):
@@ -250,7 +250,7 @@ class World(CheatScriptAI):
                     fanOpenRad = entity.shootWin
                     fanDirRad  = entity.atk_rad
                     hit__4 = laser_hit_improve3(
-                        entity.pos, entity_b.pos, 
+                        entity.pos, entity_b.pos,
                         fanRadius, fanOpenRad, fanDirRad
                     )
 
@@ -261,7 +261,7 @@ class World(CheatScriptAI):
                         entity_b.wasHit = True
                         entity_b.wasHitBy = entity
                         entity_b.numWasHit += 1
-        
+
         # update just died state of dead agents
         for agent in self.agents:
             if not agent.alive:
@@ -298,7 +298,7 @@ class World(CheatScriptAI):
                 if entity.alive:
                     entity.atk_rad += entity.act[2]
                     entity.atk_rad = reg_angle(entity.atk_rad)
-                
+
             entity.pos += entity.vel * self.dt
 
 
@@ -328,7 +328,7 @@ class World(CheatScriptAI):
         pt2 = pt1 + fire_range_fix*np.array([np.cos(ang+agent.shootWin/2), np.sin(ang+agent.shootWin/2)])
         pt3 = pt1 + fire_range_fix*np.array([np.cos(ang-agent.shootWin/2), np.sin(ang-agent.shootWin/2)])
         A = np.array([[pt1[0], pt2[0], pt3[0]],
-                      [pt1[1], pt2[1], pt3[1]]])       
+                      [pt1[1], pt2[1], pt3[1]]])
         return A, fire_range_fix
 
 

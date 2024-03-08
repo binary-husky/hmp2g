@@ -184,7 +184,7 @@ class NetCentralCritic(nn.Module):
 
         mask_dead = torch.isnan(obs).any(-1)
         obs = torch.nan_to_num_(obs, 0)         # replace dead agents' obs, from NaN to 0
-        
+
         # # # # # # # # # # actor-critic share # # # # # # # # # # # #
         baec = self.obs_encoder(obs)
         baec = self.attention_layer(k=baec,q=baec,v=baec, mask=mask_dead)

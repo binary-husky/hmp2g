@@ -71,7 +71,7 @@ class trajectory(TRAJ_BASE):
     def reward_push_forward(self, dead_mask):
         # self.new_reward = self.reward.copy()
         if AlgorithmConfig.gamma_in_reward_forwarding:
-            gamma = AlgorithmConfig.gamma_in_reward_forwarding_value 
+            gamma = AlgorithmConfig.gamma_in_reward_forwarding_value
             for i in reversed(range(self.time_pointer)):
                 if i==0: continue
                 self.reward[i-1] += np.where(dead_mask[i], self.reward[i]*gamma, 0)  # if dead_mask[i]==True, this frame is invalid, move reward forward, set self.reward[i] to 0
@@ -89,7 +89,7 @@ class trajectory(TRAJ_BASE):
     def finalize(self, winrate):
         self.readonly_lock = True
         assert not self.deprecated_flag
-        TJ = lambda key: getattr(self, key) 
+        TJ = lambda key: getattr(self, key)
         assert not np.isnan(TJ('reward')).any()
         # deadmask
         agent_alive = getattr(self, self.agent_alive_reference)
@@ -98,12 +98,12 @@ class trajectory(TRAJ_BASE):
 
         if trajectory.dead_mask_check:
             trajectory.dead_mask_check = False
-            if not dead_mask.any(): 
+            if not dead_mask.any():
                 assert False, "Are you sure agents cannot die? If so, delete this check."
 
         if AlgorithmConfig.reward_for_winrate:
             # winrate_reward_coef = 10.0
-            # if self.win: 
+            # if self.win:
             self.reward[-1] *= winrate
 
         self.reward_push_forward(dead_mask) # push terminal reward forward 38 42 54
@@ -112,9 +112,9 @@ class trajectory(TRAJ_BASE):
         for i in reversed(range(self.time_pointer)):
             # threat[:(i+1)] 不包含threat[(i+1)]
             if i+1 < self.time_pointer:
-                threat[:(i+1)] += (~(dead_mask[i+1]&dead_mask[i])).astype(np.int)
+                threat[:(i+1)] += (~(dead_mask[i+1]&dead_mask[i])).astype(int)
             elif i+1 == self.time_pointer:
-                threat[:] += (~dead_mask[i]).astype(np.int)
+                threat[:] += (~dead_mask[i]).astype(int)
 
         SAFE_LIMIT = 8
         threat = np.clip(threat, -1, SAFE_LIMIT)
@@ -125,13 +125,13 @@ class trajectory(TRAJ_BASE):
             normalized_score = (self.agents_life_length - self.agents_life_length.mean() ) / sigma
 
             normalized_score = np.clip(normalized_score, -1.5, 1.5)
-            wr = np.clip(GlobalConfig.recent_winrate, 0.2, 0.8) 
+            wr = np.clip(GlobalConfig.recent_winrate, 0.2, 0.8)
 
             ll = np.array([GlobalConfig.intrisic_reward_controller.compute_fn((l, wr)) for l in normalized_score])
             n_agent = len(ll)
-            for i in range(n_agent): 
+            for i in range(n_agent):
                 self.reward[ self.agents_life_length[i]-1 , i] += ll[i]
-            
+
             # print('')
 
         # ! Use GAE to calculate return
@@ -140,7 +140,7 @@ class trajectory(TRAJ_BASE):
 
     def gae_finalize_return(self, reward_key, value_key, new_return_name):
         # ------- gae parameters -------
-        gamma = AlgorithmConfig.gamma 
+        gamma = AlgorithmConfig.gamma
         tau = AlgorithmConfig.tau
         # ------- -------------- -------
         rewards = getattr(self, reward_key)
@@ -194,7 +194,7 @@ class TrajPoolManager(object):
         self.n_up = AlgorithmConfig.reward_for_winrate_n_up
         self.rolling_win_res = np.zeros(shape=(self.n_up, self.n_env)) + np.nan
         pass
-    
+
     def absorb_finalize_pool(self, pool):
         # 向下滚
         self.rolling_win_res = np.roll(self.rolling_win_res, axis=0, shift=1)
@@ -241,9 +241,9 @@ class TrajManagerBase(object):
         self._traj_lock_buf = None
         self.patience = 1000
         pass
-    
+
     def __check_integraty(self, traj_frag):
-        if self.patience < 0: 
+        if self.patience < 0:
             return # stop wasting time checking this
         self.patience -= 1
         for key in traj_frag:
@@ -286,7 +286,7 @@ class TrajManagerBase(object):
     def traj_remember(self, traj, key, content, frag_index, n_active):
         if content is None: traj.remember(key, None)
         elif isinstance(content, dict):
-            for sub_key in content: 
+            for sub_key in content:
                 self.traj_remember(traj, "".join((key , ">" , sub_key)), content=content[sub_key], frag_index=frag_index, n_active=n_active)
         else:
             assert n_active == len(content), ('length error')
@@ -323,7 +323,7 @@ class BatchTrajManager(TrajManagerBase):
     def feed_traj(self, traj_frag, require_hook=False):
         # an unlock hook must be executed before new trajectory feed in
         assert self._traj_lock_buf is None
-        if require_hook: 
+        if require_hook:
             # the traj_frag is not intact, lock up traj_frag, wait for more
             assert '_SKIP_' in traj_frag
             assert '_DONE_' not in traj_frag
@@ -336,7 +336,7 @@ class BatchTrajManager(TrajManagerBase):
             self.batch_update(traj_frag=traj_frag)
             return
 
-        
+
     def train_and_clear_traj_pool(self):
         print('do update %d'%self.update_cnt)
 
@@ -352,7 +352,7 @@ class BatchTrajManager(TrajManagerBase):
     def can_exec_training(self):
         if len(self.traj_pool) >= self.train_traj_needed:  return True
         else:  return False
- 
+
     def unlock_fn(self, traj_frag):
         assert self._traj_lock_buf is not None
         traj_frag.update(self._traj_lock_buf)

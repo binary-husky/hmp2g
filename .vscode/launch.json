@@ -18,18 +18,17 @@
             "justMyCode": false
         },
         {
-            "name": "Hmp: Large Uhmap",
+            "name": "Hmp: Current Launcher",
             "type": "python",
             "request": "launch",
-            "program": "main.py",   // ${file}
+            "program": "${file}",
             "args": [
-                "-c",
-                "z_uhmaplargescale.jsonc",
-                "--skip"
+                "-d",
             ],
             "console": "integratedTerminal",
             "justMyCode": false
         },
+
         {
             "name": "Python: Current File",
             "type": "python",

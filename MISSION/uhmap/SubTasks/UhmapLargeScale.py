@@ -156,7 +156,6 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         MAX_NUM_OPP_OBS = SubTaskConfig.MAX_NUM_OPP_OBS
         MAX_NUM_ALL_OBS = SubTaskConfig.MAX_NUM_ALL_OBS
         MAX_OBJ_NUM_ACCEPT = SubTaskConfig.MAX_OBJ_NUM_ACCEPT
-
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
         for i, agent in enumerate(self.agents): pos3d_arr[i] = agent.pos3d
@@ -380,7 +379,6 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             agent_property.update({
                     "FireRange":  1200       if agent_class == 'RLA_CAR_Laser' else 2200,
             })
-
         return agent_property
 
     def init_air(self, agent_info, pos_ro):

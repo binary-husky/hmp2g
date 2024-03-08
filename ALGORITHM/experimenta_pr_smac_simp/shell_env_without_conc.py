@@ -23,7 +23,7 @@ class ShellEnvWrapper(object):
         # whether to use avail_act to block forbiden actions
         self.AvailActProvided = False
         if hasattr(self.ScenarioConfig, 'AvailActProvided'):
-            self.AvailActProvided = self.ScenarioConfig.AvailActProvided 
+            self.AvailActProvided = self.ScenarioConfig.AvailActProvided
 
         # whether to load previously saved checkpoint
         self.load_checkpoint = alg_config.load_checkpoint
@@ -49,7 +49,7 @@ class ShellEnvWrapper(object):
             obs = np.concatenate((obs, previous_act_onehot), -1)
         obs[~alive] = np.nan
 
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         state = np.array([info['state'] for info in State_Recall['Latest-Team-Info']])
 
         state_feed = state[~P]
@@ -84,6 +84,6 @@ class ShellEnvWrapper(object):
         # State_Recall['_Previous_Obs_'] = obs
         State_Recall['_Previous_Act_Onehot_'] = np_one_hot(act, n=self.n_action)
         if not State_Recall['Test-Flag']:
-            State_Recall['_hook_'] = internal_recall['_hook_'] 
+            State_Recall['_hook_'] = internal_recall['_hook_']
             assert State_Recall['_hook_'] is not None
-        return actions_list, State_Recall 
+        return actions_list, State_Recall

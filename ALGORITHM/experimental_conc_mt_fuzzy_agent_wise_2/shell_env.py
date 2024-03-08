@@ -5,7 +5,7 @@ from UTIL.tensor_ops import my_view, __hash__
 
 
 class ShellEnvWrapper(object):
-    def __init__(self, n_agent, n_thread, space, mcv, rl_functional, 
+    def __init__(self, n_agent, n_thread, space, mcv, rl_functional,
                                           alg_config, ScenarioConfig):
         self.n_agent = n_agent
         self.n_thread = n_thread
@@ -17,7 +17,7 @@ class ShellEnvWrapper(object):
         # whether to use avail_act to block forbiden actions
         self.AvailActProvided = False
         if hasattr(ScenarioConfig, 'AvailActProvided'):
-            self.AvailActProvided = ScenarioConfig.AvailActProvided 
+            self.AvailActProvided = ScenarioConfig.AvailActProvided
 
         self.use_policy_resonance = alg_config.use_policy_resonance
         # whether to load previously saved checkpoint
@@ -25,7 +25,7 @@ class ShellEnvWrapper(object):
         self.cold_start = True
 
     def interact_with_env(self, StateRecall):
-        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=np.int) - 1 # 初始化全部为 -1
+        act = np.zeros(shape=(self.n_thread, self.n_agent), dtype=int) - 1 # 初始化全部为 -1
         # read internal coop graph info
         obs = StateRecall['Latest-Obs']
         RST = StateRecall['Env-Suffered-Reset']
@@ -46,12 +46,12 @@ class ShellEnvWrapper(object):
         obs_feed_in = self.solve_duplicate(obs_feed, prev_obs_feed)
 
         I_StateRecall = {
-            'obs':obs_feed_in, 
+            'obs':obs_feed_in,
             'alive':alive_feed,
             'randl':randl,
             'eprsn':eprsn,
-            'Test-Flag':StateRecall['Test-Flag'], 
-            'threads_active_flag':~P, 
+            'Test-Flag':StateRecall['Test-Flag'],
+            'threads_active_flag':~P,
             'Latest-Team-Info':StateRecall['Latest-Team-Info'][~P],
             }
         if self.AvailActProvided:
@@ -69,9 +69,9 @@ class ShellEnvWrapper(object):
         # <2> call a empty frame to gather reward
         StateRecall['_Previous_Obs_'] = obs
         if not StateRecall['Test-Flag']:
-            StateRecall['_hook_'] = internal_recall['_hook_'] 
+            StateRecall['_hook_'] = internal_recall['_hook_']
             assert StateRecall['_hook_'] is not None
-        return actions_list, StateRecall 
+        return actions_list, StateRecall
 
     def solve_duplicate(self, obs_feed, prev_obs_feed):
         #  input might be (n_thread, n_agent, n_entity, basic_dim), or (n_thread, n_agent, n_entity*basic_dim)

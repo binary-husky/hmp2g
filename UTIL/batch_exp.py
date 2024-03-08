@@ -10,11 +10,11 @@ def get_info(script_path):
         'HostIP': get_host_ip(),
         'RunPath': os.getcwd(),
         'ScriptPath': os.path.abspath(script_path),
-        'StartDateTime': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        'StartDateTime': time.strftime("%Y-%m-%d %H-%M-%S", time.localtime())
     }
     try:
         info['DockerContainerHash'] = subprocess.getoutput(r'cat /proc/self/cgroup | grep -o -e "docker/.*"| head -n 1 |sed "s/docker\\/\\(.*\\)/\\1/" |cut -c1-12')
-    except: 
+    except:
         info['DockerContainerHash'] = 'None'
     return info
 
@@ -51,18 +51,18 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
         print红('\n')
 
     printX = [
-        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛, 
+        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛,
         print红,   print绿,   print黄,   print蓝,   print紫,   print靛,
-        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛, 
+        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛,
         print红,   print绿,   print黄,   print蓝,   print紫,   print靛,
-        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛, 
+        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛,
         print红,   print绿,   print黄,   print蓝,   print紫,   print靛,
-        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛, 
+        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛,
         print红,   print绿,   print黄,   print蓝,   print紫,   print靛,
-        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛, 
+        print亮红, print亮绿, print亮黄, print亮蓝, print亮紫, print亮靛,
         print红,   print绿,   print黄,   print蓝,   print紫,   print靛,
     ]
-    
+
     conf_base_ = conf_list[0]
     for k_ in conf_base_:
         conf_base = conf_base_[k_]
@@ -72,7 +72,7 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
                 if conf_base[key]!=conf_list[i][k_][key]:
                     different = True
                     break
-            # 
+            #
             if different:
                 for i in range(len(conf_list)):
                     printX[i](key, conf_list[i][k_][key])
@@ -102,9 +102,9 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
     def remote_worker(ith_run):
         # step 1: transfer all files
         from UTIL.exp_helper import get_ssh_sftp
-        
+
         addr = n_run_mode[ith_run]['addr']
-        if 'exe_here' in addr: 
+        if 'exe_here' in addr:
             _, addr = addr.split('=>')
             usr = n_run_mode[ith_run]['usr']
             pwd = n_run_mode[ith_run]['pwd']
@@ -121,9 +121,10 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
             try:
                 sftp.mkdir(src_path, ignore_existing=False)
                 if auto_rl:
-                    ignore_list=['__pycache__','TEMP','ZHECKPOINT', '.git', 'threejsmod', 'md_imgs', 'ZDOCS', 'AUTORL']
+                    ignore_list=['__pycache__','TEMP','RESULT', 'ZHECKPOINT', '.git', 'threejsmod', 'md_imgs', 'ZDOCS', 'AUTORL']
                 else:
-                    ignore_list=['__pycache__','TEMP','ZHECKPOINT']
+                    ignore_list=['__pycache__','TEMP','RESULT', 'ZHECKPOINT']
+
                 sftp.put_dir('./', src_path, ignore_list=ignore_list)
                 sftp.close()
                 print紫('upload complete')
@@ -135,13 +136,13 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
 
         if logger is not None and ith_run==0:
             logger.info(f"{summary_note} [Deploy Code] Attach cmd: ssh {usr}@{addr_ip} -p {addr_port} -t \"byobu attach -t {time_mark_only}\"")
-        
+
         if logger is None:
             print('byobu attach -t %s'%time_mark_only)
 
 
         print亮蓝("Attach cmd: ssh %s@%s -p %s -t \"byobu attach -t %s\""%(usr, addr_ip, addr_port, time_mark_only))
-        
+
         stdin, stdout, stderr = ssh.exec_command(command='byobu new-session -d -s %s'%time_mark_only, timeout=1)
         print亮紫('byobu new-session -d -s %s'%time_mark_only)
         time.sleep(1)
@@ -157,7 +158,7 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
         # print亮紫('byobu send-keys "%s" C-m'%cmd)
         time.sleep(1)
 
-        
+
         cmd = ' '.join(['echo',  str(get_info(script_path)) ,'>>', './private_remote_execution.log'])
         stdin, stdout, stderr = ssh.exec_command(command='byobu send-keys -t %s "%s" C-m'%(time_mark_only, cmd), timeout=1)
         # print亮紫('byobu send-keys "%s" C-m'%cmd)
@@ -179,19 +180,19 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
         # stdin, stdout, stderr = ssh.exec_command(command='byobu kill-session -t %s'%byobu_win_name, timeout=1)
         note = conf_list[ith_run]['config.py->GlobalConfig']['note']
         future = {
-            'checkpoint': '/home/%s/%s/%s/src/ZHECKPOINT/%s'%(usr, master_folder, time_mark, note),
-            'conclusion': '/home/%s/%s/%s/src/ZHECKPOINT/%s/experiment_conclusion.pkl'%(usr, master_folder, time_mark, note),
+            'checkpoint': '/home/%s/%s/%s/src/RESULT/%s'%(usr, master_folder, time_mark, note),
+            'conclusion': '/home/%s/%s/%s/src/RESULT/%s/experiment_conclusion.pkl'%(usr, master_folder, time_mark, note),
             'mark': time_mark,
             'time_mark': time_mark_only,
         }
         return future
 
     def worker(ith_run):
-        if n_run_mode[ith_run] is None: 
+        if n_run_mode[ith_run] is None:
             return local_worker(ith_run)
         else:
             return remote_worker(ith_run)
-         
+
 
 
     def clean_process(pid):
@@ -221,7 +222,7 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
         input('Confirm execution! 确认执行!')
 
     def count_down(DELAY):
-        while DELAY > 0: 
+        while DELAY > 0:
             time.sleep(1); DELAY -= 1; print(f'\rCounting down {DELAY}', end='', flush=True)
 
     count_down(5)
@@ -235,7 +236,7 @@ def run_batch_exp(summary_note, n_run, n_run_mode, base_conf, conf_override, scr
 
 def objload(file):
     import pickle, os
-    if not os.path.exists(file): 
+    if not os.path.exists(file):
         return
     with open(file, 'rb') as f:
         return pickle.load(f)
@@ -277,13 +278,13 @@ def fetch_experiment_conclusion(step, future_list, n_run_mode, timeout_hour=4):
         while not remote_exist(future['conclusion'], sftp):
             used_time = time.time() - time_start
             print('Waiting', addr, future['conclusion'], 'Timeout in:', time_out - used_time)
-            if used_time > time_out: 
+            if used_time > time_out:
                 clean_byobu_interface(future_list, n_run_mode)
                 raise TimeoutError
             time.sleep(10)
-        if not os.path.exists('./ZHECKPOINT/AutoRL/'): os.makedirs('./ZHECKPOINT/AutoRL/')
-        sftp.get(future['conclusion'], f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl')
-        conclusion_list.append(objload(f'./ZHECKPOINT/AutoRL/conclusion_{step}_{ith_run}.pkl'))
+        if not os.path.exists('./RESULT/AutoRL/'): os.makedirs('./RESULT/AutoRL/')
+        sftp.get(future['conclusion'], f'./RESULT/AutoRL/conclusion_{step}_{ith_run}.pkl')
+        conclusion_list.append(objload(f'./RESULT/AutoRL/conclusion_{step}_{ith_run}.pkl'))
 
     clean_byobu_interface(future_list, n_run_mode)
     return conclusion_list
