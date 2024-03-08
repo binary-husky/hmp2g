@@ -135,11 +135,11 @@ RESULT/adca-100+/logger
 RESULT/adca-100+/experiment.jsonc
 
 
-!ZHECKPOINT/adca-100+
-ZHECKPOINT/adca-100+/backup_files
-ZHECKPOINT/adca-100+/logger
-!ZHECKPOINT/adca-100+/model_95wr.pt
-ZHECKPOINT/adca-100+/experiment.jsonc
+!RESULT/adca-100+
+RESULT/adca-100+/backup_files
+RESULT/adca-100+/logger
+!RESULT/adca-100+/model_95wr.pt
+RESULT/adca-100+/experiment.jsonc
 
 
 
@@ -180,3 +180,4 @@ THIRDPARTY/pymarl2/pymarl2src
 batch_experiment*
 experiment*
 .vscode
+ZHECKPOINT
