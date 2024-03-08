@@ -10,6 +10,16 @@ from ..actset_lookup import digit2act_dictionary, AgentPropertyDefaults
 from ..actset_lookup import decode_action_as_string, decode_action_as_string
 
 
+def init_position_helper(x_max, x_min, y_max, y_min, total, this):
+    n_col = np.ceil(np.sqrt(np.abs(x_max-x_min) * total / np.abs(y_max-y_min)))
+    n_row = np.ceil(total / n_col)
+
+    which_row = this // n_col
+    which_col = this % n_col
+
+    x = x_min + (which_col/n_col)*(x_max-x_min)
+    y = y_min + (which_row/n_row)*(y_max-y_min)
+    return x, y
 
 class UhmapCommonFn(UhmapEnv):
 
@@ -33,6 +43,7 @@ class UhmapCommonFn(UhmapEnv):
             self.SubTaskConfig.agent_list[i]['tid'] = n_team_agent[team]
             n_team_agent[team] += 1
 
+        self.n_team_agent = n_team_agent
         # push agent init info one by one
         for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
             team = agent_info['team']
@@ -41,7 +52,7 @@ class UhmapCommonFn(UhmapEnv):
             AgentSettingArray.append(init_fn(agent_info, pos_ro))
 
         self.agents  = [Agent(team=a['team'], team_id=a['tid'], uid=a['uid']) for a in self.SubTaskConfig.agent_list]
-        
+
         # refer to struct.cpp, FParsedDataInput
         resp = self.client.send_and_wait_reply(json.dumps({
             'valid': True,
@@ -71,7 +82,7 @@ class UhmapCommonFn(UhmapEnv):
             act_send = [digit2act_dictionary[a] for a in act]
         elif self.SubTaskConfig.ActionFormat == 'Multi-Digit':
             act_send = [decode_action_as_string(a) for a in act]
-        elif self.SubTaskConfig.ActionFormat == 'ASCII':            
+        elif self.SubTaskConfig.ActionFormat == 'ASCII':
             act_send = [digitsToStrAction(a) for a in act]
         else:
             act_send = [digitsToStrAction(a) for a in act]
@@ -90,7 +101,7 @@ class UhmapCommonFn(UhmapEnv):
 
         # generate reward, get the episode ending infomation
         RewardForAllTeams, WinningResult = self.gen_reward_and_win(resp)
-        if WinningResult is not None: 
+        if WinningResult is not None:
             info.update(WinningResult)
             assert resp['dataGlobal']['episodeDone']
             done = True
@@ -100,6 +111,7 @@ class UhmapCommonFn(UhmapEnv):
         if resp['dataGlobal']['timeCnt'] >= ScenarioConfig.MaxEpisodeStep:
             assert done
 
+        if self.rank == 0 and ScenarioConfig.js_render: self.simple_render_with_threejs()
         return (ob, RewardForAllTeams, done, info)  # choose this if RewardAsUnity
 
     def parse_event(self, event):
@@ -130,7 +142,7 @@ class UhmapCommonFn(UhmapEnv):
         reward = [0]*self.n_teams
         events = resp['dataGlobal']['events']
         WinningResult = None
-        for event in events: 
+        for event in events:
             event_parsed = self.parse_event(event)
             # if event_parsed['Event'] == 'Destroyed':
             #     team = self.find_agent_by_uid(event_parsed['UID']).team
@@ -154,7 +166,7 @@ class UhmapCommonFn(UhmapEnv):
                     ShipWin = True; ShipRank = 0; ShipReward = 1
                 else:
                     print('unexpected end reaon:', EndReason)
-                    
+
                 WinningResult = {"team_ranking": [ShipRank, WaterdropRank], "end_reason": EndReason}
 
                 reward = [ShipReward, WaterdropReward]
@@ -176,9 +188,9 @@ class UhmapCommonFn(UhmapEnv):
         """
         if not hasattr(self, 'uid_to_agent_dict'):
             self.uid_to_agent_dict = {}
-            self.uid_to_agent_dict.update({agent.uid:agent for agent in self.agents}) 
+            self.uid_to_agent_dict.update({agent.uid:agent for agent in self.agents})
             if isinstance(uid, str):
-                self.uid_to_agent_dict.update({str(agent.uid):agent for agent in self.agents}) 
+                self.uid_to_agent_dict.update({str(agent.uid):agent for agent in self.agents})
         return self.uid_to_agent_dict[uid]
 
 
@@ -190,13 +202,13 @@ class UhmapCommonFn(UhmapEnv):
         """
         assert resp['valid']
         resp['dataGlobal']['distanceMat'] = np.array(resp['dataGlobal']['distanceMat']['flat_arr']).reshape(self.n_agents,self.n_agents)
-        
+
         if len(resp['dataGlobal']['events'])>0:
             tmp = [kv.split('>') for kv in resp['dataGlobal']['events'][0].split('<') if kv]
             info_parse = {t[0]:t[1] for t in tmp}
 
         info_dict = resp
-        for info in info_dict['dataArr']: 
+        for info in info_dict['dataArr']:
             alive = info['agentAlive']
 
             if alive:
@@ -262,7 +274,7 @@ class UhmapCommonFn(UhmapEnv):
         OBS_RANGE_PYTHON_SIDE = 15000
         MAX_NUM_OPP_OBS = 5
         MAX_NUM_ALL_OBS = 5
-        
+
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
         for i, agent in enumerate(self.agents): pos3d_arr[i] = agent.pos3d
@@ -332,7 +344,7 @@ class UhmapCommonFn(UhmapEnv):
             a2h_dis_sorted = a2h_dis[h_iden_sort]
             h_alive_sorted = h_alive[h_iden_sort]
             h_vis_mask = (a2h_dis_sorted <= OBS_RANGE_PYTHON_SIDE) & h_alive_sorted
-            
+
             # scope <all>
             h_vis_index = h_iden_sort[h_vis_mask]
             h_invis_index = h_iden_sort[~h_vis_mask]
@@ -343,7 +355,7 @@ class UhmapCommonFn(UhmapEnv):
             a2h_feature_sort[h_msk] = 0
             if len(a2h_feature_sort)<MAX_NUM_OPP_OBS:
                 a2h_feature_sort = np.concatenate((
-                    a2h_feature_sort, 
+                    a2h_feature_sort,
                     np.ones(shape=(MAX_NUM_OPP_OBS-len(a2h_feature_sort), CORE_DIM))+np.nan), axis=0)
 
             # scope <ally/friend>
@@ -367,7 +379,7 @@ class UhmapCommonFn(UhmapEnv):
             self_ally_feature_sort[f_msk] = 0
             if len(self_ally_feature_sort)<MAX_NUM_ALL_OBS:
                 self_ally_feature_sort = np.concatenate((
-                    self_ally_feature_sort, 
+                    self_ally_feature_sort,
                     np.ones(shape=(MAX_NUM_ALL_OBS-len(self_ally_feature_sort), CORE_DIM))+np.nan
                 ), axis=0)
             OBS_ALL_AGENTS[i,:] = np.concatenate((self_ally_feature_sort, a2h_feature_sort), axis = 0)
@@ -399,13 +411,13 @@ class UhmapCommonFn(UhmapEnv):
                     #     obj['location']['x'], obj['location']['y'], obj['location']['z']  # agent.pos3d
                     # ], 6, ScenarioConfig.ObsBreakBase, 0)
                 )
-                
+
                 obs_arr.append([
                     obj['velocity']['x'], obj['velocity']['y'], obj['velocity']['z']  # agent.vel3d
                 ]+
                 [
                     -1,                         # hp
-                    obj['rotation']['yaw'],     # yaw 
+                    obj['rotation']['yaw'],     # yaw
                     0,                          # max_speed
                 ])
             OBS_GameObj = my_view(obs_arr.get(), [len(self.key_obj), -1])[:MAX_OBJ_NUM_ACCEPT, :]
@@ -419,12 +431,12 @@ class UhmapCommonFn(UhmapEnv):
     def init_ship(self, agent_info, pos_ro):
         agent_class = agent_info['type']
         team = agent_info['team']
-        tid = agent_info['tid'] # tid 是智能体在队伍中的编号 
+        tid = agent_info['tid'] # tid 是智能体在队伍中的编号
         uid = agent_info['uid'] # uid 是智能体在仿真中的唯一编号
-        
+
         x = -2000
-        y = (tid * 1000) # tid 是智能体在队伍中的编号 
-        z = 500 # 
+        y = (tid * 1000) # tid 是智能体在队伍中的编号
+        z = 500 #
 
         agent_property = copy.deepcopy(self.SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
@@ -440,9 +452,9 @@ class UhmapCommonFn(UhmapEnv):
                 # custom args
                 'RSVD1': '',
                 # the rank of agent inside the team
-                'IndexInTeam': tid, 
+                'IndexInTeam': tid,
                 # the unique identity of this agent in simulation system
-                'UID': uid, 
+                'UID': uid,
                 # show color
                 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location
@@ -459,10 +471,10 @@ class UhmapCommonFn(UhmapEnv):
         team = agent_info['team']
         tid = agent_info['tid']
         uid = agent_info['uid']
-        
+
         x = +2000
         y = (tid * 200)
-        z = 500 # 
+        z = 500 #
 
         agent_property = copy.deepcopy(self.SubTaskConfig.AgentPropertyDefaults)
         agent_property.update({
@@ -478,9 +490,9 @@ class UhmapCommonFn(UhmapEnv):
                 # custom args
                 'RSVD1': '-MyCustomArg1=abc -MyCustomArg2=12345',
                 # the rank of agent inside the team
-                'IndexInTeam': tid, 
+                'IndexInTeam': tid,
                 # the unique identity of this agent in simulation system
-                'UID': uid, 
+                'UID': uid,
                 # show color
                 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location
@@ -489,3 +501,41 @@ class UhmapCommonFn(UhmapEnv):
                 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': 0, },
         }),
         return agent_property
+
+    def simple_render_with_threejs(self):
+        if self.rank != 0: return
+        if not hasattr(self, 'threejs_bridge'):
+            from VISUALIZE.mcom import mcom
+            self.threejs_bridge = mcom(path='TEMP/v2d_logger/', digit=8, rapid_flush=False, draw_mode='Threejs')
+            self.threejs_bridge.v2d_init()
+            self.threejs_bridge.set_style('star')
+            # self.threejs_bridge.set_style('grid')
+            # self.threejs_bridge.set_style('grid3d')
+            self.threejs_bridge.set_style('font', fontPath='/examples/fonts/ttf/FZYTK.TTF', fontLineHeight=1500) # 注意不可以省略参数键值'fontPath=','fontLineHeight=' ！！！
+            # self.threejs_bridge.set_style('gray')
+
+            self.threejs_bridge.time_cnt = 0
+            self.threejs_bridge.geometry_rotate_scale_translate('box',     0, 0,       0,       3, 2, 1,         0, 0, 0)
+            self.threejs_bridge.geometry_rotate_scale_translate('cone',    0, np.pi/2, 0,       1.2, 0.9, 0.9,   1.5,0,0.5) # x -> y -> z
+            self.threejs_bridge.advanced_geometry_rotate_scale_translate('tower2', 'BoxGeometry(1,1,1)',   0,0,0,  0,0,5, 0,0,-4) # 长方体
+            self.threejs_bridge.advanced_geometry_rotate_scale_translate('ball', 'SphereGeometry(1)',   0,0,0,  1,1,1, 0,0,0) # 球体
+
+
+        for i, agent in enumerate(self.agents):
+            if not agent.alive:
+                color = 'black'
+            else:
+                if agent.team == 0: color = 'green'
+                if agent.team == 1: color = 'blue'
+            self.threejs_bridge.v2dx(
+                            'ball|%d|%s|%.2f'%(i, color, 1),
+                            agent.pos3d[0]/100,
+                            agent.pos3d[1]/100,
+                            agent.pos3d[2]/100,
+                            ro_x=0, ro_y=-0, ro_z=0, ro_order='ZYX',# rotation
+                            label=f'uid-{agent.uid}', label_color='white',
+                            opacity=1,
+                            track_n_frame = 50
+                        )
+        self.threejs_bridge.v2d_show()
+

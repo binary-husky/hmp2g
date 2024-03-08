@@ -39,10 +39,11 @@ def decrpt_string(p): # decrpt_string
 
 class PymarlFoundation():
     def init_pymarl(self):
+        assert not GlobalConfig.test_only
         assert AlgorithmConfig.pymarl2_runner_select == 'efficient_parallel_runner', ('if not qmix, please use PymarlFoundation below')
         fp = open('%s/pymarl.log'%GlobalConfig.logdir, 'w+')
         import uuid, atexit
-        self.remote_uuid = uuid.uuid1().hex   # use uuid to identify threads
+        self.remote_uuid = str(self.team) + '-' + uuid.uuid1().hex   # use uuid to identify threads
         # add basic
         if 'config.py->GlobalConfig' not in AlgorithmConfig.pymarl_config_injection:
             AlgorithmConfig.pymarl_config_injection['config.py->GlobalConfig'] = {}
@@ -125,7 +126,8 @@ class PymarlFoundation():
             for key in ['obs-echo','state-echo','state','avail-act-echo','avail-act']:
                 if key in env_info: env_info.pop(key)
             env_info['testing'] = self.team_intel['Test-Flag']
-
+            env_info.pop('dataArr')
+            env_info.pop('dataGlobal')
             res.append({
                 "state": self.get_state_of(i), 
                 "avail_actions": self.get_avail_actions_of(i),
@@ -158,6 +160,7 @@ class PymarlFoundation():
         self.remote_pymarl_start_cmd = ""
         self.remote_pymarl_interface = ""
         self.team_intel = None
+        self.team = team
         self.space = space
         self.uuid2threads = {'thread_cnt':0}
         self.current_actions = [None for _ in range(self.n_thread)]
@@ -305,6 +308,7 @@ class PymarlFoundation():
 
 class PymarlFoundationOld():
     def init_pymarl(self):
+        assert not GlobalConfig.test_only
         assert AlgorithmConfig.pymarl2_runner_select != 'efficient_parallel_runner'
         fp = open('%s/pymarl.log'%GlobalConfig.logdir, 'w+')
         import uuid, atexit

@@ -22,6 +22,53 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 ('make sure you have imported the correct SubTaskConfig class')
 
 
+    def reset(self):
+        """
+            Reset function, it delivers reset command to unreal engine to spawn all agents
+            环境复位,每个episode的开始会执行一次此函数中会初始化所有智能体
+        """
+        UhmapEnv.reset(self)
+        self.t = 0
+        pos_ro = np.random.rand()*2*np.pi * 0.25
+        # spawn agents
+        AgentSettingArray = []
+
+        # count the number of agent in each team
+        n_team_agent = {}
+        for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
+            team = agent_info['team']
+            if team not in n_team_agent: n_team_agent[team] = 0
+            self.SubTaskConfig.agent_list[i]['uid'] = i
+            self.SubTaskConfig.agent_list[i]['tid'] = n_team_agent[team]
+            n_team_agent[team] += 1
+
+        self.n_team_agent = n_team_agent
+        # push agent init info one by one
+        for i, agent_info in enumerate(self.SubTaskConfig.agent_list):
+            team = agent_info['team']
+            agent_info['n_team_agent'] = n_team_agent[team]
+            init_fn = getattr(self, agent_info['init_fn_name'])
+            AgentSettingArray.append(init_fn(agent_info, pos_ro))
+
+        self.agents  = [Agent(team=a['team'], team_id=a['tid'], uid=a['uid']) for a in self.SubTaskConfig.agent_list]
+
+        # refer to struct.cpp, FParsedDataInput
+        resp = self.client.send_and_wait_reply(json.dumps({
+            'valid': True,
+            'DataCmd': 'reset',
+            'NumAgents' : len(self.SubTaskConfig.agent_list),
+            'AgentSettingArray': AgentSettingArray,  # refer to struct.cpp, FAgentProperty
+            'TimeStepMax': ScenarioConfig.MaxEpisodeStep,
+            'TimeStep' : 0,
+            'Actions': None,
+        }))
+        resp = json.loads(resp)
+        # make sure the map (level in UE) is correct
+        # assert resp['dataGlobal']['levelName'] == 'UhmapLargeScale'
+
+        assert len(resp['dataArr']) == len(AgentSettingArray), "Illegal agent initial position. 非法的智能体初始化位置，一部分智能体没有生成."
+        return self.parse_response_ob_info(resp)
+
 
     def extract_key_gameobj(self, resp):
         keyObjArr = resp['dataGlobal']['keyObjArr']
@@ -32,12 +79,12 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         reward = [0]*self.n_teams
         events = resp['dataGlobal']['events']
         WinningResult = None
-        for event in events: 
+        for event in events:
             event_parsed = self.parse_event(event)
             if event_parsed['Event'] == 'Destroyed':
                 team = self.find_agent_by_uid(event_parsed['UID']).team
-                reward[team]    -= 0.05    # this team
-                reward[1-team]  += 0.10    # opp team
+                reward[team]    -= 0.005    # this team
+                reward[1-team]  += 0.010    # opp team
             if event_parsed['Event'] == 'EndEpisode':
                 # print([a.alive * a.hp for a in self.agents])
                 EndReason = event_parsed['EndReason']
@@ -64,14 +111,14 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                         "team_ranking": [0,1] if WinTeam==0 else [1,0],
                         "end_reason": EndReason
                     }
-                    reward[WinTeam] += 1
-                    reward[1-WinTeam] -= 1
+                    reward[WinTeam] += 5
+                    reward[1-WinTeam] -= 0
                 else:
                     WinningResult = {
                         "team_ranking": [-1, -1],
                         "end_reason": EndReason
                     }
-                    reward = [-1 for _ in range(self.n_teams)]
+                    for i in range(self.n_teams): reward[i] -= 0
         # print(reward)
         return reward, WinningResult
 
@@ -105,10 +152,11 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             return CORE_DIM
 
         # temporary parameters
-        OBS_RANGE_PYTHON_SIDE = 1500
-        MAX_NUM_OPP_OBS = 5
-        MAX_NUM_ALL_OBS = 5
-        
+        OBS_RANGE_PYTHON_SIDE = SubTaskConfig.OBS_RANGE_PYTHON_SIDE
+        MAX_NUM_OPP_OBS = SubTaskConfig.MAX_NUM_OPP_OBS
+        MAX_NUM_ALL_OBS = SubTaskConfig.MAX_NUM_ALL_OBS
+        MAX_OBJ_NUM_ACCEPT = SubTaskConfig.MAX_OBJ_NUM_ACCEPT
+
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
         for i, agent in enumerate(self.agents): pos3d_arr[i] = agent.pos3d
@@ -159,8 +207,8 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
 
         assert CORE_DIM == new_obs.shape[-1]
         OBS_ALL_AGENTS = np.zeros(shape=(
-            self.n_agents, 
-            MAX_NUM_OPP_OBS+MAX_NUM_ALL_OBS, 
+            self.n_agents,
+            MAX_NUM_OPP_OBS+MAX_NUM_ALL_OBS,
             CORE_DIM
             ))
 
@@ -183,7 +231,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             a2h_dis_sorted = a2h_dis[h_iden_sort]
             h_alive_sorted = h_alive[h_iden_sort]
             h_vis_mask = (a2h_dis_sorted <= OBS_RANGE_PYTHON_SIDE) & h_alive_sorted
-            
+
             # scope <all>
             h_vis_index = h_iden_sort[h_vis_mask]
             h_invis_index = h_iden_sort[~h_vis_mask]
@@ -194,7 +242,7 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             a2h_feature_sort[h_msk] = 0
             if len(a2h_feature_sort)<MAX_NUM_OPP_OBS:
                 a2h_feature_sort = np.concatenate((
-                    a2h_feature_sort, 
+                    a2h_feature_sort,
                     np.ones(shape=(MAX_NUM_OPP_OBS-len(a2h_feature_sort), CORE_DIM))+np.nan
                 ), axis=0)
 
@@ -219,14 +267,13 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
             self_ally_feature_sort[f_msk] = 0
             if len(self_ally_feature_sort)<MAX_NUM_ALL_OBS:
                 self_ally_feature_sort = np.concatenate((
-                    self_ally_feature_sort, 
+                    self_ally_feature_sort,
                     np.ones(shape=(MAX_NUM_ALL_OBS-len(self_ally_feature_sort), CORE_DIM))+np.nan
                 ), axis=0)
             OBS_ALL_AGENTS[i,:] = np.concatenate((self_ally_feature_sort, a2h_feature_sort), axis = 0)
 
 
         # the last part of observation is the list of core game objects
-        MAX_OBJ_NUM_ACCEPT = 1
         self.N_Obj = len(self.key_obj)
 
         OBJ_UID_OFFSET = 32768
@@ -253,13 +300,13 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 #     obj['location']['x'], obj['location']['y'], obj['location']['z']  # agent.pos3d
                 # ], 6, ScenarioConfig.ObsBreakBase, 0)
             )
-            
+
             obs_arr.append([
                 obj['velocity']['x'], obj['velocity']['y'], obj['velocity']['z']  # agent.vel3d
             ]+
             [
                 -1,                         # hp
-                obj['rotation']['yaw'],     # yaw 
+                obj['rotation']['yaw'],     # yaw
                 0,                          # max_speed
             ])
         OBS_GameObj = my_view(obs_arr.get(), [len(self.key_obj), -1])[:MAX_OBJ_NUM_ACCEPT, :]
@@ -271,14 +318,18 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
 
 
     def init_ground(self, agent_info, pos_ro):
-        N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
+        N_COL = 2
+        if n_team_agent > 40:
+            N_COL = 3
+        if n_team_agent > 60:
+            N_COL = 7
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
-        y = (400* (tid%N_COL) + 2000) * (-1)**(team+1)
+        y = (600* (tid%N_COL) + 2000) * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
         z = 500 # 500 is slightly above the ground
         yaw = 90 if team==0 else -90
@@ -287,13 +338,13 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
         agent_property.update({
                 'DebugAgent': False,
                 # max drive/fly speed
-                'MaxMoveSpeed':  720          if agent_class == 'RLA_CAR_Laser' else 600,
+                'MaxMoveSpeed':  500   if agent_class == 'RLA_CAR_Laser' else 700 ,
                 # also influence object mass, please change it with causion!
-                'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
+                'AgentScale'  : { 'x': 0.6,  'y': 0.6, 'z': 0.6, } if agent_class == 'RLA_CAR_Laser' else { 'x': 0.8,  'y': 0.8, 'z': 0.8, } ,
                 # probability of escaping dmg 闪避
-                "DodgeProb": 0.0,
+                "DodgeProb": 0.00,  # 脚本队伍有规避加成
                 # ms explode dmg
-                "ExplodeDmg": 20,           
+                "ExplodeDmg": 40,
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
@@ -301,19 +352,19 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # Weapon CD
                 'WeaponCD': 1,
                 # open fire range
-                "PerceptionRange":  2000       if agent_class == 'RLA_CAR_Laser' else 2500,
-                "GuardRange":       1400       if agent_class == 'RLA_CAR_Laser' else 1700,
-                "FireRange":        750        if agent_class == 'RLA_CAR_Laser' else 1400,
+                "PerceptionRange":  3000       if agent_class == 'RLA_CAR_Laser' else 3000,
+                "GuardRange":       1100       if agent_class == 'RLA_CAR_Laser' else 2100,
+                "FireRange":        1000       if agent_class == 'RLA_CAR_Laser' else 2000,
                 # debugging
                 'RSVD1': '-Ring1=2000 -Ring2=1400 -Ring3=750' if agent_class == 'RLA_CAR_Laser' else '-Ring1=2500 -Ring2=1700 -Ring3=1400',
                 # regular
-                'RSVD2': '-InitAct=ActionSet2::Idle;AsFarAsPossible',
+                'RSVD2': '-InitAct=ActionSet2::Idle;StaticAlert',
                 # agent hp
-                'AgentHp':np.random.randint(low=95,high=105) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=145,high=155),
+                'AgentHp':np.random.randint(low=200,high=210) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=95,high=100),
                 # the rank of agent inside the team
-                'IndexInTeam': tid, 
+                'IndexInTeam': tid,
                 # the unique identity of this agent in simulation system
-                'UID': uid, 
+                'UID': uid,
                 # show color
                 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location
@@ -321,33 +372,46 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # initial facing direction et.al.
                 'InitRotator': { 'pitch': 0,  'roll': 0, 'yaw': yaw, },
         }),
+        if team == 0:
+            agent_property.update({
+                    "FireRange":  1000       if agent_class == 'RLA_CAR_Laser' else 2000,
+            })
+        else:
+            agent_property.update({
+                    "FireRange":  1200       if agent_class == 'RLA_CAR_Laser' else 2200,
+            })
+
         return agent_property
 
     def init_air(self, agent_info, pos_ro):
-        N_COL = 2
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 10
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
-        
+        N_COL = 2
+        if n_team_agent > 40:
+            N_COL = 3
+        if n_team_agent > 60:
+            N_COL = 5
+
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
         y = 2000 * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
-        z = 1000
+        z = 1200
         yaw = 90 if team==0 else -90
         assert np.abs(x) < 15000.0 and np.abs(y) < 15000.0
         agent_property = copy.deepcopy(AgentPropertyDefaults)
         agent_property.update({
                 'DebugAgent': False,
                 # max drive/fly speed
-                'MaxMoveSpeed':  900,
+                'MaxMoveSpeed':  1200,
                 # also influence object mass, please change it with causion!
                 'AgentScale'  : { 'x': 1,  'y': 1, 'z': 1, },
                 # probability of escaping dmg 闪避
-                "DodgeProb": 0.0,
+                "DodgeProb": 0.5,
                 # ms explode dmg
-                "ExplodeDmg": 10,           
+                "ExplodeDmg": 10,
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
@@ -365,9 +429,9 @@ class UhmapLargeScale(UhmapCommonFn, UhmapEnv):
                 # agent hp
                 'AgentHp':50,
                 # the rank of agent inside the team
-                'IndexInTeam': tid, 
+                'IndexInTeam': tid,
                 # the unique identity of this agent in simulation system
-                'UID': uid, 
+                'UID': uid,
                 # show color
                 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location

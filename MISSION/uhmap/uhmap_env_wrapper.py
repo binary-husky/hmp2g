@@ -29,7 +29,7 @@ def get_subtask_conf(subtask):
 
 def usual_id_arrangment(N_AGENT_EACH_TEAM):
     """
-        e.g., 
+        e.g.,
         input [5, 3]
         output [range(0,5), range(5,8)]
     """
@@ -41,7 +41,7 @@ def usual_id_arrangment(N_AGENT_EACH_TEAM):
     return AGENT_ID_EACH_TEAM
 
 # please register this ScenarioConfig into MISSION/env_router.py
-class ScenarioConfig(object):  
+class ScenarioConfig(object):
     '''
         ScenarioConfig: This config class will be 'injected' with new settings from JSONC.
         (E.g., override configs with ```python main.py --cfg example.jsonc```)
@@ -56,7 +56,7 @@ class ScenarioConfig(object):
     # chained parameters, will change along with 'N_AGENT_EACH_TEAM'
     AGENT_ID_EACH_TEAM_cv = ChainVar(lambda N_AGENT_EACH_TEAM: usual_id_arrangment(N_AGENT_EACH_TEAM), chained_with=['N_AGENT_EACH_TEAM'])
     N_TEAM_cv = ChainVar(lambda N_AGENT_EACH_TEAM: len(N_AGENT_EACH_TEAM), chained_with=['N_AGENT_EACH_TEAM'])
-    
+
     # algorithm selection
     TEAM_NAMES = ['ALGORITHM.None->None',]
 
@@ -80,7 +80,8 @@ class ScenarioConfig(object):
 
     # <Part 2> Needed by env itself #
     MaxEpisodeStep = 100
-    render = False
+    render = False      # render with unreal engine client
+    js_render = False   # use threejs to run simple render in browser for fast debugging
     TcpAddr = '127.0.0.1'
     UhmapPort = 21051
 
@@ -96,7 +97,7 @@ class ScenarioConfig(object):
 
     # this is not going to be precise,
     # the precise step time will be floor(StepGameTime/TimeDilation*FrameRate)*TimeDilation/FrameRate
-    StepGameTime = 0.5  
+    StepGameTime = 0.5
 
     UhmapServerExe = 'F:/UHMP/Build/WindowsServer/UHMPServer.exe'
     UhmapRenderExe = ''
@@ -129,8 +130,7 @@ class ScenarioConfig(object):
     HeteAgents = False
 
     # 演示demo类别
-    DemoType = "Default" 
-
+    DemoType = "Default"
 
 
 class UhmapEnvParseHelper:
@@ -159,7 +159,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
 
         # Restart env, this is very fast, can be a failsafe if there is memory leaking away on UE side
         self.max_simulation_life = 2048
-        
+
         self.simulation_life = self.max_simulation_life
         # with a lock, we can initialize UE side one by one (not necessary though)
 
@@ -170,7 +170,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
 
         self.activate_simulation(self.id, find_port=True)
 
-        # thread 0 finish its initialization, 
+        # thread 0 finish its initialization,
         if rank == 0:
             with open(traffic_light, mode='w+') as f: f.write(traffic_light)
 
@@ -182,7 +182,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
     def activate_simulation(self, rank, find_port=True):
         print('thread %d initializing'%rank)
         self.sim_thread = 'activiting'
-        
+
         if find_port:
             self.render = ScenarioConfig.render #  and (rank==0)
             self.hmp_ue_port = ScenarioConfig.UhmapPort
@@ -192,11 +192,11 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                 self.ue_vis_port, release_port_fn = find_free_port_no_repeat()    # port for remote visualizing
                 print蓝('Port %d will be used by hmp, port %d will be used by UE internally'%(self.hmp_ue_port, self.ue_vis_port))
             if (not self.render) and (not ScenarioConfig.UElink2editor):
-                print蓝('To visualize on Windows, run "./UHMP.exe -OpenLevel=%s:%d -WINDOWED -TimeDilation=%.8f -FrameRate=%.8f -IOInterval=%.8f -DebugMod=False -LockGameDuringCom=True"'%(
+                print蓝('To visualize on Windows, use Git Bash to run "./UHMP.exe -OpenLevel=%s:%d -WINDOWED -TimeDilation=%.8f -FrameRate=%.8f -IOInterval=%.8f -DebugMod=False -LockGameDuringCom=True", do NOT use powershell or CMD. '%(
                     get_host_ip(), self.ue_vis_port, ScenarioConfig.TimeDilation, ScenarioConfig.FrameRate, ScenarioConfig.StepGameTime))
             self.ip_port = (ScenarioConfig.TcpAddr, self.hmp_ue_port)
-        
-        
+
+
         # os.system()
         if not ScenarioConfig.UElink2editor:
             assert ScenarioConfig.AutoPortOverride
@@ -205,32 +205,32 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             # causing some error calcualtion dt = 1/FrameRate
             # which will be enlarged due to Butterfly Effect
             # therefore we have to make sure that FrameRate = 16,32,64,...
-            print('checking ScenarioConfig args problems ...') 
+            print('checking ScenarioConfig args problems ...')
             assert ScenarioConfig.TimeDilation <= 128, "* TimeDilation <= 128 *"
             assert binary_friendly(1/ScenarioConfig.FrameRate), "* A Butterfly Effect problem *"
             assert binary_friendly(ScenarioConfig.TimeDilation/256), "* A Butterfly Effect problem *"
-            # real_step_time = 
-            #   np.floor(ScenarioConfig.StepGameTime/ScenarioConfig.TimeDilation*ScenarioConfig.FrameRate) 
+            # real_step_time =
+            #   np.floor(ScenarioConfig.StepGameTime/ScenarioConfig.TimeDilation*ScenarioConfig.FrameRate)
             #   * ScenarioConfig.TimeDilation / ScenarioConfig.FrameRate
             if not self.render:
                 simulation_exe = ScenarioConfig.UhmapServerExe
                 assert 'Server' in simulation_exe
-            else: 
+            else:
                 simulation_exe = ScenarioConfig.UhmapRenderExe
                 assert 'NoEditor' in simulation_exe
 
             if platform.system()=="Linux":
                 if self.render: assert False, "You really want to render on Linux? If so, remove this line."
-                if simulation_exe.endswith('.exe'): 
+                if simulation_exe.endswith('.exe'):
                     simulation_exe = simulation_exe.replace('/Windows', '/Linux')
                     simulation_exe = simulation_exe.replace('.exe','.sh')
                 # expand '~' path
                 simulation_exe = os.path.expanduser(simulation_exe)
             else:   # Windows
-                if simulation_exe.endswith('.sh'): 
+                if simulation_exe.endswith('.sh'):
                     simulation_exe = simulation_exe.replace('/Linux', '/Windows')
                     simulation_exe = simulation_exe.replace('.sh', '.exe')
-                if simulation_exe.startswith('/home'): 
+                if simulation_exe.startswith('/home'):
                     simulation_exe = './TEMP' + simulation_exe
 
             if not os.path.exists(simulation_exe):
@@ -251,11 +251,11 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                 # start child process
                 self.sim_thread = subprocess.Popen([
                     simulation_exe,
-                    # '-log', 
+                    # '-log',
                     '-TcpPort=%d'%self.hmp_ue_port,   # port for hmp data exchanging
                     '-Port=%d'%self.ue_vis_port,   # port for remote visualizing
-                    '-OpenLevel=%s'%ScenarioConfig.UnrealLevel, 
-                    '-TimeDilation=%.8f'%ScenarioConfig.TimeDilation, 
+                    '-OpenLevel=%s'%ScenarioConfig.UnrealLevel,
+                    '-TimeDilation=%.8f'%ScenarioConfig.TimeDilation,
                     '-FrameRate=%.8f'%ScenarioConfig.FrameRate,
                     '-IOInterval=%.8f'%ScenarioConfig.StepGameTime,
                     '-Seed=%d'%int(np.random.rand()*1e5), # 如果已经设定了主线程随机数种子，这里随机出来的数字则是确定的
@@ -269,11 +269,11 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             elif self.render and simulation_exe != '':
                 self.sim_thread = subprocess.Popen([
                     simulation_exe,
-                    # '-log', 
+                    # '-log',
                     '-TcpPort=%d'%self.hmp_ue_port,   # port for hmp data exchanging
                     '-Port=%d'%self.ue_vis_port,   # port for remote visualizing
-                    '-OpenLevel=%s'%ScenarioConfig.UnrealLevel, 
-                    '-TimeDilation=%.8f'%ScenarioConfig.TimeDilation, 
+                    '-OpenLevel=%s'%ScenarioConfig.UnrealLevel,
+                    '-TimeDilation=%.8f'%ScenarioConfig.TimeDilation,
                     '-FrameRate=%.8f'%ScenarioConfig.FrameRate,
                     '-IOInterval=%.8f'%ScenarioConfig.StepGameTime,
                     '-Seed=%d'%int(np.random.rand()*1e5), # 如果已经设定了主线程随机数种子，这里随机出来的数字则是确定的
@@ -298,11 +298,11 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
         self.client = TcpClientP2PWithCompress(self.ip_port)
         MAX_RETRY = 150
         for i in range(MAX_RETRY):
-            try: 
+            try:
                 self.client.manual_connect()
                 print('handshake complete %d'%rank)
                 break
-            except: 
+            except:
                 if i>25:
                     print('Thread %d: Trying to connect to unreal engine. Related library not in memory, going to take some minutes. Retry %d ...'%(rank, i))
                 elif i>75:
@@ -312,7 +312,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
                 time.sleep(1)
         # now that port is bind, no need to hold them anymore
         if find_port:
-            if ScenarioConfig.AutoPortOverride: 
+            if ScenarioConfig.AutoPortOverride:
                 release_port_fn(self.hmp_ue_port)
             if not ScenarioConfig.UElink2editor:
                 release_port_fn(self.ue_vis_port)
@@ -321,7 +321,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
 
 
     def terminate_simulation(self):
-        if (self.sim_thread is not None) and (self.client is not None):
+        if hasattr(self,'sim_thread') and (self.sim_thread is not None) and (self.client is not None):
             # self.sim_thread.terminate()
             # send terminate command to unreal side
             self.client.send_dgram_to_target(json.dumps({
@@ -343,7 +343,7 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
             print('restarting simutation')
             self.terminate_simulation()
             self.simulation_life = self.max_simulation_life
-            self.activate_simulation(self.id, find_port=True)
+            self.activate_simulation(self.id, find_port=False)
 
     def sleep(self):
         self.simulation_life = -1
@@ -353,5 +353,5 @@ class UhmapEnv(BaseEnv, UhmapEnvParseHelper):
     def step(self, act):
         raise NotImplementedError
         # return (ob, RewardForAllTeams,  done, info)  # choose this if RewardAsUnity
-        
+
 

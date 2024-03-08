@@ -10,13 +10,13 @@ class Agent(object):
         for attr_json, attr_agent in self.attrs: setattr(self, attr_agent, None)
         self.pos3d = np.array([np.nan, np.nan, np.nan])
         self.pos2d = np.array([np.nan, np.nan])
-    
+
     def update_agent_attrs(self, dictionary):
         if (not dictionary['agentAlive']):
             self.alive = False
         else:
             assert dictionary['valid']
-            for attr_json, attr_agent in self.attrs: 
+            for attr_json, attr_agent in self.attrs:
                 setattr(self, attr_agent, dictionary[attr_json])
             assert self.uid == self.uid_remote
             self.pos3d = np.array(self.location)
@@ -26,4 +26,7 @@ class Agent(object):
             self.scale3d = np.array(self.scale3)
             self.scale = self.scale3[0]
             self.yaw = self.rotation[0]
+            self.alive = True
+            self.team = dictionary['agentTeam']
+
 

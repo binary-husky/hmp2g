@@ -32,7 +32,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
         reward = [0]*self.n_teams
         events = resp['dataGlobal']['events']
         WinningResult = None
-        for event in events: 
+        for event in events:
             event_parsed = self.parse_event(event)
             if event_parsed['Event'] == 'Destroyed':
                 team = self.find_agent_by_uid(event_parsed['UID']).team
@@ -108,7 +108,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
         OBS_RANGE_PYTHON_SIDE = 1500
         MAX_NUM_OPP_OBS = 5
         MAX_NUM_ALL_OBS = 5
-        
+
         # get and calculate distance array
         pos3d_arr = np.zeros(shape=(self.n_agents, 3), dtype=np.float32)
         for i, agent in enumerate(self.agents): pos3d_arr[i] = agent.pos3d
@@ -159,8 +159,8 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
 
         assert CORE_DIM == new_obs.shape[-1]
         OBS_ALL_AGENTS = np.zeros(shape=(
-            self.n_agents, 
-            MAX_NUM_OPP_OBS+MAX_NUM_ALL_OBS, 
+            self.n_agents,
+            MAX_NUM_OPP_OBS+MAX_NUM_ALL_OBS,
             CORE_DIM
             ))
 
@@ -183,7 +183,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
             a2h_dis_sorted = a2h_dis[h_iden_sort]
             h_alive_sorted = h_alive[h_iden_sort]
             h_vis_mask = (a2h_dis_sorted <= OBS_RANGE_PYTHON_SIDE) & h_alive_sorted
-            
+
             # scope <all>
             h_vis_index = h_iden_sort[h_vis_mask]
             h_invis_index = h_iden_sort[~h_vis_mask]
@@ -194,7 +194,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
             a2h_feature_sort[h_msk] = 0
             if len(a2h_feature_sort)<MAX_NUM_OPP_OBS:
                 a2h_feature_sort = np.concatenate((
-                    a2h_feature_sort, 
+                    a2h_feature_sort,
                     np.ones(shape=(MAX_NUM_OPP_OBS-len(a2h_feature_sort), CORE_DIM))+np.nan
                 ), axis=0)
 
@@ -219,7 +219,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
             self_ally_feature_sort[f_msk] = 0
             if len(self_ally_feature_sort)<MAX_NUM_ALL_OBS:
                 self_ally_feature_sort = np.concatenate((
-                    self_ally_feature_sort, 
+                    self_ally_feature_sort,
                     np.ones(shape=(MAX_NUM_ALL_OBS-len(self_ally_feature_sort), CORE_DIM))+np.nan
                 ), axis=0)
             OBS_ALL_AGENTS[i,:] = np.concatenate((self_ally_feature_sort, a2h_feature_sort), axis = 0)
@@ -253,13 +253,13 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
                 #     obj['location']['x'], obj['location']['y'], obj['location']['z']  # agent.pos3d
                 # ], 6, ScenarioConfig.ObsBreakBase, 0)
             )
-            
+
             obs_arr.append([
                 obj['velocity']['x'], obj['velocity']['y'], obj['velocity']['z']  # agent.vel3d
             ]+
             [
                 -1,                         # hp
-                obj['rotation']['yaw'],     # yaw 
+                obj['rotation']['yaw'],     # yaw
                 0,                          # max_speed
             ])
         OBS_GameObj = my_view(obs_arr.get(), [len(self.key_obj), -1])[:MAX_OBJ_NUM_ACCEPT, :]
@@ -274,7 +274,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
         N_COL = 4
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 50
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
@@ -293,7 +293,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
                 # probability of escaping dmg 闪避
                 "DodgeProb": 0.0,
                 # ms explode dmg
-                "ExplodeDmg": 20,           
+                "ExplodeDmg": 20,
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
@@ -311,9 +311,9 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
                 # agent hp
                 'AgentHp':np.random.randint(low=95,high=105) if agent_class == 'RLA_CAR_Laser' else np.random.randint(low=145,high=155),
                 # the rank of agent inside the team
-                'IndexInTeam': tid, 
+                'IndexInTeam': tid,
                 # the unique identity of this agent in simulation system
-                'UID': uid, 
+                'UID': uid,
                 # show color
                 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location
@@ -327,10 +327,10 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
         N_COL = 4
         agent_class = agent_info['type']
         team = agent_info['team']
-        n_team_agent = 50
+        n_team_agent = agent_info['n_team_agent']
         tid = agent_info['tid']
         uid = agent_info['uid']
-        
+
         x = 0 + 800*(tid - n_team_agent//2) //N_COL
         y = 2000 * (-1)**(team+1)
         x,y = np.matmul(np.array([x,y]), np.array([[np.cos(pos_ro), -np.sin(pos_ro)], [np.sin(pos_ro), np.cos(pos_ro)] ]))
@@ -347,7 +347,7 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
                 # probability of escaping dmg 闪避
                 "DodgeProb": 0.0,
                 # ms explode dmg
-                "ExplodeDmg": 10,           
+                "ExplodeDmg": 10,
                 # team belonging
                 'AgentTeam': team,
                 # choose ue class to init
@@ -365,9 +365,9 @@ class UhmapHuge(UhmapCommonFn, UhmapEnv):
                 # agent hp
                 'AgentHp':50,
                 # the rank of agent inside the team
-                'IndexInTeam': tid, 
+                'IndexInTeam': tid,
                 # the unique identity of this agent in simulation system
-                'UID': uid, 
+                'UID': uid,
                 # show color
                 'Color':'(R=0,G=1,B=0,A=1)' if team==0 else '(R=0,G=0,B=1,A=1)',
                 # initial location

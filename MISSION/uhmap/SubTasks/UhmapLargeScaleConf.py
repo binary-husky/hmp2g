@@ -1,3 +1,4 @@
+from UTIL.config_args import ChainVar, ChainVarSimple
 
 class SubTaskConfig():
     agent_list = [
@@ -11,7 +12,7 @@ class SubTaskConfig():
         { 'team':0,  'tid':7,  'uid':7,  'n_team_agent':10,   'type':'RLA_CAR',        'init_fn_name':'init_ground',  },
         { 'team':0,  'tid':8,  'uid':8,  'n_team_agent':10,   'type':'RLA_CAR_Laser',  'init_fn_name':'init_ground',  },
         { 'team':0,  'tid':9,  'uid':9,  'n_team_agent':10,   'type':'RLA_CAR',        'init_fn_name':'init_ground',  },
-        
+
         { 'team':1,  'tid':0,  'uid':10, 'n_team_agent':10,   'type':'RLA_CAR_Laser',  'init_fn_name':'init_ground',  },
         { 'team':1,  'tid':1,  'uid':11, 'n_team_agent':10,   'type':'RLA_CAR',        'init_fn_name':'init_ground',  },
         { 'team':1,  'tid':2,  'uid':12, 'n_team_agent':10,   'type':'RLA_CAR_Laser',  'init_fn_name':'init_ground',  },
@@ -25,5 +26,12 @@ class SubTaskConfig():
     ]
 
     obs_vec_length = 23
-    obs_n_entity = 11
     ActionFormat = 'Multi-Digit'
+
+    OBS_RANGE_PYTHON_SIDE = 7000
+    MAX_NUM_OPP_OBS = 7
+    MAX_NUM_ALL_OBS = 7
+    MAX_OBJ_NUM_ACCEPT = 1
+
+    obs_n_entity = 15
+    obs_n_entity_cv = ChainVarSimple('$MAX_NUM_OPP_OBS$ + $MAX_NUM_ALL_OBS$ + $MAX_OBJ_NUM_ACCEPT$')

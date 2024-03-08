@@ -19,7 +19,7 @@ class MMPlatform(object):
             self.legacy_act_order = False
         self.RewardAsUnity = False # env give reward of each team instead of agent
         if hasattr(GlobalConfig.ScenarioConfig, 'RewardAsUnity'):
-            self.RewardAsUnity = GlobalConfig.ScenarioConfig.RewardAsUnity 
+            self.RewardAsUnity = GlobalConfig.ScenarioConfig.RewardAsUnity
         self.ActAsUnity = False
         if hasattr(GlobalConfig.ScenarioConfig, 'ActAsUnity'):
             self.ActAsUnity = GlobalConfig.ScenarioConfig.ActAsUnity
@@ -54,18 +54,18 @@ class MMPlatform(object):
             if _t_intel_ is None: continue
             # process internal states loop back, featured with keys that startswith and endswith '_'
             for key in _t_intel_:
-                if key.startswith('_') and key.endswith('_'): 
+                if key.startswith('_') and key.endswith('_'):
                     self._update_runner(runner_info, runner_info['ENV-PAUSE'], t_name, key, _t_intel_[key])
         pass
 
         # swapaxes:  [n_agent(n_teams if ActAsUnity), n_thread] --> [n_thread, $n_agent(n_teams if ActAsUnity)]
-        actions_list = np.swapaxes(np.array(actions_list, dtype=np.double), 0, 1) 
+        actions_list = np.swapaxes(np.array(actions_list, dtype=np.double), 0, 1)
 
         # in align_episode mod, threads that are paused are forced to give NaN action
         ENV_PAUSE = runner_info['ENV-PAUSE']
         if ENV_PAUSE.any() and self.align_episode: actions_list[ENV_PAUSE,:] = np.nan
         return actions_list, runner_info
-    
+
     # seperate observation between teams
     def _split_intel(self, runner_info:dict, t_members:range, t_name:str, t_index:int):
         # RUNNING = ~runner_info['ENV-PAUSE']
@@ -78,7 +78,7 @@ class MMPlatform(object):
             Team_Info = runner_info['Latest-Team-Info']
             # if a env just ended ('Env-Suffered-Reset'), the final step obs can be acquired here
             ter_obs_echo = np.array([self.__split_obs_thread(Team_Info[thread_idx]['obs-echo'], t_index)
-                            if done and ('obs-echo' in Team_Info[thread_idx]) else None 
+                            if done and ('obs-echo' in Team_Info[thread_idx]) else None
                             for thread_idx, done in enumerate(runner_info['Env-Suffered-Reset'])], dtype=object)
 
         o = self.__split_obs(runner_info['Latest-Obs'], t_index)
@@ -87,10 +87,10 @@ class MMPlatform(object):
         # summary
         t_intel_basic = {
             'Team_Name':            t_name,
-            'Latest-Obs':           o, 
+            'Latest-Obs':           o,
             'Latest-Team-Info':     Team_Info,
             'Env-Suffered-Reset':   runner_info['Env-Suffered-Reset'],
-            'Terminal-Obs-Echo':    ter_obs_echo, 
+            'Terminal-Obs-Echo':    ter_obs_echo,
             'ENV-PAUSE':            runner_info['ENV-PAUSE'],
             'Test-Flag':            runner_info['Test-Flag'],
             'Latest-Reward':        reward[:, t_members] if not self.RewardAsUnity else reward[:, t_index],
@@ -110,7 +110,7 @@ class MMPlatform(object):
                 t_intel_basic['_hook_'] = None
             # remove _hook_ key
             t_intel_basic.pop('_hook_')
-            
+
         # t_intel_basic = self.filter_running(t_intel_basic, RUNNING)
         return t_intel_basic
 
@@ -130,18 +130,18 @@ class MMPlatform(object):
 
 
     def _append_act_to_list(self, _act_:np.ndarray, actions_list:np.ndarray, t_members:range):
-        if not self.legacy_act_order: _act_ = np.swapaxes(_act_, 0, 1) 
+        if not self.legacy_act_order: _act_ = np.swapaxes(_act_, 0, 1)
         assert _act_.shape[0]==len(t_members), ('number of actions differs number of agents!')
         append_op = actions_list.append if self.ActAsUnity else actions_list.extend
         append_op(_act_)
         return actions_list
 
     def deal_with_hook(self, hook:callable, t_intel_basic:dict):
-        # use the hook left by algorithm to callback some function 
+        # use the hook left by algorithm to callback some function
         # to deliver reward and reset signals
         # assert self.L_RUNNING is not None
         # t_intel_basic = self.filter_running(t_intel_basic, self.L_RUNNING)
-        hook({  'reward':t_intel_basic['Latest-Reward'], 
+        hook({  'reward':t_intel_basic['Latest-Reward'],
                 'done': t_intel_basic['Env-Suffered-Reset'],
                 'info': t_intel_basic['Latest-Team-Info'],
                 'Latest-Obs':t_intel_basic['Latest-Obs'],
@@ -153,7 +153,7 @@ class MMPlatform(object):
             if (not hasattr(algo_fdn, 'on_notify')) or (not callable(algo_fdn.on_notify)): continue
             team_kargs = {k:v[t_index] for k,v in kargs.items()}
             algo_fdn.on_notify(message, **team_kargs)
-            
+
     def __split_obs(self, obs, t_index):
         # obs [n_thread, n_team/n_agent, coredim]
         if obs[0] is None:

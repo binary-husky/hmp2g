@@ -3,7 +3,7 @@ ActDigitLen = 100
 def strActionToDigits(act_string):
     t = [ord(c) for c in act_string]
     d_len = len(t)
-    assert d_len <= ActDigitLen
+    assert d_len <= ActDigitLen, ("Action string is tooo long! Don't be wordy. Or you can increase ActDigitLen above.")
     pad = [-1 for _ in range(ActDigitLen-d_len)]
     return (t+pad)
 
