@@ -36,6 +36,21 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+                {
+            "name": "hmp",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/hmp/hmp2g/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "/home/hmp/hmp2g",
+            "python": "/usr/bin/python3",
+            "args": [
+                "-c",
+                "/home/hmp/hmp2g/RESULT/pymarl_result/private_debug.jsonc"
+            ],
+
         }
     ]
 }

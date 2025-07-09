@@ -28,7 +28,24 @@
 	"titleBar.inactiveForeground": "#e7e7e799"
 },
 "[python]": {
-	"editor.defaultFormatter": "ms-python.black-formatter"
+	"editor.formatOnSave": true,  
+
+	"editor.codeActionsOnSave": {
+		"source.fixAll": "explicit",
+		"source.organizeImports": "explicit"
+	},
+	"editor.defaultFormatter": "charliermarsh.ruff",
 },
-"python.formatting.provider": "none",
+
+"notebook.formatOnSave.enabled": true,
+"notebook.codeActionsOnSave": {
+        "notebook.source.fixAll": "explicit",
+        "notebook.source.organizeImports": "explicit"
+},
+
+"ruff.lineLength": 88
+
+
+
+
 }
