@@ -1,11 +1,12 @@
-import time
+# 该文件定义了 HMP 框架的核心全局配置类
+
+
 import numpy as np
+
 from UTIL.colorful import *
 from UTIL.config_args import ChainVar
 
-
-
-'''
+"""
     GlobalConfig: This config class will be 'injected' with new settings from JSONC.
     (E.g., override configs with ```python main.py --cfg example.jsonc```)
     (As the name indicated, ChainVars will change WITH vars it 'chained_with' during config injection)
@@ -40,73 +41,110 @@ from UTIL.config_args import ChainVar
         you can choose two different algorithms to fight each other in the same env!
             - Please goto ./MISSION/env_router.py to find out where the ScenarioConfig of your env is written,
             - Please set ```TEAM_NAMES``` to include the path of your favored algorithm(s)
-'''
+"""
 
 
-class GlobalConfig(object): # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
-    align_episode = True                                # ! please try to understand this with TOP priority
+class GlobalConfig(object):  # ADD_TO_CONF_SYSTEM //DO NOT remove this comment//
+    """
+    HMP框架核心全局配置类
 
-    env_name = 'sr_tasks->cargo'                        # which environment, see ./MISSION/env_router.py
-    env_path = 'MISSION.sr_tasks.multiagent.cargo'      # path of environment, double check to prevent mistake
-    draw_mode = 'OFF'                                   # 'Img','Threejs','Web','Native' 
-    activate_logger = True                              # activate data plotting (Tensorboard is not used because I do not like it)
-    data_logger = 'auto load, do not change this var!'  # activate data plotting (Tensorboard is not used because I do not like it)
-    resume_mod = False                                  # resume unfinished
-    mt_act_order = 'old_method'                         # resume unfinished
-    mt_parallel = False                         # resume unfinished
+    功能特性：
+    - 支持动态配置注入（通过JSON配置文件）
+    - 使用链式变量(ChainVar)实现参数自动更新
+    - 包含环境/训练/日志等核心参数
 
-    seed = np.random.randint(0, 100000)                 # seed for numpy and pytorch
+    配置优先级：命令行参数 > JSON配置 > 默认值
+    """
 
-    # ! warning, the note also determine where the experiment log is stored, typically at ./RESULT/$note/*
-    note = 'more_testing'                               # in case you forget the purpose of this trainning session, write a note
-    logdir = './RESULT/%s/'%note
-    logdir_cv = ChainVar(lambda note: './RESULT/%s/'%note, chained_with=['note']) 
-    recall_previous_session = False                     # continue previously interrupted training session
+    # 环境同步控制
+    align_episode = True  # ! please try to understand this with TOP priority  True
 
-    test_only = False                                   # only testing and no training, it controlls a flag sending to Alg side
-    test_logger = 'test_only_profile.txt'               # logger path, experimental, writing win rate in a file
+    # 环境选择配置
+    env_name = "sr_tasks->cargo"  # 指定使用的环境名称，参考./MISSION/env_router.py
+    env_path = "MISSION.sr_tasks.multiagent.cargo"  # 环境路径（双重校验防止错误）
+    draw_mode = "OFF"  # 可视化模式：Img/Threejs/Web/Native
+    activate_logger = True  # 是否启用数据记录器（Tensorboard被弃用）
+    data_logger = "auto load, do not change this var!"  # 数据记录器状态
 
-    device = 'cuda'                                     # choose from 'cpu' (no GPU), 'cuda' (auto select GPU), 'cuda:3' (manual select GPU)
-    gpu_party = 'off'                                   # GPU memory is precious! assign multiple training process to a 'party', they will share GPU memory
-    manual_gpu_ctl = False                              # auto variable, do not change!
-    gpu_fraction = 1.0                                  # maximum GPU memory usage percent, e.g., 0.5 means using half GPU memory
+    # 恢复训练配置
+    resume_mod = False  # 是否恢复未完成的训练
+    mt_act_order = "old_method"  # 恢复模式下的动作顺序
+    mt_parallel = False  # 是否并行处理多线程任务
 
-    num_threads = 64                                    # run N parallel envs, a 'env' is refered to as a 'thread'
-    fold = 1                                            # A 'linux process' can handle multiple envs ('thread'), run N parallel envs, on (N//fold) processes
-                                                        # this 'folding' is designed for IPC efficiency, you can thank python GIL for such a strange design... 
-    
-    n_parallel_frame = int(5e6)                         # Number of frames to run (in each frame, all parallel-envs step once)
-    max_n_episode = int(2e5)                            # max number of episodes
+    # 随机种子设置
+    seed = np.random.randint(0, 100000)  # 随机种子（numpy和pytorch）
 
-    use_float64 = False                                 # force float64 when converting numpy->tensor
+    # 实验标识与日志路径
+    note = "more_testing"  # 实验备注（决定日志路径：./RESULT/$note/*）
+    logdir = "./RESULT/%s/" % note  # 日志存储目录
+    # 链式变量：自动跟随note变化
+    logdir_cv = ChainVar(lambda note: "./RESULT/%s/" % note, chained_with=["note"])
+    recall_previous_session = False  # 是否继续之前的训练会话
 
-    interested_team = 0                                 # the interested agents, used in reward recording
-    interested_agent_num = 50                           # the interested agents, used in reward recording
-    interested_agent_uid = range(0,50)                  # the indices of interested agents, used in reward recording
-    interested_agent_uid_cv = ChainVar(lambda interested_agent_num:range(0,interested_agent_num), chained_with=['interested_agent_num']) 
+    # 测试相关配置
+    test_only = False  # 仅测试模式开关
+    test_logger = "test_only_profile.txt"  # 测试日志路径
 
-    report_reward_interval = num_threads                # reporting interval
-    report_reward_interval_cv = ChainVar(lambda num_threads:num_threads, chained_with=['num_threads'])
+    # 设备选择与GPU管理
+    device = "cuda"  # 设备选择（cpu/cuda/cuda:x）
+    gpu_party = "off"  # GPU内存共享组（多个进程共享GPU内存）
+    manual_gpu_ctl = False  # 手动GPU控制标志（自动生成）
+    gpu_fraction = 1.0  # GPU内存使用比例（0-1.0）
 
-    train_time_testing = True                           # allow hmp to test algorithm policies every test_interval episodes
-    test_interval = 32*num_threads                      # test interval
-    test_interval_cv = ChainVar(lambda num_threads:4*num_threads, chained_with=['num_threads'])
+    # 并行计算配置
+    num_threads = 64  # 并行环境线程数
+    fold = 1  # 进程折叠数（提升IPC效率，感谢Python GIL的"馈赠"）
 
-    test_epoch = 32 if num_threads <= 32 else num_threads    # test epoch
-    test_epoch_cv = ChainVar(lambda num_threads: 32 if num_threads <= 32 else num_threads, chained_with=['num_threads'])
+    # 训练规模参数
+    n_parallel_frame = int(5e6)  # 总训练帧数（每帧所有环境执行一步）
+    max_n_episode = int(2e5)  # 最大训练回合数
 
-    ScenarioConfig = 'This ScenarioConfig var will be automatically linked to task configuration later in ./MISSION/env_router.py'
+    # 数值精度控制
+    use_float64 = False  # 是否强制使用float64精度
 
+    # 感兴趣的智能体配置
+    interested_team = 0  # 需要记录奖励的团队ID
+    interested_agent_num = 50  # 感兴趣的智能体数量
+    interested_agent_uid = range(0, 50)  # 智能体索引范围（自动根据数量生成）
+    interested_agent_uid_cv = ChainVar(
+        lambda interested_agent_num: range(0, interested_agent_num),
+        chained_with=["interested_agent_num"],
+    )  # 链式变量：自动跟随智能体数量变化
 
-    backup_files = []                                   # a list of files that needs to be backed up at each run
-    hmap_logger = None                                  # this is just a global logger
-    heartbeat_on = True                                 # some fancy commandline visual effect to show that envirenment is running
-    
-    cfg_ready = False                                   # DO NOT change! automatically set to True when Json configuration is all locked-and-loaded
+    # 报告间隔设置
+    report_reward_interval = num_threads  # 奖励报告间隔
+    # 链式变量：自动跟随线程数变化
+    report_reward_interval_cv = ChainVar(
+        lambda num_threads: num_threads, chained_with=["num_threads"]
+    )
 
-    # ! uploading "./RESULT/$note" to a data storage server 
-    allow_res_upload = True                             # upload results to a data storage server when exiting
-    upload_after_test = False                           # upload results to a data storage server when completing a test run
-    machine_info = 'auto load, do not change this var!'
-    remote_server_ops = ""
-    # KEY = {"addr": None, "usr":None, "pwd":None}        # data storage server ip addr, username and password
+    # 测试策略配置
+    train_time_testing = True  # 是否在训练期间进行测试
+    test_interval = 32 * num_threads  # 测试间隔（依赖num_threads）
+    # 链式变量：自动跟随线程数变化
+    test_interval_cv = ChainVar(
+        lambda num_threads: 4 * num_threads, chained_with=["num_threads"]
+    )
+    test_epoch = 32 if num_threads <= 32 else num_threads  # 测试轮数
+    # 链式变量：自动跟随线程数变化
+    test_epoch_cv = ChainVar(
+        lambda num_threads: 32 if num_threads <= 32 else num_threads,
+        chained_with=["num_threads"],
+    )
+
+    # 任务特定配置（自动链接）
+    ScenarioConfig = "This ScenarioConfig var will be automatically linked to task configuration later in ./MISSION/env_router.py"
+
+    # 日志与备份配置
+    backup_files = []  # 需要备份的文件列表
+    hmap_logger = None  # 全局日志记录器
+    heartbeat_on = True  # 是否启用心跳提示（命令行视觉效果）
+
+    # 内部状态标志
+    cfg_ready = False  # 配置就绪标志（自动设置为True）
+
+    # 结果上传配置
+    allow_res_upload = True  # 是否允许退出时上传结果
+    upload_after_test = False  # 是否在测试完成后上传结果
+    machine_info = "auto load, do not change this var!"  # 机器信息（自动生成）
+    remote_server_ops = ""  # 远程服务器操作指令
