@@ -1,8 +1,22 @@
-import socket, threading, pickle, uuid, os, atexit, time, json, psutil
-from UTIL.file_lock import FileLock
-port_finder = os.path.expanduser('~/HmapTemp') + '/PortFinder/find_free_port_no_repeat.json'
+import atexit
+import json
+import os
+import pickle
+import socket
+import threading
+import time
+import uuid
 
-def check_pid(pid):        
+import psutil
+
+from UTIL.file_lock import FileLock
+
+port_finder = (
+    os.path.expanduser("~/HmapTemp") + "/PortFinder/find_free_port_no_repeat.json"
+)
+
+
+def check_pid(pid):
     return psutil.pid_exists(pid)
     #     return True
     # """ Check For the existence of a unix pid. """
@@ -12,67 +26,71 @@ def check_pid(pid):
     #     return False
     # else:
     #     return True
-    
+
+
 def find_free_port():
     from contextlib import closing
+
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(('', 0))
+        s.bind(("", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
 
 
 def find_free_port_no_repeat():
     fp = port_finder
+
     def read():
         if not os.path.exists(fp):
-            with open(fp, "w") as f: pass
+            with open(fp, "w") as f:
+                pass
 
         try:
-            with open(fp, "r+") as f: ports_to_be_taken = json.load(f)
+            with open(fp, "r+") as f:
+                ports_to_be_taken = json.load(f)
         except:
             ports_to_be_taken = {}
         return ports_to_be_taken
-    
+
     def write(ports_to_be_taken):
         # clean outdated
         for port in list(ports_to_be_taken.keys()):
-            if not check_pid(ports_to_be_taken[port]['pid']):
+            if not check_pid(ports_to_be_taken[port]["pid"]):
                 ports_to_be_taken.pop(port)
-                print('removing dead item', port)
+                print("removing dead item", port)
 
         with open(fp, "w") as f:
             json.dump(ports_to_be_taken, fp=f)
 
-
-    with FileLock(fp+'.lock'):
-
+    with FileLock(fp + ".lock"):
         ports_to_be_taken = read()
-        
+
         while True:
             new_port = find_free_port()
             if str(new_port) not in ports_to_be_taken:
                 break
             else:
-                print('port taken, change another')
-        print('find port:', new_port)
+                print("port taken, change another")
+        print("find port:", new_port)
 
         ports_to_be_taken[str(new_port)] = {
-            'time': time.time(),
-            'pid': os.getpid(),
-        } 
+            "time": time.time(),
+            "pid": os.getpid(),
+        }
         write(ports_to_be_taken)
 
     def release_fn(port):
-        with FileLock(fp+'.lock'):
+        with FileLock(fp + ".lock"):
             ports_to_be_taken = read()
-            if str(port) in ports_to_be_taken: 
+            if str(port) in ports_to_be_taken:
                 ports_to_be_taken.pop(str(port))
             else:
                 pass
             write(ports_to_be_taken)
         return release_fn
-    
+
     import atexit
+
     atexit.register(release_fn, port=new_port)
 
     return new_port, release_fn
@@ -81,9 +99,9 @@ def find_free_port_no_repeat():
 def get_host_ip():
     ip = None
     try:
-        s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8',80))  # if fail here, please connect Internet to get IP?
-        ip=s.getsockname()[0]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))  # if fail here, please connect Internet to get IP?
+        ip = s.getsockname()[0]
     finally:
         s.close()
     return ip
@@ -92,28 +110,36 @@ def get_host_ip():
 BUFSIZE = 10485760
 # ip_port = ('127.0.0.1', 9999)
 DEBUG_NETWORK = False
+
+
 class UdpServer:
-    def __init__(self, ip_port, obj='bytes') -> None:
+    def __init__(self, ip_port, obj="bytes") -> None:
         self.ip_port = ip_port
         self.server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.server.bind(self.ip_port)
         self.most_recent_client = None
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         return
 
     def wait_next_dgram(self):
         data, self.most_recent_client = self.server.recvfrom(BUFSIZE)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('recv from :', self.most_recent_client, ' data :', data)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("recv from :", self.most_recent_client, " data :", data)
         return data
 
     def reply_last_client(self, data):
         assert self.most_recent_client is not None
-        if DEBUG_NETWORK: print('reply_last_client :', self.most_recent_client, ' data :', data)
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if DEBUG_NETWORK:
+            print("reply_last_client :", self.most_recent_client, " data :", data)
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.server.sendto(data, self.most_recent_client)
         return
 
@@ -121,29 +147,38 @@ class UdpServer:
         self.server.close()
         return
 
+
 class UdpTargetedClient:
-    def __init__(self, target_ip_port, obj='bytes') -> None:
+    def __init__(self, target_ip_port, obj="bytes") -> None:
         self.target_ip_port = target_ip_port
-        self.client = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         return
 
     def send_dgram_to_target(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.client.sendto(data, self.target_ip_port)
-        if DEBUG_NETWORK: print('send_targeted_dgram :', self.target_ip_port, ' data :', data)
+        if DEBUG_NETWORK:
+            print("send_targeted_dgram :", self.target_ip_port, " data :", data)
         return
 
     def send_and_wait_reply(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.client.sendto(data, self.target_ip_port)
         data, _ = self.client.recvfrom(BUFSIZE)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('get_reply :', self.target_ip_port, ' data :', data)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("get_reply :", self.target_ip_port, " data :", data)
         return data
 
 
@@ -167,31 +202,41 @@ class UdpTargetedClient:
 # thread_hi.start()
 # thread_hello.start()
 
+
 class UnixUdpServer:
-    def __init__(self, unix_path, obj='bytes') -> None:
-        try: os.makedirs(os.path.dirname(unix_path))
-        except: pass
+    def __init__(self, unix_path, obj="bytes") -> None:
+        try:
+            os.makedirs(os.path.dirname(unix_path))
+        except:
+            pass
         self.unix_path = unix_path
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         self.server.bind(self.unix_path)
         self.most_recent_client = None
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         return
 
     def wait_next_dgram(self):
         data, self.most_recent_client = self.server.recvfrom(BUFSIZE)
-        if DEBUG_NETWORK: print('self.most_recent_client',self.most_recent_client)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('recv from :', self.most_recent_client, ' data :', data)
+        if DEBUG_NETWORK:
+            print("self.most_recent_client", self.most_recent_client)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("recv from :", self.most_recent_client, " data :", data)
         return data
 
     def reply_last_client(self, data):
         assert self.most_recent_client is not None
-        if DEBUG_NETWORK: print('reply_last_client :', self.most_recent_client, ' data :', data)
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if DEBUG_NETWORK:
+            print("reply_last_client :", self.most_recent_client, " data :", data)
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.server.sendto(data, self.most_recent_client)
         return
 
@@ -200,36 +245,45 @@ class UnixUdpServer:
         os.unlink(self.unix_path)
         return
 
+
 class UnixUdpTargetedClient:
-    def __init__(self, target_unix_path, self_unix_path=None, obj='bytes') -> None:
+    def __init__(self, target_unix_path, self_unix_path=None, obj="bytes") -> None:
         self.target_unix_path = target_unix_path
         if self_unix_path is not None:
-            self.self_unix_path = self_unix_path  
+            self.self_unix_path = self_unix_path
         else:
-            self.self_unix_path = target_unix_path+'_client_'+uuid.uuid1().hex[:5]
+            self.self_unix_path = target_unix_path + "_client_" + uuid.uuid1().hex[:5]
         self.client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         self.client.bind(self.self_unix_path)
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         return
 
     def send_dgram_to_target(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.client.sendto(data, self.target_unix_path)
-        if DEBUG_NETWORK: print('send_targeted_dgram :', self.target_unix_path, ' data :', data)
+        if DEBUG_NETWORK:
+            print("send_targeted_dgram :", self.target_unix_path, " data :", data)
         return
 
     def send_and_wait_reply(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.client.sendto(data, self.target_unix_path)
         data, _ = self.client.recvfrom(BUFSIZE)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('get_reply :', self.target_unix_path, ' data :', data)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("get_reply :", self.target_unix_path, " data :", data)
         return data
-    
+
     def __del__(self):
         self.client.close()
         os.unlink(self.self_unix_path)
@@ -258,17 +312,20 @@ class UnixUdpTargetedClient:
 # thread_hello.start()
 
 
-
 class StreamingPackageSep:
     def __init__(self):
-        self.buff = [b'']
-        self.myEOF = b'\xaa\x55\xaaHMP\xaa\x55'    # those bytes follow 010101 or 101010 pattern
+        self.buff = [b""]
+        self.myEOF = (
+            b"\xaa\x55\xaaHMP\xaa\x55"  # those bytes follow 010101 or 101010 pattern
+        )
         # self.myEOF = b'#A5@5A#'    # the EOF string for frame seperation
 
     def lower_send(self, data, connection):
-        if DEBUG_NETWORK: assert self.myEOF not in data, 'This is (almost) not possible!'
+        if DEBUG_NETWORK:
+            assert self.myEOF not in data, "This is (almost) not possible!"
         data = data + self.myEOF
-        if DEBUG_NETWORK: print('data length:', len(data))
+        if DEBUG_NETWORK:
+            print("data length:", len(data))
         connection.send(data)
 
     def lowest_recv(self, connection):
@@ -280,23 +337,25 @@ class StreamingPackageSep:
             if len(split_res) == 1:
                 # 说明没有终止符，直接将结果贴到buf最后一项
                 self.buff[-1] = self.buff[-1] + split_res[0]
-                if self.myEOF in self.buff[-1]: self.handle_flag_breakdown()
+                if self.myEOF in self.buff[-1]:
+                    self.handle_flag_breakdown()
             else:
                 n_split = len(split_res)
                 for i, r in enumerate(split_res):
-                    self.buff[-1] = self.buff[-1] + r   # 追加buff
-                    if i == 0 and (self.myEOF in self.buff[-1]): 
+                    self.buff[-1] = self.buff[-1] + r  # 追加buff
+                    if i == 0 and (self.myEOF in self.buff[-1]):
                         # 第一次追加后，在修复的数据断面上发现了myEOF！
                         self.handle_flag_breakdown()
-                    if i != n_split-1: 
+                    if i != n_split - 1:
                         # starts a new entry
-                        self.buff.append(b'')
-                    else:  
+                        self.buff.append(b"")
+                    else:
                         # i == n_split-1, which is the last item
-                        if r == b'': continue
-            if len(self.buff)>=2:
+                        if r == b"":
+                            continue
+            if len(self.buff) >= 2:
                 # 数据成型，拿取成型的数据
-                buff_list = self.buff[:-1]  
+                buff_list = self.buff[:-1]
                 self.buff = self.buff[-1:]
                 return buff_list
 
@@ -304,137 +363,172 @@ class StreamingPackageSep:
     def lower_recv(self, connection, expect_single=True):
         buff_list = self.lowest_recv(connection)
         if expect_single:
-            assert len(buff_list) == 1, ('一次拿到了多帧数据, 但expect_single=True, 触发错误.', buff_list)
+            assert len(buff_list) == 1, (
+                "一次拿到了多帧数据, 但expect_single=True, 触发错误.",
+                buff_list,
+            )
             return buff_list[0], connection
         else:
             return buff_list, connection
 
-
     def handle_flag_breakdown(self):
         split_ = self.buff[-1].split(self.myEOF)
-        assert len(split_)==2
+        assert len(split_) == 2
         self.buff[-1] = split_[0]
         # starts a new entry
-        self.buff.append(b'')
+        self.buff.append(b"")
         self.buff[-1] = split_[1]
         return
 
 
-
 # send() is used for TCP SOCK_STREAM connected sockets, and sendto() is used for UDP SOCK_DGRAM unconnected datagram sockets
 class UnixTcpServerP2P(StreamingPackageSep):
-    def __init__(self, unix_path, obj='bytes') -> None:
+    def __init__(self, unix_path, obj="bytes") -> None:
         super().__init__()
-        try: os.makedirs(os.path.dirname(unix_path))
-        except: pass
+        try:
+            os.makedirs(os.path.dirname(unix_path))
+        except:
+            pass
         self.unix_path = unix_path
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.server.bind(self.unix_path)
         self.server.listen()
         self.most_recent_client = None
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         atexit.register(self.__del__)
 
     def accept_conn(self):
-        conn, _  = self.server.accept()
+        conn, _ = self.server.accept()
         return conn
 
     def wait_next_dgram(self):
-        if self.most_recent_client is None: self.most_recent_client, _ = self.server.accept()
+        if self.most_recent_client is None:
+            self.most_recent_client, _ = self.server.accept()
         data, self.most_recent_client = self.lower_recv(self.most_recent_client)
-        if DEBUG_NETWORK: print('self.most_recent_client',self.most_recent_client)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('recv from :', self.most_recent_client, ' data :', data)
+        if DEBUG_NETWORK:
+            print("self.most_recent_client", self.most_recent_client)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("recv from :", self.most_recent_client, " data :", data)
         return data
 
     def reply_last_client(self, data):
         assert self.most_recent_client is not None
-        if DEBUG_NETWORK: print('reply_last_client :', self.most_recent_client, ' data :', data)
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if DEBUG_NETWORK:
+            print("reply_last_client :", self.most_recent_client, " data :", data)
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.lower_send(data, self.most_recent_client)
         return
 
     def __del__(self):
         self.server.close()
-        try: os.unlink(self.unix_path)
-        except: pass
+        try:
+            os.unlink(self.unix_path)
+        except:
+            pass
         return
 
 
 class UnixTcpServerMultiClient(StreamingPackageSep):
-    def __init__(self, unix_path, obj='bytes') -> None:
+    def __init__(self, unix_path, obj="bytes") -> None:
         super().__init__()
-        try: os.makedirs(os.path.dirname(unix_path))
-        except: pass
+        try:
+            os.makedirs(os.path.dirname(unix_path))
+        except:
+            pass
         self.unix_path = unix_path
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.server.bind(self.unix_path)
         self.server.listen()
         self.most_recent_client = None
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         self.on_receive_data = lambda data: data
         atexit.register(self.__del__)
 
     def serve_clients(self, most_recent_client):
         while True:
             data, most_recent_client = self.lower_recv(most_recent_client)
-            if self.convert_str: data = data.decode('utf8')
-            if self.use_pickle: data = pickle.loads(data)
+            if self.convert_str:
+                data = data.decode("utf8")
+            if self.use_pickle:
+                data = pickle.loads(data)
             reply = self.on_receive_data(data)
-            if self.use_pickle: reply = pickle.dumps(reply)
-            if self.convert_str: reply = bytes(reply, encoding='utf8')
+            if self.use_pickle:
+                reply = pickle.dumps(reply)
+            if self.convert_str:
+                reply = bytes(reply, encoding="utf8")
             self.lower_send(reply, most_recent_client)
-            if data == 'offline': break
+            if data == "offline":
+                break
 
     def be_online(self):
         while True:
             most_recent_client, _ = self.server.accept()
-            t = threading.Thread(target=self.serve_clients, args=(most_recent_client, ))
+            t = threading.Thread(target=self.serve_clients, args=(most_recent_client,))
             t.daemon = True
             t.start()
 
     def __del__(self):
         self.server.close()
-        try: os.unlink(self.unix_path)
-        except: pass
+        try:
+            os.unlink(self.unix_path)
+        except:
+            pass
         return
 
+
 class UnixTcpClientP2P(StreamingPackageSep):
-    def __init__(self, target_unix_path, self_unix_path=None, obj='bytes') -> None:
+    def __init__(self, target_unix_path, self_unix_path=None, obj="bytes") -> None:
         super().__init__()
         self.target_unix_path = target_unix_path
         if self_unix_path is not None:
-            self.self_unix_path = self_unix_path  
+            self.self_unix_path = self_unix_path
         else:
-            self.self_unix_path = target_unix_path+'_client_'+uuid.uuid1().hex[:5]
+            self.self_unix_path = target_unix_path + "_client_" + uuid.uuid1().hex[:5]
         self.client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.client.bind(self.self_unix_path)
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         self.connected = False
         atexit.register(self.__del__)
 
     def send_dgram_to_target(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
-        if not self.connected: self.client.connect(self.target_unix_path); self.connected = True
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
+        if not self.connected:
+            self.client.connect(self.target_unix_path)
+            self.connected = True
         self.lower_send(data, self.client)
-        if DEBUG_NETWORK: print('send_targeted_dgram :', self.client, ' data :', data)
+        if DEBUG_NETWORK:
+            print("send_targeted_dgram :", self.client, " data :", data)
         return
 
     def send_and_wait_reply(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
-        if not self.connected: self.client.connect(self.target_unix_path); self.connected = True
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
+        if not self.connected:
+            self.client.connect(self.target_unix_path)
+            self.connected = True
         self.lower_send(data, self.client)
         data, _ = self.lower_recv(self.client)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('get_reply :', self.client, ' data :', data)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("get_reply :", self.client, " data :", data)
         return data
 
     def __del__(self):
@@ -442,7 +536,8 @@ class UnixTcpClientP2P(StreamingPackageSep):
         os.unlink(self.self_unix_path)
         return
 
-'''
+
+"""
 
     remote_uuid = uuid.uuid1().hex   # use uuid to identify threads
 
@@ -472,55 +567,69 @@ class UnixTcpClientP2P(StreamingPackageSep):
     thread_hi.start()
     thread_hello.start()
 
-'''
-
+"""
 
 
 # send() is used for TCP SOCK_STREAM connected sockets, and sendto() is used for UDP SOCK_DGRAM unconnected datagram sockets
 class TcpServerP2P(StreamingPackageSep):
-    def __init__(self, ip_port, obj='bytes') -> None:
+    def __init__(self, ip_port, obj="bytes") -> None:
         super().__init__()
         self.ip_port = ip_port
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind(self.ip_port)
         self.server.listen()
         self.most_recent_client = None
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         atexit.register(self.__del__)
 
     def accept_conn(self):
-        conn, _  = self.server.accept()
+        conn, _ = self.server.accept()
         return conn
 
     def manual_wait_connection(self):
-        if self.most_recent_client is None: 
+        if self.most_recent_client is None:
             self.most_recent_client, _ = self.server.accept()
         return
 
     def wait_next_dgram(self):
-        if self.most_recent_client is None: self.most_recent_client, _ = self.server.accept()
+        if self.most_recent_client is None:
+            self.most_recent_client, _ = self.server.accept()
         data, self.most_recent_client = self.lower_recv(self.most_recent_client)
-        if DEBUG_NETWORK: print('self.most_recent_client',self.most_recent_client)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('recv from :', self.most_recent_client, ' data :', data)
+        if DEBUG_NETWORK:
+            print("self.most_recent_client", self.most_recent_client)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("recv from :", self.most_recent_client, " data :", data)
         return data
 
     def wait_multi_dgrams(self):
-        if self.most_recent_client is None: self.most_recent_client, _ = self.server.accept()
-        data_list, self.most_recent_client = self.lower_recv(self.most_recent_client, expect_single=False)
-        if DEBUG_NETWORK: print('self.most_recent_client',self.most_recent_client)
-        if self.convert_str: data_list = [data.decode('utf8') for data in data_list]
-        if self.use_pickle: data_list = [pickle.loads(data) for data in data_list]
-        if DEBUG_NETWORK: print('recv from :', self.most_recent_client, ' data_list :', data_list)
+        if self.most_recent_client is None:
+            self.most_recent_client, _ = self.server.accept()
+        data_list, self.most_recent_client = self.lower_recv(
+            self.most_recent_client, expect_single=False
+        )
+        if DEBUG_NETWORK:
+            print("self.most_recent_client", self.most_recent_client)
+        if self.convert_str:
+            data_list = [data.decode("utf8") for data in data_list]
+        if self.use_pickle:
+            data_list = [pickle.loads(data) for data in data_list]
+        if DEBUG_NETWORK:
+            print("recv from :", self.most_recent_client, " data_list :", data_list)
         return data_list
 
     def reply_last_client(self, data):
         assert self.most_recent_client is not None
-        if DEBUG_NETWORK: print('reply_last_client :', self.most_recent_client, ' data :', data)
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
+        if DEBUG_NETWORK:
+            print("reply_last_client :", self.most_recent_client, " data :", data)
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
         self.lower_send(data, self.most_recent_client)
         return
 
@@ -531,43 +640,61 @@ class TcpServerP2P(StreamingPackageSep):
     def close(self):
         self.server.close()
 
+
 class TcpClientP2P(StreamingPackageSep):
-    def __init__(self, target_ip_port, self_ip_port=None, obj='bytes') -> None:
+    def __init__(self, target_ip_port, self_ip_port=None, obj="bytes") -> None:
         super().__init__()
         self.target_ip_port = target_ip_port
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.use_pickle = (obj=='pickle')
-        self.convert_str = (obj=='str')
+        self.use_pickle = obj == "pickle"
+        self.convert_str = obj == "str"
         self.connected = False
         atexit.register(self.__del__)
 
     def send_dgram_to_target(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
-        if not self.connected: self.client.connect(self.target_ip_port); self.connected = True
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
+        if not self.connected:
+            self.client.connect(self.target_ip_port)
+            self.connected = True
         self.lower_send(data, self.client)
-        if DEBUG_NETWORK: print('send_targeted_dgram :', self.client, ' data :', data)
+        if DEBUG_NETWORK:
+            print("send_targeted_dgram :", self.client, " data :", data)
         return
 
     def manual_connect(self):
-        if not self.connected: self.client.connect(self.target_ip_port); self.connected = True
+        if not self.connected:
+            self.client.connect(self.target_ip_port)
+            self.connected = True
 
     def send_and_wait_reply(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        if self.convert_str: data = bytes(data, encoding='utf8')
-        if not self.connected: self.client.connect(self.target_ip_port); self.connected = True
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        if self.convert_str:
+            data = bytes(data, encoding="utf8")
+        if not self.connected:
+            self.client.connect(self.target_ip_port)
+            self.connected = True
         self.lower_send(data, self.client)
         data, _ = self.lower_recv(self.client)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('get_reply :', self.client, ' data :', data)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("get_reply :", self.client, " data :", data)
         return data
 
     def wait_reply(self):
         data, _ = self.lower_recv(self.client)
-        if self.convert_str: data = data.decode('utf8')
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('get_reply :', self.client, ' data :', data)
+        if self.convert_str:
+            data = data.decode("utf8")
+        if self.use_pickle:
+            data = pickle.loads(data)
+        if DEBUG_NETWORK:
+            print("get_reply :", self.client, " data :", data)
         return data
 
     def __del__(self):
@@ -576,7 +703,9 @@ class TcpClientP2P(StreamingPackageSep):
 
     def close(self):
         self.client.close()
-'''
+
+
+"""
 
     ipport = ('127.0.0.1', 25453)
     server = TcpServerP2P(ipport, obj='pickle')
@@ -592,74 +721,124 @@ class TcpClientP2P(StreamingPackageSep):
     thread_hi.start()
     thread_hello.start()
 
-'''
+"""
+
 
 class TcpClientP2PWithCompress(StreamingPackageSep):
-    def __init__(self, target_ip_port, self_ip_port=None, obj='bytes') -> None:
+    def __init__(self, target_ip_port, self_ip_port=None, obj="bytes") -> None:
+        # 导入 lz4 压缩算法模块
         import lz4.block as lz4block
+
+        # 将 lz4block 存储为实例属性，用于后续压缩/解压操作
         self.lz4block = lz4block
+        # 初始化解压时的缓冲区大小（uncompressed_size）
         self.try_decom_usize = 255
+
+        # 调用父类 StreamingPackageSep 的构造函数
         super().__init__()
+        # 目标服务器地址（IP+端口）
         self.target_ip_port = target_ip_port
+        # 创建 TCP 套接字对象
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.use_pickle = (obj=='pickle')
-        assert not (obj=='str')
+        # 判断是否启用 pickle 序列化（obj参数为"pickle"时启用）
+        self.use_pickle = obj == "pickle"
+        # 禁止使用字符串模式（obj参数为"str"时会触发断言错误）
+        assert not (obj == "str")
+        # 连接状态标志位
         self.connected = False
+        # 注册析构函数，在程序退出时自动调用 __del__
         atexit.register(self.__del__)
 
     def decompress(self, data):
+        # 动态调整解压缓冲区大小的解压方法
         while True:
             try:
-                decompressed = self.lz4block.decompress(data, uncompressed_size=self.try_decom_usize)
+                # 尝试用当前缓冲区大小解压数据
+                decompressed = self.lz4block.decompress(
+                    data, uncompressed_size=self.try_decom_usize
+                )
                 return decompressed
             except:
+                # 解压失败时扩大缓冲区（指数增长）
                 self.try_decom_usize *= 2
-                if self.try_decom_usize > 10485760: # 10 MB
+                # 如果超过最大限制（10MB）则抛出异常
+                if self.try_decom_usize > 10485760:  # 10 MB
                     assert False, "compression failure"
         return None
 
     def compress(self, data):
+        # 使用 lz4 压缩数据（不存储原始大小信息）
         compressed = self.lz4block.compress(data, store_size=False)
         return compressed
 
     def send_dgram_to_target(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        data = bytes(data, encoding='utf8')
-        if not self.connected: self.client.connect(self.target_ip_port); self.connected = True
+        # 如果启用 pickle 则先序列化数据
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        # 将数据转换为 utf8 字节流（注意：此处强制要求输入为字符串）
+        data = bytes(data, encoding="utf8")
+        # 如果未连接则建立连接
+        if not self.connected:
+            self.client.connect(self.target_ip_port)
+            self.connected = True
+        # 压缩数据
         data = self.compress(data)
+        # 通过父类方法发送数据
         self.lower_send(data, self.client)
-        if DEBUG_NETWORK: print('send_targeted_dgram :', self.client, ' data :', data)
+        # 调试模式打印发送信息
+        if DEBUG_NETWORK:
+            print("send_targeted_dgram :", self.client, " data :", data)
         return
 
     def manual_connect(self):
-        if not self.connected: self.client.connect(self.target_ip_port); self.connected = True
+        # 手动建立连接的方法
+        if not self.connected:
+            self.client.connect(self.target_ip_port)
+            self.connected = True
 
     def send_and_wait_reply(self, data):
-        if self.use_pickle: data = pickle.dumps(data)
-        data = bytes(data, encoding='utf8')
-        if not self.connected: self.client.connect(self.target_ip_port); self.connected = True
+        # 如果启用 pickle 则先序列化数据
+        if self.use_pickle:
+            data = pickle.dumps(data)
+        # 转换为 utf8 字节流（同上，需注意输入类型）
+        data = bytes(data, encoding="utf8")
+        # 如果未连接则建立连接
+        if not self.connected:
+            self.client.connect(self.target_ip_port)
+            self.connected = True
+        # 压缩数据
         data = self.compress(data)
+        # 发送数据
         self.lower_send(data, self.client)
+        # 接收响应数据
         data, _ = self.lower_recv(self.client)
+        # 解压数据
         data = self.decompress(data)
-        if self.use_pickle: data = pickle.loads(data)
-        if DEBUG_NETWORK: print('get_reply :', self.client, ' data :', data)
+        # 如果启用 pickle 则反序列化
+        if self.use_pickle:
+            data = pickle.loads(data)
+        # 调试模式打印响应信息
+        if DEBUG_NETWORK:
+            print("get_reply :", self.client, " data :", data)
         return data
 
     def __del__(self):
+        # 析构函数调用关闭方法
         self.close()
         return
 
     def close(self):
+        # 关闭 TCP 连接
         self.client.close()
 
-class QueueOnTcpClient():
+
+class QueueOnTcpClient:
     def __init__(self, ip):
-        TCP_IP, TCP_PORT = ip.split(':')
+        TCP_IP, TCP_PORT = ip.split(":")
         TCP_PORT = int(TCP_PORT)
         ip_port = (TCP_IP, TCP_PORT)
 
-        self.tcpClientP2P = TcpClientP2P(ip_port, obj='str')
+        self.tcpClientP2P = TcpClientP2P(ip_port, obj="str")
         self.tcpClientP2P.manual_connect()
 
     def send_str(self, b_msg):
@@ -667,20 +846,22 @@ class QueueOnTcpClient():
 
     def wait_reply(self):
         return self.tcpClientP2P.wait_reply()
-    
+
     def close(self):
         self.tcpClientP2P.close()
 
     def __del__(self):
         self.close()
 
-class QueueOnTcpServer():
+
+class QueueOnTcpServer:
     def __init__(self, ip_port):
         from UTIL.network import TcpServerP2P
-        self.tcpServerP2P = TcpServerP2P(ip_port, obj='str')
+
+        self.tcpServerP2P = TcpServerP2P(ip_port, obj="str")
         self.handler = None
         self.queue = None
-        self.buff = ['']
+        self.buff = [""]
 
     def wait_connection(self):
         self.tcpServerP2P.manual_wait_connection()
@@ -691,9 +872,9 @@ class QueueOnTcpServer():
     def listening_thread(self):
         while True:
             buff_list = self.tcpServerP2P.wait_multi_dgrams()
-            if self.handler is not None: 
+            if self.handler is not None:
                 self.handler(buff_list)
-            if self.queue is not None: 
+            if self.queue is not None:
                 self.queue.put(buff_list)
 
     def set_handler(self, handler):
@@ -701,6 +882,7 @@ class QueueOnTcpServer():
 
     def get_queue(self):
         import queue
+
         self.queue = queue.Queue()
         return self.queue
 

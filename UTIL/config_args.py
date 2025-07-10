@@ -419,7 +419,7 @@ def prepare_alg_tmp_folder(json_data):
         TEAM_NAMES = json_data[mission_key]["TEAM_NAMES"]  # 获取团队名称列表
 
         for tname in TEAM_NAMES:  # 遍历所有团队名称
-            if not tname.startswith("TEMP"):  # 跳过非临时目录
+            if not tname.startswith("TEMP"):  # 跳过非临时目录 
                 continue
 
             # 解析路径并查找算法源路径
